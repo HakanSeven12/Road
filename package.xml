@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no" ?>
 <package format="1" xmlns="https://wiki.freecad.org/Package_Metadata">
   <name>Road</name>
-  <description>Trails is the Transportation and Geomatics Engineering workbench for FreeCAD.</description>
+  <description>Road is the Transportation and Geomatics Engineering workbench for FreeCAD.</description>
   <version>2025.01.01</version>
   <date>2025.01.01</date>
   <maintainer email="hakanseven12@gmail.com">Hakan Seven</maintainer>
