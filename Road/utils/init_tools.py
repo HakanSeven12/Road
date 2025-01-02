@@ -28,9 +28,10 @@ def get_point_commands():
 
 def get_surface_commands():
     """Return the surface commands list."""
-    return ['Create Terrain',
-            'Terrain Data',
-            'Terrain Edit']
+    return ["Create Terrain",
+            "Terrain Data",
+            "Terrain Edit",
+            "Terrain Demolish"]
 
 def get_alignment_commands():
     """Return the alignment commands list."""
@@ -41,20 +42,20 @@ def get_alignment_commands():
 
 def get_section_commands():
     """Return the section commands list."""
-    return ['Create Region',
-            'Create Sections',
-            'Compute Areas',
-            'Create Table']
+    return ["Create Region",
+            "Create Sections",
+            "Compute Areas",
+            "Create Table"]
 
 def get_geoline_commands():
     """Return the geoline commands list."""
-    return ['Create Pad']
+    return ["Create Pad"]
 
 def get_io_commands():
     """Return the input/output commands list."""
-    return ['LandXML Importer',
-            'Import Points',
-            'Export Points']
+    return ["LandXML Importer",
+            "Import Points",
+            "Export Points"]
 
 def init_toolbar(workbench, toolbar, cmd_list):
     """Initialize a toolbar.

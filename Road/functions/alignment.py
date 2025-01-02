@@ -159,6 +159,9 @@ def get_geometry(alignment_data):
     shapes.append(end_tangent)
 
     shape = Part.makeCompound(shapes)
+    #edges = Part.__sortEdges__(shapes)
+    #shape = Part.Wire(edges[0])
+
     return all_points, shape
 
 def transformation(shape, stations, last=False):

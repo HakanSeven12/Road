@@ -37,6 +37,7 @@ from .guitools import gui_point_export
 from .guitools import gui_terrain_create
 from .guitools import gui_terrain_data
 from .guitools import gui_terrain_edit
+from .guitools import gui_terrain_demolish
 from .guitools import gui_region
 from .guitools import gui_sections
 from .guitools import gui_volume
