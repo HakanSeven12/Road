@@ -65,7 +65,7 @@ class CreatePad:
         Command activation method
         """
         slope = 1
-        lenght = 30000
+        length = 30000
         self.origin = georigin()
 
         polyline = FreeCADGui.Selection.getSelection()[-2]
@@ -90,10 +90,10 @@ class CreatePad:
 
     def get_secpts(self,slope, z):
         shape = self.copy_shape.copy()
-        lenght = z - shape.Placement.Base.z
-        shape.Placement.move(FreeCAD.Vector(0,0, slope*lenght))
+        length = z - shape.Placement.Base.z
+        shape.Placement.move(FreeCAD.Vector(0,0, slope*length))
         offpoints = shape.makeOffset2D(
-            abs(lenght)).discretize(Angular=1,Curvature=100,Minimum=2)
+            abs(length)).discretize(Angular=1,Curvature=100,Minimum=2)
 
         self.pg.Vectors = offpoints + self.points
         self.terrain.PointGroups = [self.pg]

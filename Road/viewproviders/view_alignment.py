@@ -70,7 +70,7 @@ class ViewProviderAlignment:
 
         vobj.addProperty(
             "App::PropertyVector", "LabelOffset", "Label Placement",
-            "Points of referance for station label").LabelOffset = FreeCAD.Vector(vobj.OffsetX, vobj.OffsetY)
+            "Points of reference for station label").LabelOffset = FreeCAD.Vector(vobj.OffsetX, vobj.OffsetY)
 
         vobj.Proxy = self
 
