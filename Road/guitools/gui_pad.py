@@ -25,7 +25,7 @@
 import FreeCAD, FreeCADGui
 import Part
 
-from variables import icons_path
+from ..variables import icons_path
 from ..make import make_terrain, make_cluster
 from ..utils.get_group import georigin
 

@@ -25,7 +25,7 @@
 import FreeCAD, FreeCADGui
 from PySide import QtWidgets
 
-from variables import ui_path
+from ..variables import ui_path
 from .task_panel import TaskPanel
 from ..utils import get_group
 

@@ -22,7 +22,7 @@
 
 """Provides the object code for Geo Origin objects."""
 
-from variables import zone_list
+from ..variables import zone_list
 from ..objects.group import Group
 
 

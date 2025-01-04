@@ -25,7 +25,7 @@
 from pivy import coin
 import random
 
-from variables import icons_path
+from ..variables import icons_path
 from ..utils.get_group import georigin
 
 

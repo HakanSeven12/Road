@@ -25,7 +25,7 @@
 import FreeCAD
 from pivy import coin
 
-from variables import icons_path
+from ..variables import icons_path
 from ..utils.get_group import georigin
 
 

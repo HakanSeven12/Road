@@ -27,7 +27,7 @@ from pivy import coin
 
 import math
 
-from variables import icons_path
+from ..variables import icons_path
 from ..utils.get_group import georigin
 from ..functions.alignment import transformation
 
@@ -197,7 +197,6 @@ class ViewProviderAlignment:
 
         # Text
         self.font = coin.SoFont()
-        self.font.size = 3000
         self.label_color = coin.SoBaseColor()
 
         self.texts = coin.SoGroup()

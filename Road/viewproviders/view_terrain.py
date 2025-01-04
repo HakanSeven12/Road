@@ -26,7 +26,7 @@ import FreeCAD
 from pivy import coin
 import random
 
-from variables import icons_path, line_patterns
+from ..variables import icons_path, line_patterns
 from ..utils.get_group import georigin
 from ..functions.terrain_functions import wire_view, elevation_analysis, slope_analysis, direction_analysis
 

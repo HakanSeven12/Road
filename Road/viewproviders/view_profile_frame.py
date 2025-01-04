@@ -25,7 +25,7 @@
 import FreeCAD
 from pivy import coin
 
-from variables import icons_path
+from ..variables import icons_path
 from ..utils.get_group import georigin
 
 
@@ -44,17 +44,22 @@ class ViewProviderProfileFrame:
         self.draw_style.style = coin.SoDrawStyle.LINES
 
         #-----------------------------------------------------------------
+        # Title
+        #-----------------------------------------------------------------
+
+        #-----------------------------------------------------------------
         # Border
         #-----------------------------------------------------------------
 
-        # Frame view
+        # View
         self.border_color = coin.SoBaseColor()
+        self.border_color.rgb = (0.0, 0.0, 1.0)
 
         border_view = coin.SoGroup()
         border_view.addChild(self.draw_style)
         border_view.addChild(self.border_color)
 
-        # Frame data
+        # Data
         self.border_coords = coin.SoGeoCoordinate()
         self.border_lines = coin.SoLineSet()
 
@@ -62,10 +67,57 @@ class ViewProviderProfileFrame:
         border_data.addChild(self.border_coords)
         border_data.addChild(self.border_lines)
 
-        # Frame group
+        # Group
         border = coin.SoSeparator()
         border.addChild(border_view)
         border.addChild(border_data)
+
+        #-----------------------------------------------------------------
+        # Grid
+        #-----------------------------------------------------------------
+
+        # View
+        self.grid_color = coin.SoBaseColor()
+
+        # Horizontal lines
+        self.horizontal_coords = coin.SoCoordinate3()
+        horizontal_lines = coin.SoLineSet()
+
+        self.horizontal_copy = coin.SoMultipleCopy()
+        self.horizontal_copy.addChild(self.horizontal_coords)
+        self.horizontal_copy.addChild(horizontal_lines)
+
+        horizontals = coin.SoSeparator()
+        horizontals.addChild(self.grid_color)
+        horizontals.addChild(self.horizontal_copy)
+
+        # Vertical lines
+        self.vertical_coords = coin.SoCoordinate3()
+        vertical_lines = coin.SoLineSet()
+
+        self.vertical_copy = coin.SoMultipleCopy()
+        self.vertical_copy.addChild(self.vertical_coords)
+        self.vertical_copy.addChild(vertical_lines)
+
+        verticals = coin.SoSeparator()
+        verticals.addChild(self.grid_color)
+        verticals.addChild(self.vertical_copy)
+
+        self.grid = coin.SoGeoSeparator()
+        self.grid.addChild(horizontals)
+        self.grid.addChild(verticals)
+
+        #-----------------------------------------------------------------
+        # Datum Label
+        #-----------------------------------------------------------------
+
+        #-----------------------------------------------------------------
+        # Elevation Labels
+        #-----------------------------------------------------------------
+
+        #-----------------------------------------------------------------
+        # Station Labels
+        #-----------------------------------------------------------------
 
         #-----------------------------------------------------------------
         # Profile Frame
@@ -90,6 +142,7 @@ class ViewProviderProfileFrame:
                 origin = georigin()
                 geo_system = ["UTM", origin.UtmZone, "FLAT"]
 
+                self.grid.geoSystem.setValues(geo_system)
                 self.border_coords.geoSystem.setValues(geo_system)
                 border_corners = [ver.Point for ver in shape.Vertexes]
                 border_corners.append(border_corners[0])

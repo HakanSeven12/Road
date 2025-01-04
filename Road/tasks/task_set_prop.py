@@ -24,7 +24,7 @@
 
 import FreeCAD, FreeCADGui
 
-from variables import ui_path
+from ..variables import ui_path
 from .task_panel import TaskPanel
 
 

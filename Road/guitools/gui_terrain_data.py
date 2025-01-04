@@ -24,7 +24,7 @@
 
 import FreeCAD, FreeCADGui
 
-from variables import icons_path
+from ..variables import icons_path
 from ..tasks import task_set_prop
 from ..utils import get_group
 

@@ -26,7 +26,7 @@ import FreeCAD, FreeCADGui
 
 from PySide.QtCore import QObject, Signal
 
-from variables import ui_path
+from ..variables import ui_path
 
 
 class TaskSelectObjectFromGroup(QObject):

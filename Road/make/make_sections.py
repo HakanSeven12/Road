@@ -24,8 +24,7 @@
 
 import FreeCAD
 
-from variables import icons_path
-
+from ..variables import icons_path
 from ..objects.sections import Sections
 from ..viewproviders.view_sections import ViewProviderSections
 

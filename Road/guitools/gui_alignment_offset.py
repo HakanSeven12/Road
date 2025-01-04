@@ -24,7 +24,7 @@
 
 import FreeCAD, FreeCADGui
 
-from variables import icons_path
+from ..variables import icons_path
 from ..make import make_alignment
 from ..tasks.task_selection import TaskSelectObjectFromGroup
 

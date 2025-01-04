@@ -24,7 +24,7 @@
 
 import FreeCAD
 
-from variables import icons_path
+from ..variables import icons_path
 from ..objects.group import Group
 from ..viewproviders.view_group import ViewProviderGroup
 

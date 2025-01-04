@@ -26,7 +26,7 @@ import FreeCAD, FreeCADGui
 
 import Part, Mesh
 
-from variables import icons_path
+from ..variables import icons_path
 
 
 class TerrainExtractPoints:

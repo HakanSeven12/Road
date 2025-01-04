@@ -63,15 +63,15 @@ class ProfileFrame:
 
         length = alignment.Length.Value
         obj.Length = 1000 if length == 0 else length
-        l = obj.Length
-        h = obj.Height
 
-        p1 = obj.Placement.Base
-        p2 = FreeCAD.Vector(p1.x+l,p1.y,p1.z)
-        p3 = FreeCAD.Vector(p1.x+l,p1.y+h,p1.z)
-        p4 = FreeCAD.Vector(p1.x,p1.y+h,p1.z)
+        p1 = FreeCAD.Vector()
+        p2 = FreeCAD.Vector(obj.Length, 0)
+        p3 = FreeCAD.Vector(obj.Length, obj.Height)
+        p4 = FreeCAD.Vector(0, obj.Height)
 
-        obj.Shape = Part.makePolygon([p1,p2,p3,p4,p1])
+        shp = Part.makePolygon([p1,p2,p3,p4,p1])
+        shp.Placement = obj.Placement
+        obj.Shape = shp
 
     def onChanged(self, obj, prop):
         """Update Object when a property changed."""

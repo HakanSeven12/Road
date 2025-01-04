@@ -26,7 +26,7 @@ import FreeCAD, FreeCADGui
 from PySide import QtCore, QtWidgets
 import csv, os
 
-from variables import ui_path
+from ..variables import ui_path
 from .task_panel import TaskPanel
 from ..utils import get_group
 from ..make import make_cluster, make_geopoint
