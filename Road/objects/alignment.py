@@ -49,8 +49,8 @@ class Alignment:
             "Alignment type").Style = ["Basic", "Existing"]
 
         obj.addProperty(
-            "App::PropertyVectorList", "Referance", "Station",
-            "Points of referance").Referance = []
+            "App::PropertyVectorList", "Reference", "Station",
+            "Points of reference").Reference = []
 
         obj.addProperty(
             "App::PropertyLength", "StartStation", "Station",

@@ -110,11 +110,11 @@ class ViewProviderGeoPoint:
 
         vobj.addProperty(
             "App::PropertyVector", "LabelOffset", "Label Placement",
-            "Points of referance for point labels").LabelOffset = FreeCAD.Vector(vobj.OffsetX, vobj.OffsetY)
+            "Points of reference for point labels").LabelOffset = FreeCAD.Vector(vobj.OffsetX, vobj.OffsetY)
 
         vobj.addProperty(
             "App::PropertyPythonObject", "LabelDisplay", "Label Style", 
-            "Keeper roperty for label visibilities").LabelDisplay = {
+            "Keeper property for label visibilities").LabelDisplay = {
                 "Number": vobj.Number,
                 "Label": vobj.Label,
                 "Easting": vobj.Easting,

@@ -112,7 +112,7 @@ FreeCADGui.addCommand('Add Point', AddPoint())
 
 class AddTriangle:
     """
-    Command to add a tirangle to Terrain.
+    Command to add a triangle to Terrain.
     """
 
     def __init__(self):
@@ -156,7 +156,7 @@ FreeCADGui.addCommand('Add Triangle', AddTriangle())
 
 class DeleteTriangle:
     """
-    Command to delete a tirangle from Terrain.
+    Command to delete a triangle from Terrain.
     """
 
     def __init__(self):
