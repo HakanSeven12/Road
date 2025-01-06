@@ -97,8 +97,13 @@ class TaskClusterImport(TaskPanel):
         delimiter = delimiters.get(self.form.DelimiterCB.currentText(), ' ')
         reader = csv.reader(file, delimiter=delimiter, skipinitialspace=True)
 
-        indices = [int(getattr(self.form, f"{field}LE").text()) - 1 for field in 
-                   ["PointName", "Northing", "Easting", "Elevation", "Description"]]
+        name = int(text) - 1 if (text := self.form.PointNameLE.text()).isdigit() else None
+        northing = int(text) - 1 if (text := self.form.NorthingLE.text()).isdigit() else None
+        easting = int(text) - 1 if (text := self.form.EastingLE.text()).isdigit() else None
+        elevation = int(text) - 1 if (text := self.form.ElevationLE.text()).isdigit() else None
+        description = int(text) - 1 if (text := self.form.DescriptionLE.text()).isdigit() else None
+
+        indices = [name, northing, easting, elevation, description]
 
         if operation == "Preview":
             self.preview_data(reader, indices)
@@ -113,6 +118,7 @@ class TaskClusterImport(TaskPanel):
             numRows = table_widget.rowCount()
             table_widget.insertRow(numRows)
             for col, index in enumerate(indices):
+                if index is None: continue
                 if index < len(row):
                     table_widget.setItem(numRows, col, QtWidgets.QTableWidgetItem(row[index]))
 
@@ -120,15 +126,14 @@ class TaskClusterImport(TaskPanel):
         """Import data from the file into the selected cluster."""
         cluster = self.get_selected_group()
         for row in reader:
-            if len(row) >= 3:
-                geopoint = make_geopoint.create(
-                    row[indices[0]], 
-                    float(row[indices[1]]), 
-                    float(row[indices[2]]), 
-                    float(row[indices[3]]), 
-                    row[indices[4]] if len(row) > 4 else ""
-                )
-                cluster.addObject(geopoint)
+            geopoint = make_geopoint.create(
+                row[indices[0]] if indices[0] else "GeoPoint", 
+                float(row[indices[1]]), 
+                float(row[indices[2]]), 
+                float(row[indices[3]]) if indices[3] else 0.00, 
+                row[indices[4]] if indices[4] else "")
+
+            cluster.addObject(geopoint)
 
     def preview(self):
         """Preview the selected file."""
