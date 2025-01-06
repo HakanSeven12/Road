@@ -120,7 +120,7 @@ class TaskClusterImport(TaskPanel):
         """Import data from the file into the selected cluster."""
         cluster = self.get_selected_group()
         for row in reader:
-            if len(row) >= 4:
+            if len(row) >= 3:
                 geopoint = make_geopoint.create(
                     row[indices[0]], 
                     float(row[indices[1]]), 
