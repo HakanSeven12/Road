@@ -18,9 +18,9 @@
 Download and extract the ZIP file into the `.FreeCAD/Mod` folder.
 
 ## Screenshots
-
-![Alignment](https://github.com/user-attachments/assets/423c2bdb-91f7-4ae9-8187-28902157d0a2)
+![GeoPoint](https://github.com/user-attachments/assets/7803dbdc-f646-4d34-80e5-c040a949567b)
 ![Terrain](https://github.com/user-attachments/assets/7c6e91fb-4e6a-466c-a59d-e3a20a543dca)
+![Alignment](https://github.com/user-attachments/assets/423c2bdb-91f7-4ae9-8187-28902157d0a2)
 ![Profile](https://github.com/user-attachments/assets/8516b5bf-33c6-4966-a4a6-29d81c272710)
 
 
