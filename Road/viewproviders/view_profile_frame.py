@@ -22,7 +22,7 @@
 
 """Provides the viewprovider code for Profile Frame objects."""
 
-import FreeCAD
+import FreeCAD, FreeCADGui
 from pivy import coin
 
 from ..variables import icons_path
@@ -60,7 +60,7 @@ class ViewProviderProfileFrame:
         border_view.addChild(self.border_color)
 
         # Data
-        self.border_coords = coin.SoGeoCoordinate()
+        self.border_coords = coin.SoCoordinate3()
         self.border_lines = coin.SoLineSet()
 
         border_data = coin.SoGroup()
@@ -78,6 +78,7 @@ class ViewProviderProfileFrame:
 
         # View
         self.grid_color = coin.SoBaseColor()
+        self.grid_color.rgb = (0.5, 0.5, 0.5)
 
         # Horizontal lines
         self.horizontal_coords = coin.SoCoordinate3()
@@ -103,32 +104,52 @@ class ViewProviderProfileFrame:
         verticals.addChild(self.grid_color)
         verticals.addChild(self.vertical_copy)
 
-        self.grid = coin.SoGeoSeparator()
-        self.grid.addChild(horizontals)
-        self.grid.addChild(verticals)
+        grid = coin.SoSeparator()
+        grid.addChild(horizontals)
+        grid.addChild(verticals)
 
         #-----------------------------------------------------------------
-        # Datum Label
+        # Labels
         #-----------------------------------------------------------------
 
-        #-----------------------------------------------------------------
+        # View
+        font = coin.SoFont()
+        font.size = 1000
+
+        # Horizon Label
+        self.horizon = coin.SoAsciiText()
+        self.horizon.justification = coin.SoAsciiText.RIGHT
+
         # Elevation Labels
-        #-----------------------------------------------------------------
+        self.elevations = coin.SoSeparator()
 
-        #-----------------------------------------------------------------
         # Station Labels
-        #-----------------------------------------------------------------
+        self.stations = coin.SoSeparator()
+
+        # Label Group
+        labels = coin.SoSeparator()
+        labels.addChild(font)
+        labels.addChild(self.horizon)
+        labels.addChild(self.elevations)
+        labels.addChild(self.stations)
 
         #-----------------------------------------------------------------
         # Profile Frame
         #-----------------------------------------------------------------
 
         # Frame group
-        frame = coin.SoType.fromName('SoFCSelection').createInstance()
-        frame.style = 'EMISSIVE_DIFFUSE'
-        frame.addChild(border)
+        self.drag = coin.SoSeparator()
+        self.frame = coin.SoGeoSeparator()
+        self.frame.addChild(border)
+        self.frame.addChild(grid)
+        self.frame.addChild(labels)
+        self.frame.addChild(self.drag)
 
-        vobj.addDisplayMode(frame, "Frame")
+        root = coin.SoType.fromName('SoFCSelection').createInstance()
+        root.style = 'EMISSIVE_DIFFUSE'
+        root.addChild(self.frame)
+
+        vobj.addDisplayMode(root, "Frame")
 
     def onChanged(self, vobj, prop):
         """Update Object visuals when a view property changed."""
@@ -138,15 +159,78 @@ class ViewProviderProfileFrame:
         """Update Object visuals when a data property changed."""
         if prop == "Shape":
             shape = obj.getPropertyByName(prop)
+
+            self.elevations.removeAllChildren()
+            self.stations.removeAllChildren()
             if shape.Vertexes:
                 origin = georigin()
                 geo_system = ["UTM", origin.UtmZone, "FLAT"]
+                reference = shape.Vertexes[0].Point
 
-                self.grid.geoSystem.setValues(geo_system)
-                self.border_coords.geoSystem.setValues(geo_system)
-                border_corners = [ver.Point for ver in shape.Vertexes]
-                border_corners.append(border_corners[0])
-                self.border_coords.point.values = border_corners
+                self.frame.geoSystem.setValues(geo_system)
+                self.frame.geoCoords.setValue(reference.x, reference.y, reference.z)
+                corners = [ver.Point.add(reference.negative()) for ver in shape.Vertexes]
+                corners.append(corners[0])
+                self.border_coords.point.values = corners
+
+                vertical_matrices = []
+                for pos in range(10000, int(obj.Length), 10000):
+                    matrix = coin.SbMatrix()
+                    location = coin.SoTranslation()
+                    station = coin.SoAsciiText()
+
+                    matrix.setTransform(
+                        coin.SbVec3f(pos, 0, -1), 
+                        coin.SbRotation(), 
+                        coin.SbVec3f(1.0, 1.0, 1.0))
+                    vertical_matrices.append(matrix)
+
+                    location.translation = coin.SbVec3f(pos, obj.Height+500, 0)
+                    station.justification = coin.SoAsciiText.CENTER
+
+                    text = str(round(pos / 1000, 2)).zfill(6)
+                    integer = text.split('.')[0]
+                    new_integer = integer[:-3] + "+" + integer[-3:]
+
+                    station.string.setValues([new_integer + "." + text.split('.')[1]])
+
+                    group = coin.SoTransformSeparator()
+                    group.addChild(location)
+                    group.addChild(station)
+                    self.stations.addChild(group)
+
+                self.vertical_coords.point.values = [corners[0], corners[3]]
+                self.vertical_copy.matrix.values = vertical_matrices
+
+                horizontal_matrices = []
+                start = (obj.Horizon + 9999) // 10000 * 10000
+                for pos in range(int(start), int(obj.Horizon+obj.Height), 10000):
+                    matrix = coin.SbMatrix()
+                    location = coin.SoTranslation()
+                    elevation = coin.SoAsciiText()
+
+                    matrix.setTransform(
+                        coin.SbVec3f(0, pos-obj.Horizon, -1), 
+                        coin.SbRotation(), 
+                        coin.SbVec3f(1.0, 1.0, 1.0))
+                    horizontal_matrices.append(matrix)
+
+                    location.translation = coin.SbVec3f(-500, pos-obj.Horizon, 0)
+                    elevation.justification = coin.SoAsciiText.RIGHT
+                    elevation.string.setValues([round(pos/1000, 3)])
+
+                    group = coin.SoTransformSeparator()
+                    group.addChild(location)
+                    group.addChild(elevation)
+                    self.elevations.addChild(group)
+
+                self.horizontal_coords.point.values = [corners[0], corners[1]]
+                self.horizontal_copy.matrix.values = horizontal_matrices
+
+        if prop == "Horizon":
+            horizon = obj.getPropertyByName(prop)
+            self.horizon.string.setValues(["Horizon Elevation", round(horizon/1000,3)])
+
 
     def getDisplayModes(self,vobj):
         """Return a list of display modes."""
