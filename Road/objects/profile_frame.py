@@ -39,12 +39,12 @@ class ProfileFrame:
             "Placement").Placement = FreeCAD.Placement()
 
         obj.addProperty(
-            "App::PropertyFloat", "Horizon", "Base",
-            "Minimum elevation").Horizon = 0
-
-        obj.addProperty(
             "Part::PropertyPartShape", "Shape", "Base",
             "Alignment Shape").Shape = Part.Shape()
+
+        obj.addProperty(
+            "App::PropertyFloat", "Horizon", "Base",
+            "Minimum elevation").Horizon = 0
 
         obj.addProperty(
             "App::PropertyFloat", "Length", "Geometry",

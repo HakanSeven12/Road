@@ -254,6 +254,37 @@ class ViewProviderProfileFrame:
         """Provides object grouping"""
         return self.Object.Group
 
+    def setEdit(self, vobj, mode=0):
+        """Enable edit"""
+        self.drag.removeAllChildren()
+        scale = coin.SoScale()
+        self.dragger = coin.SoTranslate2Dragger()
+
+        self.dragger.translation.setValue(0, 0, 1)
+        self.view = FreeCADGui.ActiveDocument.ActiveView
+        self.view.addDraggerCallback(self.dragger, "addFinishCallback", self.update_placement)
+        scale.scaleFactor.setValue(2000.0, 2000.0, 2000.0)
+
+        self.drag.addChild(scale)
+        self.drag.addChild(self.dragger)
+        return True
+
+    def unsetEdit(self, vobj, mode=0):
+        """Disable edit"""
+        print("unset edit")
+        return True
+
+    def doubleClicked(self, vobj):
+        """Detect double click"""
+        self.setEdit(vobj)
+        return True
+
+    def update_placement(self, dragger):
+        displacement = FreeCAD.Vector(dragger.translation.getValue().getValue())
+        self.Object.Placement.move(displacement)
+        self.drag.removeChild(self.dragger)
+        FreeCAD.ActiveDocument.recompute()
+
     def dumps(self):
         """Called during document saving"""
         return None
