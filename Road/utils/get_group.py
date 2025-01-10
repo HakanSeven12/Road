@@ -51,24 +51,23 @@ def georigin(origin=FreeCAD.Vector(), name = "GeoOrigin"):
     """Get the GeoOrigin object"""
     obj = FreeCAD.ActiveDocument.getObject(name)
 
-    if obj:
-        if obj.Base == FreeCAD.Vector():
-            origin.z = 0
-            obj.Base = origin
+    if not obj:
+        obj=FreeCAD.ActiveDocument.addObject(
+            "App::DocumentObjectGroupPython", name)
+
+        GeoOrigin(obj, "Road::" + name)
+        ViewProviderGeoOrigin(
+            obj.ViewObject, icons_path + "/" + name + ".svg")
+
+        for group in ["Clusters", "Terrains", "Alignments", "GeoLines"]:
+            obj.addObject(get(group))
+
+    if origin.x == 0 or origin.y == 0:
         return obj
 
-    obj=FreeCAD.ActiveDocument.addObject(
-        "App::DocumentObjectGroupPython", name)
-
-    GeoOrigin(obj, "Road::" + name)
-    ViewProviderGeoOrigin(
-        obj.ViewObject, icons_path + "/" + name + ".svg")
-
-    origin.z = 0
-    obj.Base = origin
-
-    for group in ["Clusters", "Terrains", "Alignments", "GeoLines"]:
-        obj.addObject(get(group))
+    if obj.Base == FreeCAD.Vector():
+        origin.z = 0
+        obj.Base = origin
 
     FreeCAD.ActiveDocument.recompute()
     return obj

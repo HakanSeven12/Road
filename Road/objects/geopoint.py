@@ -28,39 +28,51 @@ import Part
 class GeoPoint:
     """This class is about Cluster Object data features."""
 
-    def __init__(self, obj, number=1, easting=0, northing=0, elevation=0, description=""):
+    def __init__(self, obj):
         """Set data properties."""
 
         self.Type = "Road::GeoPoint"
 
         obj.addProperty(
+            "App::PropertyPlacement", "Placement", "Base",
+            "Placement").Placement = FreeCAD.Placement()
+
+        obj.addProperty(
             "Part::PropertyPartShape", "Shape", "Base",
-            "Alignment Shape").Shape = Part.Vertex(FreeCAD.Vector(easting, northing, elevation).multiply(1000))
+            "Alignment Shape").Shape = Part.Vertex(FreeCAD.Vector())
 
         obj.addProperty(
             "App::PropertyInteger", "Number", "Base",
-            "Show point name labels").Number = number
+            "Show point name labels").Number = 1
 
         obj.addProperty(
             "App::PropertyString", "Description", "Base",
-            "Show description labels").Description = description
+            "Show description labels").Description = ""
 
         obj.addProperty(
             "App::PropertyFloat", "Easting", "Geometry",
-            "Show easting labels").Easting = easting
+            "Show easting labels").Easting = 0
 
         obj.addProperty(
             "App::PropertyFloat", "Northing", "Geometry",
-            "Show norting labels").Northing = northing
+            "Show norting labels").Northing = 0
 
         obj.addProperty(
             "App::PropertyFloat", "PointElevation", "Geometry",
-            "Point elevation").PointElevation = elevation
+            "Point elevation").PointElevation = 0
 
         obj.Proxy = self
+
+    def execute(self, obj):
+        """Do something when doing a recomputation."""
+        shp = Part.Vertex(FreeCAD.Vector())
+        shp.Placement = obj.Placement
+        obj.Shape = shp
 
     def onChanged(self, obj, prop):
         """Do something when a data property has changed."""
         if prop in ["Easting", "Northing", "PointElevation"]:
             coordinate = FreeCAD.Vector(obj.Easting, obj.Northing, obj.PointElevation)
-            obj.Shape = Part.Vertex(coordinate.multiply(1000))
+            placement = FreeCAD.Placement()
+            placement.move(coordinate.multiply(1000))
+            obj.Placement = placement

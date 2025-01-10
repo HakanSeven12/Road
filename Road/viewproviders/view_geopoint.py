@@ -22,7 +22,7 @@
 
 """Provides the viewprovider code for Cluster objects."""
 
-import FreeCAD
+import FreeCAD, FreeCADGui
 from pivy import coin
 
 import math
@@ -125,6 +125,8 @@ class ViewProviderGeoPoint:
         vobj.Proxy = self
 
     def attach(self, vobj):
+        self.Object = vobj.Object
+
         """Create Object visuals in 3D view."""
         #-------------------------------------------------------------
         # Marker
@@ -133,12 +135,14 @@ class ViewProviderGeoPoint:
         self.marker_color = coin.SoBaseColor()
         self.coordinate = coin.SoCoordinate3()
         self.line = coin.SoIndexedLineSet()
+        self.drag = coin.SoSeparator()
         geometry = coin.SoPointSet()
 
         self.marker = coin.SoGeoSeparator()
         self.marker.addChild(self.marker_color)
         self.marker.addChild(self.coordinate)
         self.marker.addChild(self.line)
+        self.marker.addChild(self.drag)
         self.marker.addChild(geometry)
 
         #-------------------------------------------------------------
@@ -227,21 +231,26 @@ class ViewProviderGeoPoint:
 
     def updateData(self, obj, prop):
         """Update Object visuals when a data property changed."""
-        if prop == "Shape":
-            point = obj.getPropertyByName(prop).Point
-            if point:
-                origin = georigin(point)
-                geo_system = ["UTM", origin.UtmZone, "FLAT"]
-                self.marker.geoSystem.setValues(geo_system)
-                self.marker.geoCoords.setValue(point.x, point.y, point.z)
+        if prop == "Placement":
+            placement = obj.getPropertyByName(prop)
+            base = placement.Base
 
-                self.circle_frame.geoSystem.setValues(geo_system)
-                self.square_frame.geoSystem.setValues(geo_system)
-                self.circle_frame.geoCoords.setValue(point.x, point.y, point.z)
-                self.square_frame.geoCoords.setValue(point.x, point.y, point.z)
+            origin = georigin(base)
+            geo_system = ["UTM", origin.UtmZone, "FLAT"]
+            self.marker.geoSystem.setValues(geo_system)
+            self.marker.geoCoords.setValue(base.x, base.y, base.z)
 
-                self.label.geoSystem.setValues(geo_system)
-                self.label.geoCoords.setValue(point.x, point.y, point.z)
+            self.circle_frame.geoSystem.setValues(geo_system)
+            self.square_frame.geoSystem.setValues(geo_system)
+            self.circle_frame.geoCoords.setValue(base.x, base.y, base.z)
+            self.square_frame.geoCoords.setValue(base.x, base.y, base.z)
+
+            self.label.geoSystem.setValues(geo_system)
+            self.label.geoCoords.setValue(base.x, base.y, base.z)
+            self.onChanged(obj.ViewObject, "LabelDisplay")
+
+        if prop in ["Name", "Number"]:
+            self.onChanged(obj.ViewObject, "LabelDisplay")
 
     def onChanged(self, vobj, prop):
         """Update Object visuals when a view property changed."""
@@ -410,6 +419,37 @@ class ViewProviderGeoPoint:
     def getIcon(self):
         """Return object treeview icon."""
         return icons_path + '/GeoPoint.svg'
+
+    def setEdit(self, vobj, mode=0):
+        """Enable edit"""
+        self.drag.removeAllChildren()
+        scale = coin.SoScale()
+        self.dragger = coin.SoTranslate2Dragger()
+
+        self.dragger.translation.setValue(0, 0, 1)
+        self.view = FreeCADGui.ActiveDocument.ActiveView
+        self.view.addDraggerCallback(self.dragger, "addFinishCallback", self.update_placement)
+        scale.scaleFactor.setValue(150.0, 150.0, 150.0)
+
+        self.drag.addChild(scale)
+        self.drag.addChild(self.dragger)
+        return True
+
+    def unsetEdit(self, vobj, mode=0):
+        """Disable edit"""
+        print("unset edit")
+        return True
+
+    def doubleClicked(self, vobj):
+        """Detect double click"""
+        self.setEdit(vobj)
+        return True
+
+    def update_placement(self, dragger):
+        displacement = FreeCAD.Vector(dragger.translation.getValue().getValue())
+        self.Object.Placement.move(displacement)
+        self.drag.removeChild(self.dragger)
+        FreeCAD.ActiveDocument.recompute()
 
     def dumps(self):
         """Called during document saving"""

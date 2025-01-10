@@ -30,13 +30,18 @@ from ..viewproviders.view_geopoint import ViewProviderGeoPoint
 def create(name="GeoPoint", easting=0, northing=0, elevation=0, description=""):
     obj=FreeCAD.ActiveDocument.addObject("App::FeaturePython", "GeoPoint")
 
+    GeoPoint(obj)
+    ViewProviderGeoPoint(obj.ViewObject)
+
     if obj.Name != "GeoPoint":
         number = int(obj.Name[8:]) + 1
     else: number = 1
 
-    GeoPoint(obj, number, easting, northing, elevation, description)
-    ViewProviderGeoPoint(obj.ViewObject)
-
     obj.Label = name
+    obj.Number = number
+    obj.Easting = easting
+    obj.Northing = northing
+    obj.PointElevation = elevation
+    obj.Description = description
 
     return obj
