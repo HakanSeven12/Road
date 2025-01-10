@@ -51,15 +51,15 @@ class GeoPoint:
 
         obj.addProperty(
             "App::PropertyFloat", "Easting", "Geometry",
-            "Show easting labels").Easting = 0
+            "Show easting labels", 16).Easting = 0
 
         obj.addProperty(
             "App::PropertyFloat", "Northing", "Geometry",
-            "Show norting labels").Northing = 0
+            "Show norting labels", 16).Northing = 0
 
         obj.addProperty(
             "App::PropertyFloat", "PointElevation", "Geometry",
-            "Point elevation").PointElevation = 0
+            "Point elevation", 16).PointElevation = 0
 
         obj.Proxy = self
 
@@ -75,4 +75,17 @@ class GeoPoint:
             coordinate = FreeCAD.Vector(obj.Easting, obj.Northing, obj.PointElevation)
             placement = FreeCAD.Placement()
             placement.move(coordinate.multiply(1000))
-            obj.Placement = placement
+
+            if obj.Placement != placement:
+                obj.Placement = placement
+
+        if prop == "Placement":
+            placement = obj.getPropertyByName(prop)
+            coordinate = FreeCAD.Vector(obj.Easting, obj.Northing, obj.PointElevation)
+            pl = FreeCAD.Placement()
+            pl.move(coordinate.multiply(1000))
+
+            if obj.Placement != pl:
+                obj.Easting = placement.Base.x / 1000
+                obj.Northing = placement.Base.y / 1000
+                obj.PointElevation = placement.Base.z / 1000
