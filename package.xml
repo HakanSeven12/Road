@@ -5,7 +5,7 @@
   <version>2025.01.01</version>
   <date>2025.01.01</date>
   <maintainer email="hakanseven12@gmail.com">Hakan Seven</maintainer>
-  <license file="LICENSE">LGPLv2.1</license>
+  <license file="LICENSE">LGPL-2.1-or-later</license>
   <url type="repository" branch="main">https://github.com/HakanSeven12/Road</url>
   <url type="bugtracker">https://github.com/HakanSeven12/Road/issues</url>
   <icon>Road/resources/icons/RoadWorkbench.svg</icon>
