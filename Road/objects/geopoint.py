@@ -85,7 +85,7 @@ class GeoPoint:
             pl = FreeCAD.Placement()
             pl.move(coordinate.multiply(1000))
 
-            if obj.Placement != pl:
+            if placement != pl:
                 obj.Easting = placement.Base.x / 1000
                 obj.Northing = placement.Base.y / 1000
                 obj.PointElevation = placement.Base.z / 1000
