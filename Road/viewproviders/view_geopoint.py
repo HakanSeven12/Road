@@ -125,9 +125,11 @@ class ViewProviderGeoPoint:
         vobj.Proxy = self
 
     def attach(self, vobj):
+        """Create Object visuals in 3D view."""
         self.Object = vobj.Object
 
-        """Create Object visuals in 3D view."""
+        self.move = coin.SoTranslation()
+
         #-------------------------------------------------------------
         # Marker
         #-------------------------------------------------------------
@@ -135,14 +137,13 @@ class ViewProviderGeoPoint:
         self.marker_color = coin.SoBaseColor()
         self.coordinate = coin.SoCoordinate3()
         self.line = coin.SoIndexedLineSet()
-        self.drag = coin.SoSeparator()
         geometry = coin.SoPointSet()
 
-        self.marker = coin.SoGeoSeparator()
+        self.marker = coin.SoSeparator()
+        self.marker.addChild(self.move)
         self.marker.addChild(self.marker_color)
         self.marker.addChild(self.coordinate)
         self.marker.addChild(self.line)
-        self.marker.addChild(self.drag)
         self.marker.addChild(geometry)
 
         #-------------------------------------------------------------
@@ -152,7 +153,8 @@ class ViewProviderGeoPoint:
         self.circle_coordinate = coin.SoCoordinate3()
         self.circle_line = coin.SoLineSet()
         
-        self.circle_frame = coin.SoGeoSeparator()
+        self.circle_frame = coin.SoSeparator()
+        self.circle_frame.addChild(self.move)
         self.circle_frame.addChild(self.circle_coordinate)
         self.circle_frame.addChild(self.circle_line)
 
@@ -160,6 +162,7 @@ class ViewProviderGeoPoint:
         self.square_line = coin.SoLineSet()
 
         self.square_frame = coin.SoGeoSeparator()
+        self.square_frame.addChild(self.move)
         self.square_frame.addChild(self.square_coordinate)
         self.square_frame.addChild(self.square_line)
         
@@ -172,7 +175,8 @@ class ViewProviderGeoPoint:
         self.label_color = coin.SoBaseColor()
         self.text = coin.SoAsciiText()
 
-        self.label = coin.SoGeoSeparator()
+        self.label = coin.SoSeparator()
+        self.label.addChild(self.move)
         self.label.addChild(self.font)
         self.label.addChild(self.location)
         self.label.addChild(self.label_color)
@@ -206,9 +210,15 @@ class ViewProviderGeoPoint:
         # Point
         #-------------------------------------------------------------
 
+        self.drag_group = coin.SoSeparator()
+
+        self.geosystem = coin.SoGeoSeparator()
+        self.geosystem.addChild(self.drag_group)
+        self.geosystem.addChild(lod)
+
         point = coin.SoType.fromName('SoFCSelection').createInstance()
         point.style = 'EMISSIVE_DIFFUSE'
-        point.addChild(lod)
+        point.addChild(self.geosystem)
 
         vobj.addDisplayMode(point,"Point")
 
@@ -237,16 +247,9 @@ class ViewProviderGeoPoint:
 
             origin = georigin(base)
             geo_system = ["UTM", origin.UtmZone, "FLAT"]
-            self.marker.geoSystem.setValues(geo_system)
-            self.marker.geoCoords.setValue(base.x, base.y, base.z)
+            self.geosystem.geoSystem.setValues(geo_system)
+            self.geosystem.geoCoords.setValue(base.x, base.y, base.z)
 
-            self.circle_frame.geoSystem.setValues(geo_system)
-            self.square_frame.geoSystem.setValues(geo_system)
-            self.circle_frame.geoCoords.setValue(base.x, base.y, base.z)
-            self.square_frame.geoCoords.setValue(base.x, base.y, base.z)
-
-            self.label.geoSystem.setValues(geo_system)
-            self.label.geoCoords.setValue(base.x, base.y, base.z)
             self.onChanged(obj.ViewObject, "LabelDisplay")
 
         if prop in ["Name", "Number"]:
@@ -435,18 +438,23 @@ class ViewProviderGeoPoint:
         geometry.removeAllChildren()
         geometry.addChild(marker)
 
-        self.drag.addChild(scale)
-        self.drag.addChild(dragger)
+        self.drag_group.addChild(scale)
+        self.drag_group.addChild(dragger)
 
         self.view = FreeCADGui.ActiveDocument.ActiveView
-        self.view.addDraggerCallback(dragger, "addFinishCallback", self.update_placement)
+        self.view.addDraggerCallback(dragger, "addMotionCallback", self.drag)
+        self.view.addDraggerCallback(dragger, "addFinishCallback", self.drop)
 
         return True
 
-    def update_placement(self, dragger):
-        displacement = FreeCAD.Vector(dragger.translation.getValue().getValue())
+    def drag(self, dragger):
+        self.move.translation = dragger.translation
+
+    def drop(self, dragger):
+        displacement = FreeCAD.Vector(dragger.translation.getValue())
         self.Object.Placement.move(displacement)
-        self.drag.removeAllChildren()
+        self.move.translation = FreeCAD.Vector()
+        self.drag_group.removeAllChildren()
         FreeCAD.ActiveDocument.recompute()
 
     def dumps(self):
