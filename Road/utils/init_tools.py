@@ -24,7 +24,8 @@
 
 def get_point_commands():
     """Return the point commands list."""
-    return ["Create Cluster"]
+    return ["Create Cluster",
+            "Create GeoPoint"]
 
 def get_surface_commands():
     """Return the surface commands list."""

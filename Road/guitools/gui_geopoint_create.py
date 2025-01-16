@@ -20,38 +20,64 @@
 # *                                                                         *
 # ***************************************************************************
 
-"""Provides GUI tools to create Cluster objects."""
+"""Provides GUI tools to create GeoPoint objects."""
 
 import FreeCAD, FreeCADGui
 
 from ..variables import icons_path
-from Road.make import make_cluster
+from ..make import make_geopoint,make_cluster
+from ..utils.trackers import ViewTracker
+from ..utils import get_group
 
 
-class CreateCluster:
-    """Command to create a new point group"""
+class GeoPointCreate:
+    """Command to create a new GeoPoint."""
 
     def __init__(self):
         """Constructor"""
         pass
 
     def GetResources(self):
-        """Return the command resources dictionary"""
+        """Return the command resources dictionary."""
         return {
-            "Pixmap": icons_path + "/ClusterCreate.svg",
-            "MenuText": "Create Cluster",
-            "ToolTip": "Create an empty geopoint group."
+            "Pixmap": icons_path + "/GeoPointCreate.svg",
+            "MenuText": "Create GeoPoint",
+            "ToolTip": "Create GeoPoint by coordinates."
             }
 
     def IsActive(self):
-        """Define tool button activation situation"""
+        """Define tool button activation situation."""
         if FreeCAD.ActiveDocument:
             return True
         return False
 
     def Activated(self):
         """Command activation method"""
-        make_cluster.create()
+        clusters = get_group.get("Clusters")
+        if clusters.Group:
+            self.cluster = clusters.Group[0]
+        else:
+            self.cluster = make_cluster.create()
+
+        FreeCAD.Console.PrintWarning("Select GeoPoint location on screen")
+        tracker = ViewTracker("Mouse", key="Left", function=self.set_placement)
+        tracker.start()
+
+    def set_placement(self, callback):
+        event = callback.getEvent()
+        position = event.getPosition() #Window position
+        view = FreeCADGui.ActiveDocument.ActiveView
+        coordinate = view.getPoint(tuple(position.getValue()))
+        coordinate.z = 0
+
+        origin = FreeCAD.ActiveDocument.getObject("GeoOrigin")
+        if origin:
+            coordinate = coordinate.add(origin.Base)
+
+        geopoint = make_geopoint.create()
+        geopoint.Placement.move(coordinate)
+        self.cluster.addObject(geopoint)
         FreeCAD.ActiveDocument.recompute()
 
-FreeCADGui.addCommand("Create Cluster", CreateCluster())
+
+FreeCADGui.addCommand("Create GeoPoint", GeoPointCreate())

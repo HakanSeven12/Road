@@ -32,6 +32,7 @@ from .guitools import gui_alignment_edit
 from .guitools import gui_alignment_offset
 from .guitools import gui_profile_frame_create
 from .guitools import gui_cluster_create
+from .guitools import gui_geopoint_create
 from .guitools import gui_point_import
 from .guitools import gui_point_export
 from .guitools import gui_terrain_create
