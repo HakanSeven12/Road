@@ -186,17 +186,17 @@ class ViewProviderGeoPoint:
         # Level of Detail
         #-------------------------------------------------------------
 
-        level0 = coin.SoSeparator()
+        level0 = coin.SoAnnotation()
         level0.addChild(self.label)
         level0.addChild(self.marker)
         level0.addChild(self.circle_frame)
         level0.addChild(self.square_frame)
 
-        level1 = coin.SoSeparator()
+        level1 = coin.SoAnnotation()
         level1.addChild(self.label)
         level1.addChild(self.marker)
 
-        level2 = coin.SoSeparator()
+        level2 = coin.SoAnnotation()
         level2.addChild(self.marker)
 
         lod = coin.SoLevelOfDetail()

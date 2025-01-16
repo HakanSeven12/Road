@@ -101,7 +101,7 @@ class ViewProviderAlignment:
         line_data.addChild(self.line_lines)
 
         # Line group
-        lines = coin.SoSeparator()
+        lines = coin.SoAnnotation()
         lines.addChild(line_view)
         lines.addChild(line_data)
 
@@ -125,7 +125,7 @@ class ViewProviderAlignment:
         curve_data.addChild(self.curve_lines)
 
         # Curve group
-        curves = coin.SoSeparator()
+        curves = coin.SoAnnotation()
         curves.addChild(curve_view)
         curves.addChild(curve_data)
 
@@ -149,7 +149,7 @@ class ViewProviderAlignment:
         spiral_data.addChild(self.spiral_lines)
 
         # Spiral group
-        spirals = coin.SoSeparator()
+        spirals = coin.SoAnnotation()
         spirals.addChild(spiral_view)
         spirals.addChild(spiral_data)
 
