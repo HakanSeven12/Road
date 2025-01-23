@@ -106,7 +106,7 @@ class Terrain:
         points = []
         for cluster in obj.Clusters:
             for geopoint in cluster.Group:
-                points.append(geopoint.Shape.Point)
+                points.append(geopoint.Placement.Base)
 
         if len(points) < 3:
             obj.Mesh = Mesh.Mesh()
@@ -114,12 +114,12 @@ class Terrain:
             obj.Boundary = Part.Shape()
             return
 
-        tri = Delaunay( numpy.array([[point.x, point.y] for point in points]))
+        tri = Delaunay(numpy.array([[point.x, point.y] for point in points]))
         tested_tri = test_triangulation(tri, obj.MaxLength, obj.MaxAngle)
 
         origin = georigin(points[0])
         points = [point.sub(origin.Base) for point in points]
         obj.Mesh = Mesh.Mesh([points[i] for i in tested_tri])
 
-        obj.Contour= get_contours(obj.Mesh, obj.MajorInterval.Value, obj.MinorInterval.Value)
+        obj.Contour = get_contours(obj.Mesh, obj.MajorInterval.Value, obj.MinorInterval.Value)
         obj.Boundary = get_boundary(obj.Mesh)

@@ -29,46 +29,35 @@ from ..make import make_alignment
 from ..tasks import task_alignment_editor
 
 
-class CreateAlignment:
-    """
-    Command to create a new Alignment.
-    """
+class AlignmentCreate:
+    """Command to create a new Alignment."""
 
     def __init__(self):
-        """
-        Constructor
-        """
+        """Constructor"""
         pass
 
     def GetResources(self):
-        """
-        Return the command resources dictionary
-        """
+        """Return the command resources dictionary"""
         return {
-            'Pixmap': icons_path + '/AlignmentCreate.svg',
-            'MenuText': "Create Alignment",
-            'ToolTip': "Create Alignment from selected point group(s)."
-            }
+            "Pixmap": icons_path + "/AlignmentCreate.svg",
+            "MenuText": "Create Alignment",
+            "ToolTip": "Create Alignment geometry."}
 
     def IsActive(self):
-        """
-        Define tool button activation situation
-        """
+        """Define tool button activation situation"""
         # Check for document
         if FreeCAD.ActiveDocument:
             return True
         return False
 
     def Activated(self):
-        """
-        Command activation method
-        """
+        """Command activation method"""
         # Check for selected object
         alignment = make_alignment.create()
 
-        panel = task_alignment_editor.run(alignment=alignment)
+        panel = task_alignment_editor.run(alignment)
         FreeCADGui.Control.showDialog(panel)
 
         FreeCAD.ActiveDocument.recompute()
 
-FreeCADGui.addCommand('Create Alignment', CreateAlignment())
+FreeCADGui.addCommand("Alignment Create", AlignmentCreate())

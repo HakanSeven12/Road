@@ -20,16 +20,17 @@
 # *                                                                         *
 # ***************************************************************************
 
-"""Provides GUI tools to edit Alignment objects."""
+"""Provides GUI tools to create Profile objects."""
 
 import FreeCAD, FreeCADGui
 
 from ..variables import icons_path
-from ..tasks import task_alignment_editor
+from ..make import make_profile
+from ..tasks import task_profile_editor
 
 
-class AlignmentEdit:
-    """Command to edit selected Alignment geometry."""
+class ProfileCreate:
+    """Command to create a new Profile."""
 
     def __init__(self):
         """Constructor"""
@@ -38,27 +39,24 @@ class AlignmentEdit:
     def GetResources(self):
         """Return the command resources dictionary"""
         return {
-            "Pixmap": icons_path + "/AlignmentEdit.svg",
-            "MenuText": "Edit Alignment",
-            "ToolTip": "Edit selected Alignment geometry."
+            "Pixmap": icons_path + "/ProfileCreate.svg",
+            "MenuText": "Create Profile",
+            "ToolTip": "Create Profile for road alignment."
             }
 
     def IsActive(self):
         """Define tool button activation situation"""
         if FreeCAD.ActiveDocument:
-            # Check for selected object
-            selection = FreeCADGui.Selection.getSelection()
-            if selection:
-                if selection[-1].Proxy.Type == "Road::Alignment":
-                    self.alignment = selection[-1]
-                    return True
+            return True
         return False
 
     def Activated(self):
         """Command activation method"""
-        panel = task_alignment_editor.run(self.alignment)
+        profile = make_profile.create()
+
+        panel = task_profile_editor.run(profile)
         FreeCADGui.Control.showDialog(panel)
 
         FreeCAD.ActiveDocument.recompute()
 
-FreeCADGui.addCommand("Alignment Edit", AlignmentEdit())
+FreeCADGui.addCommand("Profile Create", ProfileCreate())

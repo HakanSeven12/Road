@@ -51,15 +51,15 @@ class GeoPoint:
 
         obj.addProperty(
             "App::PropertyFloat", "Easting", "Geometry",
-            "Show easting labels", 16).Easting = 0
+            "Show easting labels").Easting = 0
 
         obj.addProperty(
             "App::PropertyFloat", "Northing", "Geometry",
-            "Show norting labels", 16).Northing = 0
+            "Show norting labels").Northing = 0
 
         obj.addProperty(
             "App::PropertyFloat", "PointElevation", "Geometry",
-            "Point elevation", 16).PointElevation = 0
+            "Point elevation").PointElevation = 0
 
         obj.Proxy = self
 

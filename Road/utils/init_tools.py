@@ -36,10 +36,11 @@ def get_surface_commands():
 
 def get_alignment_commands():
     """Return the alignment commands list."""
-    return ["Create Alignment",
-            "Edit Alignment",
+    return ["Alignment Create",
+            "Alignment Edit",
             "Alignment Offset",
-            "Profile Frame Create"]
+            "Profile Frame Create",
+            "Profile Create"]
 
 def get_section_commands():
     """Return the section commands list."""

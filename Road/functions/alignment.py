@@ -77,7 +77,7 @@ def spiral_bspline(start, end, radius, length, direction, delta, type = "in"):
 
 def get_geometry(alignment_data):
     if not alignment_data:
-        return Part.Shape(), []
+        return [], Part.Wire()
  
     # Extract points and parameters from dictionary
     PI_points = []
@@ -102,7 +102,7 @@ def get_geometry(alignment_data):
             # If there is no curve, create a line between points
             tangent = makeTangent(previous, all_points[i])
             shapes.append(tangent)
-            previous = all_points[i]
+            previous = tangent.lastVertex().Point
 
         elif curve_type == 'Curve':
             # If it's a curve, create a simple circular arc
@@ -124,7 +124,7 @@ def get_geometry(alignment_data):
             shapes.extend([tangent, curve])
 
             # Save the end point for the next group
-            previous = end
+            previous = curve.lastVertex().Point
 
         elif curve_type == 'Spiral-Curve-Spiral':
             start_point = all_points[i-1]
@@ -144,23 +144,21 @@ def get_geometry(alignment_data):
 
             tangent = makeTangent(previous, spiral_in.Curve.StartPoint)
 
-            SC = spiral_in.Curve.EndPoint
-            CS = spiral_out.Curve.StartPoint
-            
+            SC = spiral_in.lastVertex().Point
+            CS = spiral_out.firstVertex().Point
+
             curve = makeCurve(SC, CS, radius, direction)
 
             shapes.extend([tangent, spiral_in, curve, spiral_out])
 
             # Save the end point for the next group
-            previous = spiral_out.Curve.EndPoint
+            previous = spiral_out.lastVertex().Point
 
     # For the last group, connect to the last PI
     end_tangent = makeTangent(previous, all_points[-1])
     shapes.append(end_tangent)
 
-    shape = Part.makeCompound(shapes)
-    #edges = Part.__sortEdges__(shapes)
-    #shape = Part.Wire(edges[0])
+    shape = Part.Wire(shapes)
 
     return all_points, shape
 
@@ -190,3 +188,6 @@ def transformation(shape, stations, last=False):
 
         total_length += sub.Length
     return points, rotations
+
+    def get_length(point, wire):
+        point.distToShape(wire)

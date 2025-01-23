@@ -85,15 +85,14 @@ class ViewProviderProfile:
 
     def updateData(self, obj, prop):
         """Update Object visuals when a data property changed."""
-        if prop == "Shape":
-            shape = obj.getPropertyByName(prop)
-            if shape.Vertexes:
+        if prop == "PVIs":
+            pvis = obj.getPropertyByName(prop)
+            points = [point.add(obj.Placement.Base) for point in pvis]
+            if points:
                 origin = georigin()
                 geo_system = ["UTM", origin.UtmZone, "FLAT"]
                 self.line_coords.geoSystem.setValues(geo_system)
-
-                border_corners = [ver.Point for ver in shape.Vertexes]
-                self.line_coords.point.values = border_corners
+                self.line_coords.point.values = points
 
     def getDisplayModes(self,vobj):
         """Return a list of display modes."""

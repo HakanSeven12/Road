@@ -80,8 +80,10 @@ class ProfileFrame:
             if group:
                 z_values = []
                 for profile in group:
-                    bb =profile.Terrain.Mesh.BoundBox
-                    z_values.extend([bb.ZMin, bb.ZMax])
+                    elevations = [item['Elevation'] for item in profile.Model.values()]
+                    minel = min(elevations)
+                    maxel = max(elevations)
+                    z_values.extend([minel, maxel])
 
                 height = max(z_values) - min(z_values)
                 obj.Height = 1000 if height == 0 else height

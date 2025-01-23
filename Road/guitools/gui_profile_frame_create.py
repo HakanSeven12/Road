@@ -97,10 +97,8 @@ class ProfileFrameCreate:
         if self.terrains:
             for i in self.terrains:
                 profile = make_profile.create()
-                profile.Terrain = i
-
                 self.profile_frame.addObject(profile)
-
+                profile.Terrain = i
 
         FreeCAD.ActiveDocument.recompute()
 
