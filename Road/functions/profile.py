@@ -62,7 +62,7 @@ def from_mesh(wire, mesh):
             projection = MeshPart.projectPointsOnMesh(
                 [point], mesh, FreeCAD.Vector(0, 0, 1))
 
-            model[num] = {"Station": total_length + param, "Elevation": projection[0].z}
+            model[num] = {"Station": total_length + param, "Elevation": projection[0].z if projection else None}
             prev = point
             num += 1
 
@@ -105,69 +105,80 @@ def angle_direction(v1, v2=None, v3=None):
 
 def get_geometry(model):
     if not model:
-        return [], Part.Wire()
+        return [], Part.makeCompound([])
  
     # Extract points and parameters from dictionary
-    PVI_points = []
-    for key in model:
-        PVI_points.append({
-            "point": FreeCAD.Vector(float(model[key]["Station"]), float(model[key]["Elevation"]), 0),
-            "radius": float(model[key].get("Radius", 0)) * 1000,
-            "curve_type": model[key].get("Curve Type", "None")})
+    whole = []
+    current = []
+    for key, value in model.items():
+        station = value['Station']
+        elevation = value['Elevation']
 
-    # Get PVI points
-    all_points = [pvi["point"] for pvi in PVI_points]
+        if elevation is None:
+            if current:
+                whole.append(current)
+                current = []
 
-    shapes = []
-    previous = all_points[0]
-    for i in range(1, len(all_points)-1):
-        curve_type = PVI_points[i]["curve_type"]
-        if curve_type == "None":
-            # If there is no curve, create a line between points
-            tangent = makeTangent(previous, all_points[i])
-            shapes.append(tangent)
-            previous = tangent.lastVertex().Point
+        else:
+            current.append({
+                "point": FreeCAD.Vector(float(station), float(elevation)),
+                "radius": float(value.get("Radius", 0)) * 1000,
+                "curve_type": value.get("Curve Type", "None")})
 
-        elif curve_type == "Curve":
-            # If it"s a curve, create a simple circular arc
-            start_point = all_points[i-1]
-            middle_point = all_points[i]
-            end_point = all_points[i+1]
+    if current: whole.append(current)
 
-            radius = PVI_points[i]["radius"]
+    # Create Part Wire for every seperated segment in the profile
+    compound = []
+    for segment in whole:
+        all_points = [pvi["point"] for pvi in segment]
 
-            # Rotation and direction of the curve
-            delta, direction = angle_direction(start_point, middle_point, end_point)
+        edges = []
+        previous = all_points[0]
+        for i in range(1, len(all_points)-1):
+            curve_type = segment[i]["curve_type"]
 
-            length = radius * math.tan(delta / 2)
-            start = start_point.sub(middle_point).normalize().multiply(abs(length)).add(middle_point)
-            end = end_point.sub(middle_point).normalize().multiply(abs(length)).add(middle_point)
-            
-            tangent = makeTangent(previous, start)
-            curve = makeCurve(start, end, radius, direction)
-            shapes.extend([tangent, curve])
+            if curve_type == "None":
+                tangent = makeTangent(previous, all_points[i])
+                edges.append(tangent)
+                previous = tangent.lastVertex().Point
 
-            # Save the end point for the next group
-            previous = curve.lastVertex().Point
+            elif curve_type == "Curve":
+                start_point = all_points[i-1]
+                middle_point = all_points[i]
+                end_point = all_points[i+1]
 
-        elif curve_type == "Parabola":
-            start_point = all_points[i-1]
-            middle_point = all_points[i]
-            end_point = all_points[i+1]
+                radius = segment[i]["radius"]
+                delta, direction = angle_direction(start_point, middle_point, end_point)
 
-            # Get spiral parameters for the current PI point
-            radius = PVI_points[i]["radius"]
+                length = radius * math.tan(delta / 2)
+                start = start_point.sub(middle_point).normalize().multiply(abs(length)).add(middle_point)
+                end = end_point.sub(middle_point).normalize().multiply(abs(length)).add(middle_point)
+                
+                tangent = makeTangent(previous, start)
+                curve = makeCurve(start, end, radius, direction)
+                edges.extend([tangent, curve])
 
-            # Rotation and direction of the curve
-            delta, direction = angle_direction(start_point, middle_point, end_point)
+                previous = curve.lastVertex().Point
 
-            #TODO
-            print("Parabola not defined")
+            elif curve_type == "Parabola":
+                start_point = all_points[i-1]
+                middle_point = all_points[i]
+                end_point = all_points[i+1]
 
-    # For the last group, connect to the last PI
-    end_tangent = makeTangent(previous, all_points[-1])
-    shapes.append(end_tangent)
+                radius = segment[i]["radius"]
+                delta, direction = angle_direction(start_point, middle_point, end_point)
 
-    shape = Part.Wire(shapes)
+                #TODO
+                print("Parabola not defined")
 
-    return all_points, shape
+        # Connect to the last PVI
+        if previous != all_points[-1]:
+            end_tangent = makeTangent(previous, all_points[-1])
+            edges.append(end_tangent)
+
+        sort = Part.sortEdges(edges)
+        if not sort: continue
+        wire = Part.Wire(sort[0])
+        compound.append(wire)
+
+    return all_points, Part.makeCompound(compound)

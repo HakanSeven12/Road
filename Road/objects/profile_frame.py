@@ -61,8 +61,16 @@ class ProfileFrame:
         profiles = obj.getParentGroup()
         alignment = profiles.getParentGroup()
 
+        z_values = []
+        for profile in obj.Group:
+            elevations = [item['Elevation'] for item in profile.Model.values()]
+            z_values.extend([el for el in elevations if el is not None])
+
+        obj.Height = max(z_values) - min(z_values) if z_values else 1000
+        obj.Horizon = min(z_values) if z_values else 0
+
         length = alignment.Length.Value
-        obj.Length = 1000 if length == 0 else length
+        obj.Length = length if length else 1000
 
         p1 = FreeCAD.Vector()
         p2 = FreeCAD.Vector(obj.Length, 0)
@@ -75,16 +83,4 @@ class ProfileFrame:
 
     def onChanged(self, obj, prop):
         """Update Object when a property changed."""
-        if prop == "Group":
-            group = obj.getPropertyByName(prop)
-            if group:
-                z_values = []
-                for profile in group:
-                    elevations = [item['Elevation'] for item in profile.Model.values()]
-                    minel = min(elevations)
-                    maxel = max(elevations)
-                    z_values.extend([minel, maxel])
-
-                height = max(z_values) - min(z_values)
-                obj.Height = 1000 if height == 0 else height
-                obj.Horizon = min(z_values)
+        pass

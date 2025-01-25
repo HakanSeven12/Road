@@ -47,7 +47,7 @@ class Profile:
 
         obj.addProperty(
             "App::PropertyEnumeration", "Update", "Base",
-            "Profile update method").Update = ["Dynamic", "Static"]
+            "Profile update method", enum_vals=["Dynamic", "Static"])
 
         obj.addProperty(
             "App::PropertyLink", "Terrain", "Base",
@@ -59,43 +59,36 @@ class Profile:
 
         obj.addProperty(
             "App::PropertyPythonObject", "Model", "Base",
-            "Alignment horizontal geometry model").Model = {}
+            "Profile geometry model").Model = {}
 
         obj.addProperty(
             "App::PropertyVectorList", "PVIs", "Base",
             "Points of Vertical Intersection (PVIs) as a list of vectors").PVIs = []
 
         obj.Proxy = self
-        obj.Update = "Dynamic"
 
     def execute(self, obj):
         """Do something when doing a recomputation."""
-        obj.PVIs, shp = profile.get_geometry(obj.Model)
+        if obj.Update == "Dynamic" and obj.Terrain:
+            profile_frame = obj.getParentGroup()
+            profiles = profile_frame.getParentGroup()
+            alignment = profiles.getParentGroup()
 
-        profile_frame = obj.getParentGroup()
-        placement = profile_frame.Placement.copy()
-        displacement = FreeCAD.Vector(0,profile_frame.Horizon)
-        placement.move(displacement.negative())
-        obj.Placement = placement
-        shp.Placement = obj.Placement
-        obj.Shape = shp
+            origin = georigin().Base
+            shape = alignment.Shape.copy()
+            shape.Placement.move(origin.negative())
+            obj.Model = profile.from_mesh(shape, obj.Terrain.Mesh)
+            obj.PVIs, shp = profile.get_geometry(obj.Model)
+
+            profile_frame = obj.getParentGroup()
+            placement = profile_frame.Placement.copy()
+            horizon = min([profile_frame.Horizon])
+            displacement = FreeCAD.Vector(0,profile_frame.Horizon)
+            placement.move(displacement.negative())
+            obj.Placement = placement
+            shp.Placement = obj.Placement
+            obj.Shape = shp
 
     def onChanged(self, obj, prop):
         """Update Object when a property changed."""
-        if prop == "Terrain":
-            terrain = obj.getPropertyByName(prop)
-            if not hasattr(obj, "Update"): return
-            if obj.Update == "Dynamic" and terrain:
-                profile_frame = obj.getParentGroup()
-                profiles = profile_frame.getParentGroup()
-                alignment = profiles.getParentGroup()
-
-                origin = georigin().Base
-                shape = alignment.Shape.copy()
-                shape.Placement.move(origin.negative())
-                obj.Model = profile.from_mesh(shape, terrain.Mesh)
-    
-        if prop == "Update":
-            update = obj.getPropertyByName(prop)
-            if update == "Dynamic":
-                self.onChanged(obj, "Terrain")
+        pass
