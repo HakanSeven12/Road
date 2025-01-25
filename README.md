@@ -4,16 +4,15 @@ Road is the Transportation and Geomatics Engineering workbench for FreeCAD.
 
 ## ✨ Features
 
-* Import Survey Data Files
-* Export Points to File
+* Geopoints
 * Terrain
 * Alignment
 * Profile
 * Regions
 * Sections
-* Earthworks Calculation
+* Volume
 * GeoLine
-* Import LandXML files
+* LandXML
 
 ## 📥 Installation
 ### 🔹 Option 1: Install via Addon Manager (Recommended)
@@ -21,7 +20,7 @@ Road is the Transportation and Geomatics Engineering workbench for FreeCAD.
 1. Open FreeCAD.
 2. Go to **Tools > Addon Manager**.
 3. In the Addon Manager window, search for **Road**.
-4. Click the **Install** button.
+4. Select the workbench and click the **Install** button.
 5. Restart FreeCAD to complete the installation.
 
 ### 🔹 Option 2: Manual Installation
@@ -40,6 +39,7 @@ Road is the Transportation and Geomatics Engineering workbench for FreeCAD.
 ## 💬 Feedback and Support
 
 💡 Need help? Join the discussion on the FreeCAD Forum: [FreeCAD Road Workbench](https://forum.freecadweb.org/viewtopic.php?f=8&t=34371).
+
 🐞 Found a bug? Report issues on [GitHub](https://github.com/HakanSeven12/Road/issues).
 
 ## 👨‍💻 Developer
