@@ -46,16 +46,16 @@ class ComboBoxDelegate(QStyledItemDelegate):
         model.setData(index, editor.currentText(), Qt.EditRole)
 
 class PVITreeViewWidget(QWidget):
-    def __init__(self, parent=None, alignment=None):
+    def __init__(self, parent=None, profile=None):
         super().__init__()
 
         # Initialize the PVI dictionary (to store data)
         self.pvi_data = {}
-        self.alignment = alignment
+        self.profile = profile
 
-        if hasattr(alignment, 'ModelKeeper'):
-            if alignment.ModelKeeper:
-                self.pvi_data = alignment.ModelKeeper
+        if hasattr(profile, 'Model'):
+            if profile.Model:
+                self.pvi_data = profile.Model
 
         # Main layout
         main_layout = QVBoxLayout()
@@ -111,7 +111,7 @@ class PVITreeViewWidget(QWidget):
 
         with open(csv_file_path, "r", newline='', encoding="utf-8") as csv_file:
             csv_reader = csv.reader(csv_file, delimiter=";")
-            
+
             # Clear the tree before loading new data
             self.root_node.removeRows(0, self.root_node.rowCount())
 
@@ -175,7 +175,7 @@ class PVITreeViewWidget(QWidget):
 
     def _update_curve_type(self, parent_item, curve_type, row_data=None):
         """Add or remove attributes dynamically based on the Curve Type."""
-        if curve_type == "Curve":
+        if curve_type == "Circular":
             radius = row_data[4] if row_data and len(row_data) > 4 else ""
             self._add_attribute_item(parent_item, "Radius", radius)
         elif curve_type == "Parabola":
@@ -209,8 +209,8 @@ class PVITreeViewWidget(QWidget):
 
             self.pvi_data[pvi_name] = data
 
-        if self.alignment:
-            self.alignment.ModelKeeper = self.pvi_data
+        if self.profile:
+            self.profile.Model = self.pvi_data
 
     def load_data(self):
         """Load data from the pvi_data dictionary into the tree."""

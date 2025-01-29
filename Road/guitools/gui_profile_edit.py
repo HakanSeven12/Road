@@ -20,25 +20,45 @@
 # *                                                                         *
 # ***************************************************************************
 
-import FreeCAD
-import Part
-import math
+"""Provides GUI tools to edit Profile objects."""
 
-# Function to create an arc
-def makeCurve(start, end, radius, direction):
-    # Calculate the midpoint and the distance between the points
-    chord_middle = (start + end) / 2
-    chord_length = start.distanceToPoint(end)
+import FreeCAD, FreeCADGui
 
-    # Calculate the distance from the midpoint to the center
-    dist_to_center = math.sqrt(abs(radius**2 - (chord_length / 2)**2))
+from ..variables import icons_path
+from ..tasks import task_profile_editor
 
-    # Calculate the vector perpendicular to the line segment between the points
-    perp_vector = FreeCAD.Vector(0,0,1).cross(end.sub(start)).normalize().multiply(dist_to_center)
 
-    # Select the correct center based on direction
-    center = chord_middle.add(perp_vector) if direction > 0 else chord_middle.sub(perp_vector)
-    middle = chord_middle.sub(center).normalize().multiply(radius).add(center)
-    curve = Part.Arc(start, middle, end)
+class ProfileEdit:
+    """Command to edit selected Profile."""
 
-    return curve.toShape()
+    def __init__(self):
+        """Constructor"""
+        pass
+
+    def GetResources(self):
+        """Return the command resources dictionary"""
+        return {
+            "Pixmap": icons_path + "/ProfileEdit.svg",
+            "MenuText": "Edit Profile",
+            "ToolTip": "Edit selected Profile geometry."
+            }
+
+    def IsActive(self):
+        """Define tool button activation situation"""
+        if FreeCAD.ActiveDocument:
+            # Check for selected object
+            selection = FreeCADGui.Selection.getSelection()
+            if selection:
+                if selection[-1].Proxy.Type == "Road::Profile":
+                    self.profile = selection[-1]
+                    return True
+        return False
+
+    def Activated(self):
+        """Command activation method"""
+        panel = task_profile_editor.run(self.profile)
+        FreeCADGui.Control.showDialog(panel)
+
+        FreeCAD.ActiveDocument.recompute()
+
+FreeCADGui.addCommand("Profile Edit", ProfileEdit())

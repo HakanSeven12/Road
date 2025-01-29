@@ -30,12 +30,13 @@ that is, those actions that can be called from menus and buttons.
 from .guitools import gui_alignment_create
 from .guitools import gui_alignment_edit
 from .guitools import gui_alignment_offset
-from .guitools import gui_profile_frame_create
-from .guitools import gui_profile_create
 from .guitools import gui_cluster_create
 from .guitools import gui_geopoint_create
-from .guitools import gui_point_import
-from .guitools import gui_point_export
+from .guitools import gui_geopoint_import
+from .guitools import gui_geopoint_export
+from .guitools import gui_profile_frame_create
+from .guitools import gui_profile_create
+from .guitools import gui_profile_edit
 from .guitools import gui_terrain_create
 from .guitools import gui_terrain_data
 from .guitools import gui_terrain_edit

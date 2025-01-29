@@ -51,6 +51,12 @@ def from_mesh(wire, mesh):
     prev = None
     total_length = 0
     for edge in wire.Edges:
+        if edge.Curve.TypeId == 'Part::GeomCircle':
+            arc_points = edge.discretize(50)
+            bspline = Part.BSplineCurve()
+            bspline.interpolate(arc_points)
+            edge = bspline.toShape()
+
         parameters = [edge.getParameterByLength(0)]
         parameters.extend(MeshPart.findSectionParameters(
             edge, mesh, FreeCAD.Vector(0, 0, 1)))
@@ -59,10 +65,11 @@ def from_mesh(wire, mesh):
         for param in parameters:
             point = edge.valueAt(param)
             if point == prev: continue
-            projection = MeshPart.projectPointsOnMesh(
-                [point], mesh, FreeCAD.Vector(0, 0, 1))
+            projection = mesh.nearestFacetOnRay(point, FreeCAD.Vector(0, 0, 1))
+            model[str(num)] = {"Station": str(total_length + param), 
+            "Elevation": str(list(projection.values())[0][2] if projection else None),
+            "Curve Type": "None"}
 
-            model[num] = {"Station": total_length + param, "Elevation": projection[0].z if projection else None}
             prev = point
             num += 1
 
@@ -114,7 +121,7 @@ def get_geometry(model):
         station = value['Station']
         elevation = value['Elevation']
 
-        if elevation is None:
+        if elevation is "None":
             if current:
                 whole.append(current)
                 current = []

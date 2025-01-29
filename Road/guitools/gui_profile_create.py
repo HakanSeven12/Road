@@ -41,18 +41,24 @@ class ProfileCreate:
         return {
             "Pixmap": icons_path + "/ProfileCreate.svg",
             "MenuText": "Create Profile",
-            "ToolTip": "Create Profile for road alignment."
+            "ToolTip": "Create Profile for selected Profile Frame."
             }
 
     def IsActive(self):
         """Define tool button activation situation"""
         if FreeCAD.ActiveDocument:
-            return True
+            # Check for selected object
+            selection = FreeCADGui.Selection.getSelection()
+            if selection:
+                if selection[-1].Proxy.Type == "Road::ProfileFrame":
+                    self.profile_frame = selection[-1]
+                    return True
         return False
 
     def Activated(self):
         """Command activation method"""
         profile = make_profile.create()
+        self.profile_frame.addObject(profile)
 
         panel = task_profile_editor.run(profile)
         FreeCADGui.Control.showDialog(panel)
