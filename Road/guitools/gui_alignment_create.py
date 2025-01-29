@@ -45,10 +45,7 @@ class AlignmentCreate:
 
     def IsActive(self):
         """Define tool button activation situation"""
-        # Check for document
-        if FreeCAD.ActiveDocument:
-            return True
-        return False
+        return bool(FreeCADGui.ActiveDocument)
 
     def Activated(self):
         """Command activation method"""

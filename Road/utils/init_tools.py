@@ -24,8 +24,10 @@
 
 def get_point_commands():
     """Return the point commands list."""
-    return ["Create Cluster",
-            "Create GeoPoint"]
+    return ["Cluster Create",
+            "GeoPoint Create",
+            "GeoPoint Import",
+            "GeoPoint Export"]
 
 def get_surface_commands():
     """Return the surface commands list."""
@@ -40,7 +42,8 @@ def get_alignment_commands():
             "Alignment Edit",
             "Alignment Offset",
             "Profile Frame Create",
-            "Profile Create"]
+            "Profile Create",
+            "Profile Edit"]
 
 def get_section_commands():
     """Return the section commands list."""
@@ -55,9 +58,7 @@ def get_geoline_commands():
 
 def get_io_commands():
     """Return the input/output commands list."""
-    return ["LandXML Importer",
-            "Import Points",
-            "Export Points"]
+    return []
 
 def init_toolbar(workbench, toolbar, cmd_list):
     """Initialize a toolbar.

@@ -20,7 +20,7 @@
 # *                                                                         *
 # ***************************************************************************
 
-"""Provides GUI tools to import point files."""
+"""Provides GUI tools to import GeoPoints."""
 
 import FreeCAD, FreeCADGui
 
@@ -28,44 +28,31 @@ from ..variables import icons_path
 from ..tasks import task_cluster_import
 
 
-class PointImporter:
-    """
-    Command to import point file which includes survey data.
-    """
+class GeoPointImport:
+    """Command to import point file which includes survey data."""
 
     def __init__(self):
-        """
-        Constructor
-        """
+        """Constructor"""
         pass
 
     def GetResources(self):
-        """
-        Return the command resources dictionary.
-        """
+        """Return the command resources dictionary."""
 
         return {
-            'Pixmap': icons_path + '/ImportPointFile.svg',
-            'MenuText': "Import Point File",
-            'ToolTip': "Import point file which includes survey data."
+            "Pixmap": icons_path + "/ImportPointFile.svg",
+            "MenuText": "Import GeoPoints",
+            "ToolTip": "Import GeoPoints from file."
             }
 
     def IsActive(self):
-        """
-        Define tool button activation situation
-        """
-        # Check for document
-        if FreeCAD.ActiveDocument:
-            return True
-        return False
+        """Define tool button activation situation"""
+        return bool(FreeCADGui.ActiveDocument)
 
     def Activated(self):
-        """
-        Command activation method
-        """
+        """Command activation method"""
         panel = task_cluster_import.TaskClusterImport()
         FreeCADGui.Control.showDialog(panel)
         
         FreeCAD.ActiveDocument.recompute()
 
-FreeCADGui.addCommand('Import Points', PointImporter())
+FreeCADGui.addCommand("GeoPoint Import", GeoPointImport())

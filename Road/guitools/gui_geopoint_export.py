@@ -20,7 +20,7 @@
 # *                                                                         *
 # ***************************************************************************
 
-"""Provides GUI tools to export Cluster points."""
+"""Provides GUI tools to export GeoPoints."""
 
 import FreeCAD, FreeCADGui
 
@@ -28,44 +28,31 @@ from ..variables import icons_path
 from ..tasks import task_cluster_export
 
 
-class PointExporter:
-    """
-    Command to export points to point file.
-    """
+class GeoPointExport:
+    """Command to export points to point file."""
 
     def __init__(self):
-        """
-        Constructor
-        """
+        """Constructor"""
         pass
 
     def GetResources(self):
-        """
-        Return the command resources dictionary.
-        """
+        """Return the command resources dictionary."""
 
         return {
-            'Pixmap': icons_path + '/ExportPoints.svg',
-            'MenuText': "Export Points",
-            'ToolTip': "Export points to point file."
+            "Pixmap": icons_path + "/ExportPoints.svg",
+            "MenuText": "Export GeoPoints",
+            "ToolTip": "Export GeoPoints to file."
             }
 
     def IsActive(self):
-        """
-        Define tool button activation situation
-        """
-        # Check for document
-        if FreeCAD.ActiveDocument:
-            return True
-        return False
+        """Define tool button activation situation"""
+        return bool(FreeCADGui.ActiveDocument)
 
     def Activated(self):
-        """
-        Command activation method
-        """
+        """Command activation method"""
         panel = task_cluster_export.TaskClusterExport()
         FreeCADGui.Control.showDialog(panel)
-        
+
         FreeCAD.ActiveDocument.recompute()
 
-FreeCADGui.addCommand('Export Points', PointExporter())
+FreeCADGui.addCommand("GeoPoint Export", GeoPointExport())

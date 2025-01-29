@@ -39,9 +39,9 @@ class AlignmentOffset:
     def GetResources(self):
         """Return the command resources dictionary"""
         return {
-            'Pixmap': icons_path + '/AlignmentOffset.svg',
-            'MenuText': "Create Offset Alignment",
-            'ToolTip': "Create an Offset Alignment from another alignment at a distance."
+            "Pixmap": icons_path + "/AlignmentOffset.svg",
+            "MenuText": "Create Offset Alignment",
+            "ToolTip": "Create an Offset Alignment from another Alignment at a distance."
             }
 
     def IsActive(self):
@@ -54,7 +54,7 @@ class AlignmentOffset:
         """Command activation method"""
         selection = FreeCADGui.Selection.getSelection()
         if selection:
-            if selection[-1].Proxy.Type == 'Road::Alignment':
+            if selection[-1].Proxy.Type == "Road::Alignment":
                 self.create(selection[-1].Name)
                 return
 
@@ -74,4 +74,4 @@ class AlignmentOffset:
 
         FreeCAD.ActiveDocument.recompute()
 
-FreeCADGui.addCommand('Alignment Offset', AlignmentOffset())
+FreeCADGui.addCommand("Alignment Offset", AlignmentOffset())

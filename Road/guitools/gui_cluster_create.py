@@ -28,8 +28,8 @@ from ..variables import icons_path
 from Road.make import make_cluster
 
 
-class CreateCluster:
-    """Command to create a new point group"""
+class ClusterCreate:
+    """Command to create a new GeoPoint Cluster"""
 
     def __init__(self):
         """Constructor"""
@@ -40,18 +40,16 @@ class CreateCluster:
         return {
             "Pixmap": icons_path + "/ClusterCreate.svg",
             "MenuText": "Create Cluster",
-            "ToolTip": "Create an empty geopoint group."
+            "ToolTip": "Create an empty GeoPoint Cluster."
             }
 
     def IsActive(self):
         """Define tool button activation situation"""
-        if FreeCAD.ActiveDocument:
-            return True
-        return False
+        return bool(FreeCADGui.ActiveDocument)
 
     def Activated(self):
         """Command activation method"""
         make_cluster.create()
         FreeCAD.ActiveDocument.recompute()
 
-FreeCADGui.addCommand("Create Cluster", CreateCluster())
+FreeCADGui.addCommand("Cluster Create", ClusterCreate())

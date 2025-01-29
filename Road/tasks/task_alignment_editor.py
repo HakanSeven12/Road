@@ -20,7 +20,7 @@
 # *                                                                         *
 # ***************************************************************************
 
-"""Provides the task panel code for the Cluster Exporter tool."""
+"""Provides the task panel code for the Alignment Editor tool."""
 
 from PySide.QtWidgets import QVBoxLayout, QPushButton, QTreeView, QWidget, QHBoxLayout, QFileDialog, QComboBox, QStyledItemDelegate
 from PySide.QtGui import QStandardItem, QStandardItemModel

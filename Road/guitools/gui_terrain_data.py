@@ -81,7 +81,8 @@ class TerrainDataGroup:
 
     def GetResources(self):
         """Set icon, menu and tooltip."""
-        return {"MenuText": "Add Data",
+        return {'Pixmap': icons_path + '/TerrainData.svg',
+                "MenuText": "Add Data",
                 "ToolTip": "Add data to surfaces."}
 
     def GetCommands(self):
@@ -91,7 +92,7 @@ class TerrainDataGroup:
 
     def IsActive(self):
         """Return True when this command should be available."""
-        return bool(FreeCADGui.getMainWindow().getActiveWindow())
+        return bool(FreeCADGui.ActiveDocument)
 
 
 FreeCADGui.addCommand('Terrain Data', TerrainDataGroup())

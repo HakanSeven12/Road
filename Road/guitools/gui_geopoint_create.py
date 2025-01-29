@@ -47,9 +47,7 @@ class GeoPointCreate:
 
     def IsActive(self):
         """Define tool button activation situation."""
-        if FreeCAD.ActiveDocument:
-            return True
-        return False
+        return bool(FreeCADGui.ActiveDocument)
 
     def Activated(self):
         """Command activation method"""
@@ -80,4 +78,4 @@ class GeoPointCreate:
         FreeCAD.ActiveDocument.recompute()
 
 
-FreeCADGui.addCommand("Create GeoPoint", GeoPointCreate())
+FreeCADGui.addCommand("GeoPoint Create", GeoPointCreate())

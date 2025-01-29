@@ -40,16 +40,14 @@ class ProfileFrameCreate:
     def GetResources(self):
         """Return the command resources dictionary"""
         return {
-            'Pixmap': icons_path + '/ProfileFrame.svg',
+            'Pixmap': icons_path + '/ProfileFrameCreate.svg',
             'MenuText': "Create Profile Frame",
-            'ToolTip': "Create a profile frame for selected alignment."
+            'ToolTip': "Create a Profile Frame for selected Alignment."
             }
 
     def IsActive(self):
         """Define tool button activation situation"""
-        if FreeCAD.ActiveDocument:
-            return True
-        return False
+        return bool(FreeCADGui.ActiveDocument)
 
     def Activated(self):
         """Command activation method"""
