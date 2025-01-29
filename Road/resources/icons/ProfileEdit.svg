@@ -5,7 +5,7 @@
    id="svg3612"
    version="1.1"
    inkscape:version="1.4 (86a8ad7, 2024-10-11)"
-   sodipodi:docname="GeoOrigin.svg"
+   sodipodi:docname="ProfileEdit.svg"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns:xlink="http://www.w3.org/1999/xlink"
@@ -298,21 +298,6 @@
          offset="1"
          id="stop3102" />
     </linearGradient>
-    <linearGradient
-       id="linearGradient12512">
-      <stop
-         style="stop-color:#ffffff;stop-opacity:1.0000000;"
-         offset="0.0000000"
-         id="stop12513" />
-      <stop
-         style="stop-color:#fff520;stop-opacity:0.89108908;"
-         offset="0.50000000"
-         id="stop12517" />
-      <stop
-         style="stop-color:#fff300;stop-opacity:0.0000000;"
-         offset="1.0000000"
-         id="stop12514" />
-    </linearGradient>
   </defs>
   <sodipodi:namedview
      id="base"
@@ -373,16 +358,16 @@
      inkscape:label="Layer 1"
      inkscape:groupmode="layer">
     <path
-       style="fill:#008000;stroke:#000000;stroke-width:2.1194;stroke-linejoin:round;fill-opacity:1;stroke-opacity:1"
-       d="m 32.007707,60.940318 c 0,0 -28.9986758,-18.378808 -28.9986758,-31.156894 0,-13.509129 2.6362438,-26.7059084 28.9986758,-26.7059084 26.362433,0 28.998677,13.1967794 28.998677,26.7059084 0,12.778086 -28.998677,31.156894 -28.998677,31.156894 z"
-       id="path1"
-       sodipodi:nodetypes="csssc" />
-    <circle
-       style="fill:#000000;fill-opacity:1;stroke:#000000;stroke-width:2.9661;stroke-linejoin:round;stroke-opacity:1"
-       id="path2"
-       cx="32"
-       cy="28.983049"
-       r="11.016951" />
+       style="fill:#3771c8;stroke:#000000;stroke-width:2.26338;stroke-dasharray:none;stroke-opacity:1"
+       d="M 60.868313,28.704321 V 60.868312 H 3.1316875 V 28.704321 c 13.9364265,-34.7371091 43.8001985,-33.4505495 57.7366255,0 z"
+       id="path4"
+       sodipodi:nodetypes="ccccc" />
+    <path
+       style="fill:#ffcc00;fill-opacity:1;stroke:#000000;stroke-width:2;stroke-dasharray:none;stroke-opacity:1;paint-order:fill markers stroke"
+       d="M 34.499334,49.293181 54.200388,22.323541 H 45.33678 L 60.109459,2.0963125 H 45.33678 L 32.041371,29.06595 h 10.340876 z"
+       id="path4-0"
+       sodipodi:nodetypes="cccccccc"
+       inkscape:label="Edit" />
   </g>
   <metadata
      id="metadata4582">
