@@ -120,15 +120,17 @@ class PVITreeViewWidget(QWidget):
 
     def add_item(self, row_data=None):
         """Add a new PVI entry to the tree."""
-        pvi_name = row_data[0] if row_data else "New PVI"
+        # Create root item for each PVI entry
+        pvi_item = QStandardItem()
+        pvi_item.setEditable(False)
+        self.root_node.appendRow(pvi_item)
+
+        pvi_name = row_data[0] if row_data else str(pvi_item.index().row() + 1)
         station = row_data[1] if row_data else ""
         elevation = row_data[2] if row_data else ""
         curve_type = row_data[3] if row_data and len(row_data) > 3 else "None"
 
-        # Create root item for each PVI entry
-        pvi_item = QStandardItem(pvi_name)
-        pvi_item.setEditable(False)
-        self.root_node.appendRow(pvi_item)
+        pvi_item.setText(pvi_name)
 
         # Create sub-items for each attribute and value
         self._add_attribute_item(pvi_item, "Station", station)

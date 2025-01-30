@@ -66,8 +66,8 @@ def from_mesh(wire, mesh):
             point = edge.valueAt(param)
             if point == prev: continue
             projection = mesh.nearestFacetOnRay(point, FreeCAD.Vector(0, 0, 1))
-            model[str(num)] = {"Station": str(total_length + param), 
-            "Elevation": str(list(projection.values())[0][2] if projection else None),
+            model[str(num)] = {"Station": str(round((total_length + param) / 1000, 3)), 
+            "Elevation": str(round((list(projection.values())[0][2]) / 1000, 3) if projection else None),
             "Curve Type": "None"}
 
             prev = point
@@ -121,14 +121,14 @@ def get_geometry(model):
         station = value['Station']
         elevation = value['Elevation']
 
-        if elevation is "None":
+        if elevation == "None":
             if current:
                 whole.append(current)
                 current = []
 
         else:
             current.append({
-                "point": FreeCAD.Vector(float(station), float(elevation)),
+                "point": FreeCAD.Vector(float(station), float(elevation)).multiply(1000),
                 "radius": float(value.get("Radius", 0)) * 1000,
                 "curve_type": value.get("Curve Type", "None")})
 
@@ -145,11 +145,12 @@ def get_geometry(model):
             curve_type = segment[i]["curve_type"]
 
             if curve_type == "None":
+                if previous == all_points[i]: continue
                 tangent = makeTangent(previous, all_points[i])
                 edges.append(tangent)
                 previous = tangent.lastVertex().Point
 
-            elif curve_type == "Curve":
+            elif curve_type == "Circular":
                 start_point = all_points[i-1]
                 middle_point = all_points[i]
                 end_point = all_points[i+1]

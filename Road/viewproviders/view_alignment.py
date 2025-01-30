@@ -336,8 +336,8 @@ class ViewProviderAlignment:
             mode = vobj.getPropertyByName(prop)
             if mode == "Centerline":
                 self.line_color.rgb = (1.0, 0.0, 0.0)
-                self.spiral_color.rgb = (0.0, 0.0, 1.0)
-                self.curve_color.rgb = (0.0, 1.0, 0.0)
+                self.spiral_color.rgb = (0.0, 1.0, 0.0)
+                self.curve_color.rgb = (0.0, 0.0, 1.0)
 
                 self.draw_style.lineWidth = 2
 

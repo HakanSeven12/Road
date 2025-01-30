@@ -120,15 +120,17 @@ class PiTreeViewWidget(QWidget):
 
     def add_item(self, row_data=None):
         """Add a new PI entry to the tree."""
-        pi_name = row_data[0] if row_data else "New PI"
+        # Create root item for each PI entry
+        pi_item = QStandardItem()
+        pi_item.setEditable(False)
+        self.root_node.appendRow(pi_item)
+
+        pi_name = row_data[0] if row_data else str(pi_item.index().row() + 1)
         x = row_data[1] if row_data else ""
         y = row_data[2] if row_data else ""
         curve_type = row_data[3] if row_data and len(row_data) > 3 else "None"
 
-        # Create root item for each PI entry
-        pi_item = QStandardItem(pi_name)
-        pi_item.setEditable(False)
-        self.root_node.appendRow(pi_item)
+        pi_item.setText(pi_name)
 
         # Create sub-items for each attribute and value
         self._add_attribute_item(pi_item, "X", x)

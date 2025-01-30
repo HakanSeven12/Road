@@ -64,7 +64,7 @@ class ProfileFrame:
         z_values = []
         for profile in obj.Group:
             elevations = [item['Elevation'] for item in profile.Model.values()]
-            z_values.extend([float(el) for el in elevations if el is not None])
+            z_values.extend([float(el) * 1000 for el in elevations if el != "None"])
 
         obj.Height = max(z_values) - min(z_values) if z_values else 1000
         obj.Horizon = min(z_values) if z_values else 0

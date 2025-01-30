@@ -69,9 +69,8 @@ class Profile:
 
     def execute(self, obj):
         """Do something when doing a recomputation."""
-        profile_frame = obj.getParentGroup()
-
         if obj.Update == "Dynamic" and obj.Terrain:
+            profile_frame = obj.getParentGroup()
             profiles = profile_frame.getParentGroup()
             alignment = profiles.getParentGroup()
 
@@ -80,20 +79,20 @@ class Profile:
             shape.Placement.move(origin.negative())
             obj.Model = profile.from_mesh(shape, obj.Terrain.Mesh)
 
-        elevations = [item['Elevation'] for item in obj.Model.values()]
-        z_values = [float(el) for el in elevations if el is not None]
-        z_values.append(profile_frame.Horizon)
-
-        obj.PVIs, shp = profile.get_geometry(obj.Model)
-        profile_frame = obj.getParentGroup()
-        placement = profile_frame.Placement.copy()
-
-        displacement = FreeCAD.Vector(0, min(z_values))
-        placement.move(displacement.negative())
-        obj.Placement = placement
-        shp.Placement = obj.Placement
-        obj.Shape = shp
-
     def onChanged(self, obj, prop):
         """Update Object when a property changed."""
-        pass
+        if prop == "Model":
+            profile_frame = obj.getParentGroup()
+            placement = profile_frame.Placement.copy()
+
+            elevations = [item['Elevation'] for item in obj.Model.values()]
+            z_values = [float(el) * 1000 for el in elevations if el != "None"]
+            z_values.append(profile_frame.Horizon)
+
+            displacement = FreeCAD.Vector(0, min(z_values))
+            placement.move(displacement.negative())
+            obj.Placement = placement
+
+            obj.PVIs, shp = profile.get_geometry(obj.Model)
+            shp.Placement = obj.Placement
+            obj.Shape = shp
