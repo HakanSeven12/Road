@@ -27,6 +27,7 @@ import MeshPart, Part
 
 import math
 
+from ..geoutils.parabola import makeParabola
 from ..geoutils.tangent import makeTangent
 from ..geoutils.curve import makeCurve
 
@@ -130,6 +131,7 @@ def get_geometry(model):
             current.append({
                 "point": FreeCAD.Vector(float(station), float(elevation)).multiply(1000),
                 "radius": float(value.get("Radius", 0)) * 1000,
+                "length": float(value.get("Length", 0)) * 1000,
                 "curve_type": value.get("Curve Type", "None")})
 
     if current: whole.append(current)
@@ -173,11 +175,14 @@ def get_geometry(model):
                 middle_point = all_points[i]
                 end_point = all_points[i+1]
 
-                radius = segment[i]["radius"]
-                delta, direction = angle_direction(start_point, middle_point, end_point)
+                length = segment[i]["length"]
 
-                #TODO
-                print("Parabola not defined")
+                parabola = makeParabola(start_point, middle_point, end_point, length)
+                start = parabola.firstVertex().Point
+                tangent = makeTangent(previous, start)
+                edges.extend([tangent, parabola])
+
+                previous = parabola.lastVertex().Point
 
         # Connect to the last PVI
         if previous != all_points[-1]:

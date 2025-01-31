@@ -181,8 +181,8 @@ class PVITreeViewWidget(QWidget):
             radius = row_data[4] if row_data and len(row_data) > 4 else ""
             self._add_attribute_item(parent_item, "Radius", radius)
         elif curve_type == "Parabola":
-            radius = row_data[4] if row_data and len(row_data) > 4 else ""
-            self._add_attribute_item(parent_item, "Radius", radius)
+            length = row_data[5] if row_data and len(row_data) > 4 else ""
+            self._add_attribute_item(parent_item, "Length", length)
 
     def delete_item(self):
         """Delete the selected item from the tree."""
@@ -222,7 +222,8 @@ class PVITreeViewWidget(QWidget):
                 data.get("Station", ""),
                 data.get("Elevation", ""),
                 data.get("Curve Type", "None"),
-                data.get("Radius", "")])
+                data.get("Radius", ""),
+                data.get("Length", "")])
 
 def run(profile=None):
     import FreeCADGui
