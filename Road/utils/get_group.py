@@ -59,7 +59,7 @@ def georigin(origin=FreeCAD.Vector(), name = "GeoOrigin"):
         ViewProviderGeoOrigin(
             obj.ViewObject, icons_path + "/" + name + ".svg")
 
-        for group in ["Clusters", "Terrains", "Alignments", "GeoLines"]:
+        for group in ["Clusters", "Terrains", "Alignments", "GeoLines", "Structures", "Roads"]:
             obj.addObject(get(group))
 
     if origin.x == 0 or origin.y == 0:
