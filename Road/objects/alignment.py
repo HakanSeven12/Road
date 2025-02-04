@@ -86,10 +86,6 @@ class Alignment:
 
         obj.Proxy = self
 
-    def execute(self, obj):
-        """Do something when doing a recomputation."""
-        if obj.OffsetAlignment: self.onChanged(obj, "OffsetAlignment")
-
     def onChanged(self, obj, prop):
         """Update Object when a property changed."""
         if prop == "ModelKeeper":

@@ -26,7 +26,7 @@ import FreeCAD, FreeCADGui
 
 from ..variables import icons_path
 from ..make import make_alignment
-from ..tasks.task_selection import TaskSelectObjectFromGroup
+from ..tasks.task_selection import SingleSelection
 
 
 class AlignmentOffset:
@@ -46,26 +46,19 @@ class AlignmentOffset:
 
     def IsActive(self):
         """Define tool button activation situation"""
-        if FreeCAD.ActiveDocument:
-            return True
-        return False
+        return bool(FreeCADGui.ActiveDocument)
 
     def Activated(self):
         """Command activation method"""
-        selection = FreeCADGui.Selection.getSelection()
-        if selection:
-            if selection[-1].Proxy.Type == "Road::Alignment":
-                self.create(selection[-1].Name)
-                return
+        alignments = FreeCAD.ActiveDocument.getObject("Alignments")
+        self.parent_selector = SingleSelection(alignments)
+        
+        self.form = self.parent_selector
+        FreeCADGui.Control.showDialog(self)
 
-        panel = TaskSelectObjectFromGroup(["Alignments"])
-        panel.accepted.connect(self.create)
-
-        FreeCADGui.Control.showDialog(panel)
-        FreeCAD.ActiveDocument.recompute()
-
-    def create(self, selected_objects):
-        parent = selected_objects[0][0]
+    def accept(self):
+        parent_label = self.parent_selector.combo_box.currentText()
+        parent = self.parent_selector.objects[parent_label]
 
         alignment = make_alignment.create()
         alignment.OffsetLength = 5000

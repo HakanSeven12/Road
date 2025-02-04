@@ -20,45 +20,59 @@
 # *                                                                         *
 # ***************************************************************************
 
-"""Provides the general task panel code to select parent object."""
+"""Provides the general task panel code to select objects from a group."""
 
-import FreeCAD, FreeCADGui
+from PySide.QtWidgets import QWidget, QVBoxLayout, QComboBox, QListWidget, QListWidgetItem, QAbstractItemView
+from PySide.QtCore import Qt
 
-from PySide.QtCore import QObject, Signal
-
-from ..variables import ui_path
-
-
-class TaskSelectObjectFromGroup(QObject):
-    accepted = Signal(list)
-
-    def __init__(self,groups):
+class SingleSelection(QWidget):
+    def __init__(self, group):
         super().__init__()
-        self.form = []
+        self.setWindowTitle("Select from " + group.Label)
+        self.setWindowIcon(group.ViewObject.Icon)
 
-        for group in groups:
-            obj = FreeCAD.ActiveDocument.getObject(group)
-            panel = FreeCADGui.PySideUic.loadUi(ui_path + '/selector.ui')
-            self.list_objects(panel, obj)
-            self.form.append(panel)
+        self.objects = {i.Label: i for i in group.Group}
+        keys = list(self.objects.keys())
 
-    def list_objects(self, panel, obj):
-        panel.setWindowTitle('Select from ' + obj.Label)
-        panel.setWindowIcon(obj.ViewObject.Icon)
-        panel.group_dict = {}
-        for i in obj.Group:
-            panel.group_dict[i.Label] = i
+        layout = QVBoxLayout()
 
-        keys = list(panel.group_dict.keys())
-        panel.lw_objects.addItems(keys)
+        self.combo_box = QComboBox()
+        self.combo_box.addItems(keys)
+        layout.addWidget(self.combo_box)
 
-    def accept(self):
-        selected_objects = []
-        for panel in self.form:
-            selection = panel.lw_objects.selectedItems()
-            if selection: selected_objects.append(
-                    [panel.group_dict[sel.text()] for sel in selection])
-            else: selected_objects.append([])
+        self.setLayout(layout)
 
-        self.accepted.emit(selected_objects)
-        FreeCADGui.Control.closeDialog()
+
+class MultipleSelection(QWidget):
+    def __init__(self, group):
+        super().__init__()
+        self.setWindowTitle("Select from " + group.Label)
+        self.setWindowIcon(group.ViewObject.Icon)
+
+        self.objects = {i.Label: i for i in group.Group}
+        keys = list(self.objects.keys())
+
+        layout = QVBoxLayout(self)
+
+        self.list_widget = QListWidget()
+        self.list_widget.setSelectionMode(QAbstractItemView.MultiSelection)
+        layout.addWidget(self.list_widget)
+        self.setLayout(layout)
+
+        for i in keys:
+            item = QListWidgetItem(i)
+            item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+            item.setCheckState(Qt.Unchecked)
+            self.list_widget.addItem(item)
+
+        self.list_widget.itemSelectionChanged.connect(self.sync_selection_with_check)
+
+    def sync_selection_with_check(self):
+        for index in range(self.list_widget.count()):
+            item = self.list_widget.item(index)
+            if item in self.list_widget.selectedItems():
+                if item.checkState() != Qt.Checked:
+                    item.setCheckState(Qt.Checked)
+            else:
+                if item.checkState() != Qt.Unchecked:
+                    item.setCheckState(Qt.Unchecked)

@@ -27,7 +27,7 @@ import FreeCAD, FreeCADGui
 from ..variables import icons_path
 from ..make import make_region
 from ..utils import get_group
-from ..tasks.task_selection import TaskSelectObjectFromGroup
+from ..tasks.task_selection import SingleSelection
 
 
 class RegionCreate:
@@ -71,7 +71,7 @@ class RegionCreate:
                 make_region.create(selection[-1])
 
         except Exception:
-            panel = TaskSelectObjectFromGroup("Alignments")
+            panel = SingleSelection("Alignments")
             FreeCADGui.Control.showDialog(panel)
             
         FreeCAD.ActiveDocument.recompute()

@@ -26,7 +26,7 @@ import FreeCAD, FreeCADGui
 
 from ..variables import icons_path
 from ..make import make_profile_frame, make_profile
-from ..tasks.task_selection import TaskSelectObjectFromGroup
+from ..tasks.task_selection import SingleSelection, MultipleSelection
 from ..utils.trackers import ViewTracker
 
 
@@ -51,22 +51,23 @@ class ProfileFrameCreate:
 
     def Activated(self):
         """Command activation method"""
-        tracker = ViewTracker("Location")
-        tracker.start()
-        selection = FreeCADGui.Selection.getSelection()
-        if selection:
-            if selection[-1].Proxy.Type == 'Road::Alignment':
-                self.create([selection[-1],[]])
-                return
+        alignments = FreeCAD.ActiveDocument.getObject("Alignments")
+        self.alignment_selector = SingleSelection(alignments)
 
-        panel = TaskSelectObjectFromGroup(["Alignments", "Terrains"])
-        panel.accepted.connect(self.create)
+        terrains = FreeCAD.ActiveDocument.getObject("Terrains")
+        self.terrain_selector = MultipleSelection(terrains)
 
-        FreeCADGui.Control.showDialog(panel)
+        self.form = [self.alignment_selector, self.terrain_selector]
+        FreeCADGui.Control.showDialog(self)
 
-    def create(self, selected_objects):
-        alignment = selected_objects[0][0]
-        self.terrains = selected_objects[1]
+    def accept(self):
+        """Panel 'OK' button clicked"""
+        alignment_label = self.alignment_selector.combo_box.currentText()
+        alignment = self.alignment_selector.objects[alignment_label]
+
+        terrain_labels = self.terrain_selector.list_widget.selectedItems()
+        self.terrains = [self.terrain_selector.objects[sel.text()] for sel in terrain_labels]
+
         self.profile_frame = make_profile_frame.create()
 
         for item in alignment.Group:
@@ -77,6 +78,8 @@ class ProfileFrameCreate:
         FreeCAD.Console.PrintWarning("Select Profile Frame position on screen")
         self.tracker = ViewTracker("Mouse", key="Left", function=self.set_placement)
         self.tracker.start()
+
+        FreeCADGui.Control.closeDialog()
 
     def set_placement(self, callback):
         event = callback.getEvent()
@@ -92,11 +95,10 @@ class ProfileFrameCreate:
         self.profile_frame.Placement.Base = coordinate
         self.tracker.stop()
 
-        if self.terrains:
-            for i in self.terrains:
-                profile = make_profile.create()
-                self.profile_frame.addObject(profile)
-                profile.Terrain = i
+        for i in self.terrains:
+            profile = make_profile.create()
+            self.profile_frame.addObject(profile)
+            profile.Terrain = i
 
         FreeCAD.ActiveDocument.recompute()
 
