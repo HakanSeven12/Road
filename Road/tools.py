@@ -27,23 +27,26 @@ that is, those actions that can be called from menus and buttons.
 """
 
 # Functions
-from .guitools import gui_cluster_create
-from .guitools import gui_geopoint_create
-from .guitools import gui_geopoint_import
-from .guitools import gui_geopoint_export
-from .guitools import gui_terrain_create
-from .guitools import gui_terrain_data
-from .guitools import gui_terrain_edit
-from .guitools import gui_terrain_demolish
-from .guitools import gui_alignment_create
-from .guitools import gui_alignment_edit
-from .guitools import gui_alignment_offset
-from .guitools import gui_profile_frame_create
-from .guitools import gui_profile_create
-from .guitools import gui_profile_edit
-from .guitools import gui_structure
-from .guitools import gui_region
-from .guitools import gui_sections
-from .guitools import gui_volume
-from .guitools import gui_table
-from .guitools import gui_pad
+from .guitools import (
+    gui_cluster_create,
+    gui_geopoint_create,
+    gui_geopoint_import,
+    gui_geopoint_export,
+    gui_terrain_create,
+    gui_terrain_data,
+    gui_terrain_edit,
+    gui_terrain_demolish,
+    gui_alignment_create,
+    gui_alignment_edit,
+    gui_alignment_offset,
+    gui_profile_frame_create,
+    gui_profile_create,
+    gui_profile_edit,
+    gui_structure,
+    gui_component_add,
+    gui_component_point,
+    gui_region,
+    gui_sections,
+    gui_volume,
+    gui_table,
+    gui_pad)

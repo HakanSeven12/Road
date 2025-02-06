@@ -128,6 +128,10 @@ class ViewProviderStructure:
         """Return object treeview icon."""
         return icons_path + "/Structure.svg"
 
+    def claimChildren(self):
+        """Provides object grouping"""
+        return self.Object.Group
+
     def dumps(self):
         """Called during document saving"""
         return None

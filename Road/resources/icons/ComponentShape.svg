@@ -5,7 +5,7 @@
    id="svg3612"
    version="1.1"
    inkscape:version="1.4 (86a8ad7, 2024-10-11)"
-   sodipodi:docname="StructureCreate.svg"
+   sodipodi:docname="ComponentShape.svg"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns:xlink="http://www.w3.org/1999/xlink"
@@ -313,17 +313,15 @@
          offset="1.0000000"
          id="stop12514" />
     </linearGradient>
-    <radialGradient
-       gradientTransform="matrix(0.783292,0,0,0.783292,8.9189379,-86.171324)"
-       inkscape:collect="always"
-       xlink:href="#linearGradient12512"
-       id="radialGradient278"
+    <linearGradient
+       y2="5"
+       x2="-22"
+       y1="18"
+       x1="-18"
        gradientUnits="userSpaceOnUse"
-       cx="55"
-       cy="125"
-       fx="55"
-       fy="125"
-       r="14.375" />
+       id="linearGradient3801-1"
+       xlink:href="#linearGradient3836-9"
+       gradientTransform="translate(27.633588,12.106412)" />
   </defs>
   <sodipodi:namedview
      id="base"
@@ -333,7 +331,7 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="12.172349"
-     inkscape:cx="30.643223"
+     inkscape:cx="25.960478"
      inkscape:cy="31.752294"
      inkscape:current-layer="layer1"
      showgrid="true"
@@ -384,50 +382,32 @@
      inkscape:label="Layer 1"
      inkscape:groupmode="layer">
     <path
-       style="fill:#000000;stroke:#ffffff;stroke-width:5;stroke-linejoin:miter;stroke-opacity:1;stroke-dasharray:none"
-       d="m 32,29.5 -24,5 v -17 l 24,-6 z"
-       id="path2-0-0"
-       sodipodi:nodetypes="ccccc" />
-    <path
-       style="fill:#808080;stroke:#ffffff;stroke-width:2;stroke-linejoin:miter;paint-order:stroke fill markers;stroke-dasharray:none;stroke-opacity:1"
-       d="M 32,48 2,54 V 36 l 30,-6 z"
+       style="fill:#cccccc;stroke:#000000;stroke-width:2;stroke-linejoin:miter;stroke-dasharray:none;stroke-opacity:1;paint-order:normal;fill-opacity:1"
+       d="M 8,35 56,51 V 29 L 8,13 Z"
        id="path2"
        sodipodi:nodetypes="ccccc" />
     <path
-       style="fill:#000000;stroke:#ffffff;stroke-width:2;stroke-linejoin:miter;stroke-opacity:1;paint-order:stroke fill markers;stroke-dasharray:none"
-       d="M 32,28 8,33 V 16 l 24,-6 z"
-       id="path2-0"
-       sodipodi:nodetypes="ccccc" />
+       d="M 2.6747092,8.455715 A 6.9999997,7.0000001 0 1 1 13.308297,17.562127 6.9999997,7.0000001 0 0 1 2.6747092,8.455715 Z"
+       id="path4250-7-3"
+       style="fill:#ff00ff;fill-opacity:1;stroke:#000000;stroke-width:2;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1" />
     <use
        x="0"
        y="0"
-       xlink:href="#path2"
-       id="use2"
-       transform="matrix(-1,0,0,1,64,0)" />
+       xlink:href="#path4250-7-3"
+       id="use1"
+       transform="translate(47.938163,16.437873)" />
     <use
        x="0"
        y="0"
-       xlink:href="#path2-0"
-       id="use3"
-       transform="matrix(-1,0,0,1,64,0)" />
-    <circle
-       r="11.259823"
-       cy="11.740177"
-       cx="52"
-       style="color:#000000;display:block;visibility:visible;fill:url(#radialGradient278);fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:0.979115;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:4;stroke-dashoffset:0;stroke-opacity:1;marker:none;marker-start:none;marker-mid:none;marker-end:none"
-       id="path12511"
-       inkscape:export-filename="/home/jimmac/ximian_art/icons/nautilus/suse93/stock_new-16.png"
-       inkscape:export-xdpi="33.852203"
-       inkscape:export-ydpi="33.852203"
-       inkscape:label="new" />
-    <rect
-       style="fill:#ff0000;stroke:#ff0000;stroke-width:1.95621;stroke-linejoin:miter;stroke-dasharray:none;stroke-opacity:1;paint-order:stroke fill markers"
-       id="rect1"
-       width="2.0437908"
-       height="58.043789"
-       x="30.978106"
-       y="2.9781044"
-       ry="0" />
+       xlink:href="#path4250-7-3"
+       id="use1-8"
+       transform="translate(0.0655945,21.505867)" />
+    <use
+       x="0"
+       y="0"
+       xlink:href="#path4250-7-3"
+       id="use1-4"
+       transform="translate(47.999912,38.000103)" />
   </g>
   <metadata
      id="metadata4582">

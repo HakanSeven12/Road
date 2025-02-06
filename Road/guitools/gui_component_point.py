@@ -20,25 +20,45 @@
 # *                                                                         *
 # ***************************************************************************
 
-"""Provides functions to create Cluster objects."""
+"""Provides GUI tools to create Component Point objects."""
 
-import FreeCAD
+import FreeCAD, FreeCADGui
 
-from ..utils import get_group
 from ..variables import icons_path
-from ..objects.group import Group
-from ..viewproviders.view_group import ViewProviderGroup
-
-def create(label="Cluster"):
-    obj = FreeCAD.ActiveDocument.addObject(
-        "App::DocumentObjectGroupPython", "Cluster")
-
-    Group(obj, "Road::Cluster")
-    ViewProviderGroup(obj.ViewObject, icons_path + '/Cluster.svg')
-    obj.Label = label
-
-    clusters = get_group.get("Clusters")
-    clusters.addObject(obj)
+from ..make import make_component_point
 
 
-    return obj
+class ComponentPoint:
+    """Command to create a new Component Point."""
+
+    def __init__(self):
+        """Constructor"""
+        pass
+
+    def GetResources(self):
+        """Return the command resources dictionary"""
+        return {
+            "Pixmap": icons_path + "/ComponentPoint.svg",
+            "MenuText": "Add Component Point",
+            "ToolTip": "Add geometry Point to the selected Component."
+            }
+
+    def IsActive(self):
+        """Define tool button activation situation"""
+        if FreeCAD.ActiveDocument:
+            # Check for selected object
+            selection = FreeCADGui.Selection.getSelection()
+            if selection:
+                if selection[-1].Proxy.Type == "Road::Component":
+                    self.component = selection[-1]
+                    return True
+        return False
+
+    def Activated(self):
+        """Command activation method"""
+        point = make_component_point.create()
+        self.component.addObject(point)
+
+        FreeCAD.ActiveDocument.recompute()
+
+FreeCADGui.addCommand("Component Point", ComponentPoint())

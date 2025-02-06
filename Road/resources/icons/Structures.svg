@@ -395,12 +395,12 @@
        id="use3"
        transform="matrix(-1,0,0,1,64,0)" />
     <rect
-       style="fill:#ff0000;stroke:none;stroke-width:1.75;stroke-linejoin:round"
+       style="fill:#ff0000;stroke:#ff0000;stroke-width:1.95621;stroke-linejoin:miter;stroke-dasharray:none;stroke-opacity:1;paint-order:stroke fill markers"
        id="rect1"
-       width="2"
-       height="62"
-       x="31"
-       y="1"
+       width="2.0437908"
+       height="58.043789"
+       x="30.978106"
+       y="2.9781044"
        ry="0" />
     <path
        style="fill:#008080;fill-opacity:1;stroke:#008080;stroke-width:1;stroke-linejoin:miter;stroke-dasharray:none;stroke-opacity:1;paint-order:fill markers stroke"

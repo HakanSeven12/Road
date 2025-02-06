@@ -323,7 +323,7 @@
      inkscape:pageshadow="2"
      inkscape:zoom="12.172349"
      inkscape:cx="30.643223"
-     inkscape:cy="31.752294"
+     inkscape:cy="25.180021"
      inkscape:current-layer="layer1"
      showgrid="true"
      inkscape:document-units="px"
@@ -400,12 +400,12 @@
        id="use3"
        transform="matrix(-1,0,0,1,64,0)" />
     <rect
-       style="fill:#ff0000;stroke:none;stroke-width:1.75;stroke-linejoin:round"
+       style="fill:#ff0000;stroke:#ff0000;stroke-width:1.9456;stroke-linejoin:miter;stroke-dasharray:none;stroke-opacity:1;paint-order:stroke fill markers"
        id="rect1"
-       width="2"
-       height="62"
-       x="31"
-       y="1"
+       width="2.0218782"
+       height="58.038139"
+       x="30.989061"
+       y="2.9890609"
        ry="0" />
   </g>
   <metadata

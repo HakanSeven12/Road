@@ -321,9 +321,9 @@
      borderopacity="1.0"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="12.172349"
-     inkscape:cx="30.643223"
-     inkscape:cy="29.780612"
+     inkscape:zoom="8.6071505"
+     inkscape:cx="36.132748"
+     inkscape:cy="19.692929"
      inkscape:current-layer="layer1"
      showgrid="true"
      inkscape:document-units="px"
@@ -373,23 +373,17 @@
      inkscape:label="Layer 1"
      inkscape:groupmode="layer">
     <path
-       style="fill:#808080;stroke:none;stroke-width:1.75;stroke-linejoin:round"
-       d="M 32,40 2,46 V 28 l 30,-6 z"
+       style="fill:#808080;stroke:#ffffff;stroke-width:2.70801;stroke-linejoin:miter;stroke-dasharray:none;stroke-opacity:1;paint-order:stroke fill markers"
+       d="m 6,42 55,6 V 30 L 6,24 Z"
        id="path2"
        sodipodi:nodetypes="ccccc" />
-    <use
-       x="0"
-       y="0"
-       xlink:href="#path2"
-       id="use2"
-       transform="matrix(-1,0,0,1,64,0)" />
     <rect
-       style="fill:#ff0000;stroke:none;stroke-width:1.66317;stroke-linejoin:round"
+       style="fill:#ff0000;stroke:#ff0000;stroke-width:2.02317;stroke-linejoin:miter;stroke-dasharray:none;stroke-opacity:1;paint-order:stroke fill markers"
        id="rect1"
-       width="2"
-       height="56"
-       x="31"
-       y="4"
+       width="1.9768285"
+       height="57.97683"
+       x="5.0115857"
+       y="3.0115857"
        ry="0" />
   </g>
   <metadata

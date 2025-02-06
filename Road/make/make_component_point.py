@@ -20,25 +20,18 @@
 # *                                                                         *
 # ***************************************************************************
 
-"""Provides functions to create Cluster objects."""
+"""Provides functions to create Component Point objects."""
 
 import FreeCAD
 
-from ..utils import get_group
-from ..variables import icons_path
-from ..objects.group import Group
-from ..viewproviders.view_group import ViewProviderGroup
+from ..objects.component_point import ComponentPoint
+#from ..viewproviders.view_component_point import ViewProviderComponentPoint
 
-def create(label="Cluster"):
-    obj = FreeCAD.ActiveDocument.addObject(
-        "App::DocumentObjectGroupPython", "Cluster")
+def create(label="Point"):
+    obj = FreeCAD.ActiveDocument.addObject("App::FeaturePython", "ComponentPoint")
 
-    Group(obj, "Road::Cluster")
-    ViewProviderGroup(obj.ViewObject, icons_path + '/Cluster.svg')
+    ComponentPoint(obj)
+    #ViewProviderComponentPoint(obj.ViewObject)
     obj.Label = label
-
-    clusters = get_group.get("Clusters")
-    clusters.addObject(obj)
-
 
     return obj
