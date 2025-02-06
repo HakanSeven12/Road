@@ -4,15 +4,17 @@ Road is the Transportation and Geomatics Engineering workbench for FreeCAD.
 
 ## ✨ Features
 
-* Geopoints
-* Terrain
-* Alignment
-* Profile
-* Regions
-* Sections
-* Volume
-* GeoLine
-* LandXML
+* Geopoints ✔️
+* Terrain ✔️
+* Alignment ✔️
+* Profile ✔️
+* Structure 🔄
+* Road ❌
+* Regions ❌
+* Sections ❌
+* Volume ❌
+* GeoLine ❌
+* LandXML ❌
 
 ## 📥 Installation
 ### 🔹 Option 1: Install via Addon Manager (Recommended)

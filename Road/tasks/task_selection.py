@@ -55,6 +55,7 @@ class MultipleSelection(QWidget):
         layout = QVBoxLayout(self)
 
         self.list_widget = QListWidget()
+        self.list_widget.setAlternatingRowColors(True)
         self.list_widget.setSelectionMode(QAbstractItemView.MultiSelection)
         layout.addWidget(self.list_widget)
         self.setLayout(layout)

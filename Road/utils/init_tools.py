@@ -45,6 +45,10 @@ def get_alignment_commands():
             "Profile Create",
             "Profile Edit"]
 
+def get_road_commands():
+    """Return the section commands list."""
+    return ["Structure Create"]
+
 def get_section_commands():
     """Return the section commands list."""
     return ["Create Region",
