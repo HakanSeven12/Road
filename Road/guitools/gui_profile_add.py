@@ -20,18 +20,17 @@
 # *                                                                         *
 # ***************************************************************************
 
-"""Provides GUI tools to create a Profile Frame objects."""
+"""Provides GUI tools to add Terrain Profile objects."""
 
 import FreeCAD, FreeCADGui
 
 from ..variables import icons_path
-from ..make import make_profile_frame, make_profile
-from ..tasks.task_selection import SingleSelection, MultipleSelection
-from ..utils.trackers import ViewTracker
+from ..make import make_profile
+from ..tasks.task_selection import MultipleSelection
 
 
-class ProfileFrameCreate:
-    """Command to create a Profile Frame."""
+class ProfileAdd:
+    """Command to add Terrain Profile."""
 
     def __init__(self):
         """Constructor"""
@@ -40,60 +39,33 @@ class ProfileFrameCreate:
     def GetResources(self):
         """Return the command resources dictionary"""
         return {
-            'Pixmap': icons_path + '/ProfileFrameCreate.svg',
-            'MenuText': "Create Profile Frame",
-            'ToolTip': "Create a Profile Frame for selected Alignment."
+            "Pixmap": icons_path + "/ProfileAdd.svg",
+            "MenuText": "Add Terrain Profile",
+            "ToolTip": "Add Terrain Profile to the selected Profile Frame."
             }
 
     def IsActive(self):
         """Define tool button activation situation"""
-        return bool(FreeCADGui.ActiveDocument)
+        for obj in FreeCADGui.Selection.getSelection():
+            if obj.Proxy.Type == "Road::ProfileFrame":
+                self.profile_frame = obj
+                return True
+        return False
 
     def Activated(self):
         """Command activation method"""
-        alignments = FreeCAD.ActiveDocument.getObject("Alignments")
-        self.alignment_selector = SingleSelection(alignments)
-
         terrains = FreeCAD.ActiveDocument.getObject("Terrains")
         self.terrain_selector = MultipleSelection(terrains)
 
-        self.form = [self.alignment_selector, self.terrain_selector]
+        self.form = self.terrain_selector
         FreeCADGui.Control.showDialog(self)
 
     def accept(self):
         """Panel 'OK' button clicked"""
-        alignment_label = self.alignment_selector.combo_box.currentText()
-        alignment = self.alignment_selector.objects[alignment_label]
-
         terrain_labels = self.terrain_selector.list_widget.selectedItems()
         self.terrains = [self.terrain_selector.objects[sel.text()] for sel in terrain_labels]
 
-        self.profile_frame = make_profile_frame.create()
-
-        for item in alignment.Group:
-            if item.Proxy.Type == 'Road::Profiles':
-                item.addObject(self.profile_frame)
-                break
-
-        FreeCAD.Console.PrintWarning("Select Profile Frame position on screen")
-        self.tracker = ViewTracker("Mouse", key="Left", function=self.set_placement)
-        self.tracker.start()
-
         FreeCADGui.Control.closeDialog()
-
-    def set_placement(self, callback):
-        event = callback.getEvent()
-        position = event.getPosition() #Window position
-        view = FreeCADGui.ActiveDocument.ActiveView
-        coordinate = view.getPoint(tuple(position.getValue()))
-        coordinate.z = 0
-
-        origin = FreeCAD.ActiveDocument.getObject("GeoOrigin")
-        if origin:
-            coordinate = coordinate.add(origin.Base)
-
-        self.profile_frame.Placement.Base = coordinate
-        self.tracker.stop()
 
         for i in self.terrains:
             profile = make_profile.create()
@@ -101,7 +73,4 @@ class ProfileFrameCreate:
             profile.ViewObject.DisplayMode = "Terrain"
             profile.Terrain = i
 
-        FreeCAD.ActiveDocument.recompute()
-
-
-FreeCADGui.addCommand('Profile Frame Create', ProfileFrameCreate())
+FreeCADGui.addCommand("Profile Add", ProfileAdd())

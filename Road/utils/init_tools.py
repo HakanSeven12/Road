@@ -43,7 +43,8 @@ def get_alignment_commands():
             "Alignment Offset",
             "Profile Frame Create",
             "Profile Create",
-            "Profile Edit"]
+            "Profile Edit",
+            "Profile Add"]
 
 def get_road_commands():
     """Return the section commands list."""
