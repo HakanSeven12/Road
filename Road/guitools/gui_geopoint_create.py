@@ -26,6 +26,7 @@ import FreeCAD, FreeCADGui
 
 from ..variables import icons_path
 from ..make import make_geopoint,make_cluster
+from ..tasks.task_selection import SingleSelection
 from ..utils.trackers import ViewTracker
 from ..utils import get_group
 
@@ -51,11 +52,18 @@ class GeoPointCreate:
 
     def Activated(self):
         """Command activation method"""
-        clusters = get_group.get("Clusters")
-        if clusters.Group:
-            self.cluster = clusters.Group[0]
-        else:
-            self.cluster = make_cluster.create()
+        clusters = FreeCAD.ActiveDocument.getObject("Clusters")
+        self.cluster_selector = SingleSelection(clusters)
+
+        self.form = self.cluster_selector
+        FreeCADGui.Control.showDialog(self)
+
+    def accept(self):
+        """Panel 'OK' button clicked"""
+        cluster_label = self.cluster_selector.combo_box.currentText()
+        self.cluster = self.cluster_selector.objects[cluster_label]
+
+        FreeCADGui.Control.closeDialog()
 
         FreeCAD.Console.PrintWarning("Select GeoPoint location on screen")
         tracker = ViewTracker("Mouse", key="Left", function=self.set_placement)
