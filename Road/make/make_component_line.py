@@ -20,18 +20,18 @@
 # *                                                                         *
 # ***************************************************************************
 
-"""Provides functions to create Component Point objects."""
+"""Provides functions to create Component Line objects."""
 
 import FreeCAD
 
-from ..objects.component_point import ComponentPoint
-from ..viewproviders.view_component_point import ViewProviderComponentPoint
+from ..objects.component_line import ComponentLine
+from ..viewproviders.view_component_line import ViewProviderComponentLine
 
-def create(label="Point"):
-    obj = FreeCAD.ActiveDocument.addObject("App::FeaturePython", "ComponentPoint")
+def create(label="Line"):
+    obj = FreeCAD.ActiveDocument.addObject("App::FeaturePython", "ComponentLine")
 
-    ComponentPoint(obj)
-    ViewProviderComponentPoint(obj.ViewObject)
+    ComponentLine(obj)
+    ViewProviderComponentLine(obj.ViewObject)
     obj.Label = label
 
     return obj

@@ -41,7 +41,7 @@ class ComponentPoint:
 
         obj.addProperty(
             "Part::PropertyPartShape", "Shape", "Base",
-            "Alignment Shape").Shape = Part.Vertex(FreeCAD.Vector())
+            "Alignment Shape").Shape = Part.makeCircle(100)
 
         obj.addProperty(
             "App::PropertyEnumeration", "Type", "Geometry",
@@ -57,7 +57,7 @@ class ComponentPoint:
 
         obj.addProperty(
             "App::PropertyLink", "Start", "Geometry",
-            "Target Terrain.")
+            "Origin point.")
 
         obj.addProperty(
             "App::PropertyBool", "Reverse", "Geometry",
@@ -76,7 +76,7 @@ class ComponentPoint:
             "The angle with the X axis.").Angle = 0
 
         obj.addProperty(
-            "App::PropertyPercent", "Slope", "Geometry",
+            "App::PropertyFloat", "Slope", "Geometry",
             "The slope with the X axis.").Slope = 0
 
         obj.addProperty(
@@ -91,48 +91,46 @@ class ComponentPoint:
 
     def execute(self, obj):
         """Do something when doing a recomputation."""
+        if obj.Type == "Delta X and Delta Y":
+            displacement = FreeCAD.Vector(obj.DeltaX*1000, obj.DeltaY*1000)
+
+        elif obj.Type == "Delta X and Angle":
+            dy = abs(obj.DeltaX) * math.tan(math.radians(obj.Angle))
+            displacement = FreeCAD.Vector(obj.DeltaX*1000, dy*1000)
+
+        elif obj.Type == "Delta Y and Angle":
+            dx = abs(obj.DeltaY) / math.tan(math.radians(obj.Angle))
+            displacement = FreeCAD.Vector(dx*1000, obj.DeltaY*1000)
+
+        elif obj.Type == "Delta X and Slope":
+            dy = abs(obj.DeltaX) * (obj.Slope / 100)
+            displacement = FreeCAD.Vector(obj.DeltaX*1000, dy*1000)
+
+        elif obj.Type == "Delta Y and Slope":
+            dx = abs(obj.DeltaY) / (obj.Slope / 100)
+            displacement = FreeCAD.Vector(dx*1000, obj.DeltaY*1000)
+
+        elif obj.Type == "Delta X on Terrain":pass
+        elif obj.Type == "Slope to Terrain":pass
+
+        elif obj.Type == "Distance and Angle":
+            rad = math.radians(obj.Angle)
+            dx = obj.Distance * math.cos(rad)
+            dy = obj.Distance * math.sin(rad)
+            displacement = FreeCAD.Vector(dx*1000, dy*1000)
+
+        if obj.Reverse: displacement = displacement.negative()
+
         component = obj.getParentGroup()
         structure = component.getParentGroup()
-        origin = structure.Placement.Base
+        base = obj.Start if obj.Start else structure
+        origin = base.Placement.Base
 
-        shp = Part.Vertex(FreeCAD.Vector())
-        shp.Placement.move(origin.add(obj.Placement.Base))
+        placement = FreeCAD.Placement()
+        placement.move(origin)
+        placement.move(displacement)
+        obj.Placement = placement
+
+        shp = Part.makeCircle(100)
+        shp.Placement.move(obj.Placement.Base)
         obj.Shape = shp
-
-    def onChanged(self, obj, prop):
-        """Update Object when a property changed."""
-        if prop == "Type":
-            type = obj.getPropertyByName(prop)
-            if type == "Delta X and Delta Y":
-                displacement = FreeCAD.Vector(obj.DeltaX, obj.DeltaY)
-
-            elif type == "Delta X and Angle":
-                dy =obj.DeltaX * math.tan(math.radians(obj.Angle))
-                displacement = FreeCAD.Vector(obj.DeltaX, dy)
-
-            elif type == "Delta Y and Angle":
-                dx = obj.DeltaY / math.tan(math.radians(obj.Angle))
-                displacement = FreeCAD.Vector(dx, obj.DeltaY)
-
-            elif type == "Delta X and Slope":
-                dy = obj.DeltaX * obj.Slope
-                displacement = FreeCAD.Vector(obj.DeltaX, dy)
-
-            elif type == "Delta Y and Slope":
-                dx = obj.DeltaY / obj.Slope
-                displacement = FreeCAD.Vector(dx, obj.DeltaY)
-
-            elif type == "Delta X on Terrain":pass
-            elif type == "Slope to Terrain":pass
-
-            elif type == "Distance and Angle":
-                rad = math.radians(obj.Angle)
-                dx = obj.Distance * math.cos(rad)
-                dy = obj.Distance * math.sin(rad)
-                displacement = FreeCAD.Vector(dx, dy)
-
-            if obj.Reverse: displacement = displacement.negative()
-
-            placement = FreeCAD.Placement()
-            placement.move(displacement)
-            obj.Placement = placement

@@ -20,18 +20,45 @@
 # *                                                                         *
 # ***************************************************************************
 
-"""Provides functions to create Component Point objects."""
+"""Provides GUI tools to create Component Line objects."""
 
-import FreeCAD
+import FreeCAD, FreeCADGui
 
-from ..objects.component_point import ComponentPoint
-from ..viewproviders.view_component_point import ViewProviderComponentPoint
+from ..variables import icons_path
+from ..make import make_component_line
 
-def create(label="Point"):
-    obj = FreeCAD.ActiveDocument.addObject("App::FeaturePython", "ComponentPoint")
 
-    ComponentPoint(obj)
-    ViewProviderComponentPoint(obj.ViewObject)
-    obj.Label = label
+class ComponentLine:
+    """Command to create a new Component Line."""
 
-    return obj
+    def __init__(self):
+        """Constructor"""
+        pass
+
+    def GetResources(self):
+        """Return the command resources dictionary"""
+        return {
+            "Pixmap": icons_path + "/ComponentLine.svg",
+            "MenuText": "Add Component Line",
+            "ToolTip": "Add geometry Line to the selected Component."
+            }
+
+    def IsActive(self):
+        """Define tool button activation situation"""
+        if FreeCAD.ActiveDocument:
+            # Check for selected object
+            selection = FreeCADGui.Selection.getSelection()
+            if selection:
+                if selection[-1].Proxy.Type == "Road::Component":
+                    self.component = selection[-1]
+                    return True
+        return False
+
+    def Activated(self):
+        """Command activation method"""
+        line = make_component_line.create()
+        self.component.addObject(line)
+
+        FreeCAD.ActiveDocument.recompute()
+
+FreeCADGui.addCommand("Component Line", ComponentLine())
