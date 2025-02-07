@@ -45,13 +45,10 @@ class AlignmentEdit:
 
     def IsActive(self):
         """Define tool button activation situation"""
-        if FreeCAD.ActiveDocument:
-            # Check for selected object
-            selection = FreeCADGui.Selection.getSelection()
-            if selection:
-                if selection[-1].Proxy.Type == "Road::Alignment":
-                    self.alignment = selection[-1]
-                    return True
+        for obj in FreeCADGui.Selection.getSelection():
+            if obj.Proxy.Type == "Road::Alignment":
+                self.alignment = obj
+                return True
         return False
 
     def Activated(self):
