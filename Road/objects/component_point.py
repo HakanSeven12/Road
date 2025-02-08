@@ -64,6 +64,10 @@ class ComponentPoint:
             "Reverse vector direction.")
 
         obj.addProperty(
+            "App::PropertyFloat", "Distance", "Geometry",
+            "Distance from start point.").Distance = 0
+
+        obj.addProperty(
             "App::PropertyFloat", "DeltaX", "Geometry",
             "Displacement along the X axis.").DeltaX = 0
 
@@ -134,3 +138,40 @@ class ComponentPoint:
         shp = Part.makeCircle(100)
         shp.Placement.move(obj.Placement.Base)
         obj.Shape = shp
+
+    def onChanged(self, obj, prop):
+        if prop == "Type":
+            type = obj.getPropertyByName(prop)
+            
+            if type == "Delta X and Delta Y":
+                visible =["DeltaX", "DeltaY"]
+                
+            elif type == "Delta X and Angle":
+                visible =["DeltaX", "Angle"]
+                
+            elif type == "Delta Y and Angle":
+                visible =["DeltaY", "Angle"]
+                
+            elif type == "Delta X and Slope":
+                visible =["DeltaX", "Slope"]
+                
+            elif type == "Delta Y and Slope":
+                visible =["DeltaY", "Slope"]
+                
+            elif type == "Delta X on Terrain":
+                visible =["DeltaX", "Terrain"]
+                
+            elif type == "Slope to Terrain":
+                visible =["Slope", "Terrain"]
+                
+            elif type == "Distance and Angle":
+                visible =["Distance", "Angle"]
+                
+            untouch =["Reverse", "Start", "Type"]
+
+            for property in obj.PropertiesList:
+                if obj.getGroupOfProperty(property) == "Geometry":
+                    if property in visible or property in untouch:
+                        obj.setEditorMode(property, 0)
+                    else:
+                        obj.setEditorMode(property, 2)
