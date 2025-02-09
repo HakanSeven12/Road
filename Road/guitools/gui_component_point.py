@@ -40,7 +40,7 @@ class ComponentPoint:
         return {
             "Pixmap": icons_path + "/ComponentPoint.svg",
             "MenuText": "Add Component Point",
-            "ToolTip": "Add geometry Point to the selected Component."
+            "ToolTip": "Add Point geometry to the selected Component."
             }
 
     def IsActive(self):

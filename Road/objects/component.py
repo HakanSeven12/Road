@@ -29,7 +29,7 @@ class Component:
     def __init__(self, obj):
         """Set data properties."""
 
-        self.Type = "Road::ComponentLine"
+        self.Type = "Road::Component"
 
         obj.addProperty(
             "App::PropertyEnumeration", "Side", "Base",

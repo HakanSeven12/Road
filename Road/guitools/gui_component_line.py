@@ -40,7 +40,7 @@ class ComponentLine:
         return {
             "Pixmap": icons_path + "/ComponentLine.svg",
             "MenuText": "Add Component Line",
-            "ToolTip": "Add geometry Line to the selected Component."
+            "ToolTip": "Add Line geometry to the selected Component."
             }
 
     def IsActive(self):
