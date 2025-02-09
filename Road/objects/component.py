@@ -20,20 +20,19 @@
 # *                                                                         *
 # ***************************************************************************
 
-"""Provides functions to get Component object."""
+"""Provides the object code for Component objects."""
 
-import FreeCAD
 
-from ..variables import icons_path
-from ..objects.component import Component
-from ..viewproviders.view_group import ViewProviderGroup
+class Component:
+    """This class is about Component Object data features."""
 
-def create():
-    """Factory method for Region group."""
-    obj = FreeCAD.ActiveDocument.addObject(
-        "App::DocumentObjectGroupPython", "Component")
+    def __init__(self, obj):
+        """Set data properties."""
 
-    Component(obj)
-    ViewProviderGroup(obj.ViewObject, icons_path + '/Component.svg')
+        self.Type = "Road::ComponentLine"
 
-    return obj
+        obj.addProperty(
+            "App::PropertyEnumeration", "Side", "Base",
+            "Side of component").Side = ["Right", "Left"]
+
+        obj.Proxy = self

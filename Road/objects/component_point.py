@@ -44,7 +44,7 @@ class ComponentPoint:
             "Alignment Shape").Shape = Part.makeCircle(100)
 
         obj.addProperty(
-            "App::PropertyEnumeration", "Type", "Geometry",
+            "App::PropertyEnumeration", "Type", "Base",
             "Type of transformation that will be applied to the point").Type = [
                 "Delta X and Delta Y",
                 "Delta X and Angle",
@@ -127,6 +127,10 @@ class ComponentPoint:
 
         component = obj.getParentGroup()
         structure = component.getParentGroup()
+        
+        side = -1 if component.Side == "Left" else 1
+        displacement.x *= side
+
         base = obj.Start if obj.Start else structure
         origin = base.Placement.Base
 

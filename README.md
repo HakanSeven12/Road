@@ -8,8 +8,8 @@ Road is the Transportation and Geomatics Engineering workbench for FreeCAD.
 * Terrain ✔️
 * Alignment ✔️
 * Profile ✔️
-* Structure 🔄
-* Road ❌
+* Structure ✔️
+* Road 🔄
 * Regions ❌
 * Sections ❌
 * Volume ❌
