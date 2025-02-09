@@ -51,7 +51,8 @@ def get_road_commands():
     return ["Structure Create",
             "Component Add",
             "Component Point",
-            "Component Line"]
+            "Component Line",
+            "Component Shape"]
 
 def get_section_commands():
     """Return the section commands list."""

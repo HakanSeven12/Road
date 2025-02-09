@@ -47,6 +47,7 @@ from .guitools import (
     gui_component_add,
     gui_component_point,
     gui_component_line,
+    gui_component_shape,
     gui_region,
     gui_sections,
     gui_volume,
