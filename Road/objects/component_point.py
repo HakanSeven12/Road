@@ -97,21 +97,27 @@ class ComponentPoint:
         """Do something when doing a recomputation."""
         if obj.Type == "Delta X and Delta Y":
             displacement = FreeCAD.Vector(obj.DeltaX*1000, obj.DeltaY*1000)
-
+    
         elif obj.Type == "Delta X and Angle":
-            dy = abs(obj.DeltaX) * math.tan(math.radians(obj.Angle))
-            displacement = FreeCAD.Vector(obj.DeltaX*1000, dy*1000)
+            angle = obj.Angle % 360
+            dir = -1 if 90 < angle < 270 else 1
+            if angle in [90, 270]: dir = 0
+            dy = obj.DeltaX * math.tan(math.radians(angle))
+            displacement = FreeCAD.Vector(dir*obj.DeltaX * 1000, dir*dy * 1000)
 
         elif obj.Type == "Delta Y and Angle":
-            dx = abs(obj.DeltaY) / math.tan(math.radians(obj.Angle))
-            displacement = FreeCAD.Vector(dx*1000, obj.DeltaY*1000)
+            angle = obj.Angle % 360
+            dir = 1 if 0 < angle < 180 else -1
+            if angle in [0, 180]: dir = 0
+            dx = obj.DeltaY / math.tan(math.radians(angle)) if angle else 0
+            displacement = FreeCAD.Vector(dir * dx * 1000, dir * obj.DeltaY * 1000)
 
         elif obj.Type == "Delta X and Slope":
-            dy = abs(obj.DeltaX) * (obj.Slope / 100)
+            dy = obj.DeltaX * (obj.Slope / 100)
             displacement = FreeCAD.Vector(obj.DeltaX*1000, dy*1000)
 
         elif obj.Type == "Delta Y and Slope":
-            dx = abs(obj.DeltaY) / (obj.Slope / 100)
+            dx = obj.DeltaY / (obj.Slope / 100)
             displacement = FreeCAD.Vector(dx*1000, obj.DeltaY*1000)
 
         elif obj.Type == "Delta X on Terrain":pass

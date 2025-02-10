@@ -55,6 +55,7 @@ class ComponentShape:
         
         edges = [line.Shape for line in obj.Lines]
         sorted = Part.sortEdges(edges)
+        if not sorted: return
         wire = Part.Wire(sorted[0])
         if wire.isClosed():
             obj.Shape = Part.Face(wire)

@@ -95,6 +95,7 @@ class ViewProviderComponentLine:
 
         elif prop == "Shape":
             shape = obj.getPropertyByName(prop).copy()
+            if not shape.Edges: return
             shape.Placement.move(obj.Placement.Base.negative())
 
             self.line_coords.point.values = shape.discretize(2)
