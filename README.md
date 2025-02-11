@@ -9,6 +9,7 @@ Road is the Transportation and Geomatics Engineering workbench for FreeCAD.
 * Alignment ✔️
 * Profile ✔️
 * Structure ✔️
+* Superelevation ❌
 * Road 🔄
 * Regions ❌
 * Sections ❌
@@ -53,3 +54,5 @@ Developed with passion by Hakan Seven ([@HakanSeven12](https://github.com/HakanS
 ![Terrain](https://github.com/user-attachments/assets/7c6e91fb-4e6a-466c-a59d-e3a20a543dca)
 ![Alignment](https://github.com/user-attachments/assets/423c2bdb-91f7-4ae9-8187-28902157d0a2)
 ![Profile](https://github.com/user-attachments/assets/8516b5bf-33c6-4966-a4a6-29d81c272710)
+![Structure](https://github.com/user-attachments/assets/ab0bca4d-a597-4c94-b257-139d93e9b0a4)
+
