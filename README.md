@@ -54,5 +54,5 @@ Developed with passion by Hakan Seven ([@HakanSeven12](https://github.com/HakanS
 ![Terrain](https://github.com/user-attachments/assets/7c6e91fb-4e6a-466c-a59d-e3a20a543dca)
 ![Alignment](https://github.com/user-attachments/assets/423c2bdb-91f7-4ae9-8187-28902157d0a2)
 ![Profile](https://github.com/user-attachments/assets/8516b5bf-33c6-4966-a4a6-29d81c272710)
-![Structure](https://github.com/user-attachments/assets/2857b4ee-ef76-4e89-82a8-14a12bdedf86)
+![Structure](https://github.com/user-attachments/assets/e1224ba8-4c80-4e4a-92bc-24d42024a67d)
 
