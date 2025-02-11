@@ -2,6 +2,8 @@
 
 Road is the Transportation and Geomatics Engineering workbench for FreeCAD. 
 
+[![Patreon](https://github.com/user-attachments/assets/192cdaa1-e22d-4fc0-b019-187ea557d22b)](https://patreon.com/HakanSeven12)
+
 ## ✨ Features
 
 * Geopoints ✔️
