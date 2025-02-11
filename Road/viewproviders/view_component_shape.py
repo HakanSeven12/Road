@@ -65,9 +65,26 @@ class ViewProviderComponentShape:
         line_data.addChild(self.faces)
 
         # Line group
-        lines = coin.SoAnnotation()
+        lines = coin.SoSeparator()
         lines.addChild(line_view)
         lines.addChild(line_data)
+
+        #-------------------------------------------------------------
+        # Labels
+        #-------------------------------------------------------------
+
+        self.font = coin.SoFont()
+        self.font.size = 250
+        self.location = coin.SoTranslation()
+        self.label_color = coin.SoBaseColor()
+        self.label_color.rgb = (1.0, 0.0, 0.0)
+        self.text = coin.SoAsciiText()
+
+        self.label = coin.SoAnnotation()
+        self.label.addChild(self.font)
+        self.label.addChild(self.location)
+        self.label.addChild(self.label_color)
+        self.label.addChild(self.text)
 
         #-----------------------------------------------------------------
         # Line
@@ -77,6 +94,7 @@ class ViewProviderComponentShape:
         structure_selection = coin.SoType.fromName('SoFCSelection').createInstance()
         structure_selection.style = 'EMISSIVE_DIFFUSE'
         structure_selection.addChild(lines)
+        structure_selection.addChild(self.label)
 
         self.structure = coin.SoGeoSeparator()
         self.structure.addChild(structure_selection)
@@ -110,6 +128,13 @@ class ViewProviderComponentShape:
             #Set contour system.
             self.face_coords.point.values = points
             self.faces.coordIndex.values = indexes
+
+            component = obj.getParentGroup()
+            side = coin.SoAsciiText.LEFT if component.Side == "Right" else coin.SoAsciiText.RIGHT
+            self.text.justification = side
+            self.location.translation = shape.CenterOfMass
+            self.text.string.setValues([obj.Label])
+
 
     def getDisplayModes(self,vobj):
         """Return a list of display modes."""

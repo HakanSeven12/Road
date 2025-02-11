@@ -43,7 +43,7 @@ class ViewProviderGroup:
     def getIcon(self):
         """Return object treeview icon."""
         return self.Icon
-
+    
     def claimChildren(self):
         """Provides object grouping."""
         return self.Object.Group
