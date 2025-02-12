@@ -48,7 +48,8 @@ def get_alignment_commands():
 
 def get_road_commands():
     """Return the section commands list."""
-    return ["Structure Create",
+    return ["Road Create",
+            "Structure Create",
             "Component Add",
             "Component Point",
             "Component Line",

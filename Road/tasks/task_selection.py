@@ -26,22 +26,26 @@ from PySide.QtWidgets import QWidget, QVBoxLayout, QComboBox, QListWidget, QList
 from PySide.QtCore import Qt
 
 class SingleSelection(QWidget):
-    def __init__(self, group):
+    def __init__(self, group=None):
         super().__init__()
+        layout = QVBoxLayout()
+        self.setLayout(layout)
+
+        self.combo_box = QComboBox()
+        layout.addWidget(self.combo_box)
+
+        if group: self.update_items(group)
+
+    def update_items(self,group):
+        """Update the combo box items dynamically."""
         self.setWindowTitle("Select from " + group.Label)
         self.setWindowIcon(group.ViewObject.Icon)
 
         self.objects = {i.Label: i for i in group.Group}
         keys = list(self.objects.keys())
 
-        layout = QVBoxLayout()
-
-        self.combo_box = QComboBox()
+        self.combo_box.clear()
         self.combo_box.addItems(keys)
-        layout.addWidget(self.combo_box)
-
-        self.setLayout(layout)
-
 
 class MultipleSelection(QWidget):
     def __init__(self, group):

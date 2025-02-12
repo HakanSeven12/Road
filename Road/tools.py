@@ -43,6 +43,7 @@ from .guitools import (
     gui_profile_create,
     gui_profile_edit,
     gui_profile_add,
+    gui_road_create,
     gui_structure,
     gui_component_add,
     gui_component_point,
