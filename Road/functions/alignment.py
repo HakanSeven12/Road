@@ -162,32 +162,30 @@ def get_geometry(alignment_data):
 
     return all_points, shape
 
-def transformation(shape, stations, last=False):
-    points = []
-    rotations = []
-    total_length = 0
+def transformation(obj, increment):
+    if not isinstance(obj.Shape, Part.Wire): return {}
+    base = obj.Placement.Base
+    wire = obj.Shape.copy()
+    wire.Placement.move(base.negative())
 
-    for i, sub in enumerate(shape.SubShapes):
-        sta_list = [sta for sta in stations if total_length <= sta <= total_length + sub.Length]
-        if i == len(shape.SubShapes) - 1 and last:
-            sta_list.append(total_length + sub.Length)
+    points = wire.discretize(Distance=increment)
+    bs = Part.BSplineCurve()
+    bs.interpolate(points)
 
-        for station in sta_list:
-            length = station - total_length
-            parameter = sub.getParameterByLength(length)
+    start = obj.StartStation.Value
+    end = obj.EndStation.Value
+    stations = list(range(int(start), int(end), increment))
+    stations.append(end)
 
-            point = sub.valueAt(parameter)
-            points.append(point)
+    transforms = {}
+    for i, station in enumerate(stations):
+        param = bs.parameter(points[i])
+        tangent = bs.tangent(param)[0]
+        normal = FreeCAD.Vector(-tangent.y, tangent.x, tangent.z)
 
-            tangent = sub.tangentAt(parameter)
-            normal = FreeCAD.Vector(-tangent.y, tangent.x, tangent.z)
+        angle = FreeCAD.Vector(1, 0, 0).getAngle(normal)
+        angle = 2*math.pi - angle if normal.y < 0 else angle
+        
+        transforms[station] = {"Location": points[i], "Rotation": angle}
 
-            angle = FreeCAD.Vector(1, 0, 0).getAngle(normal)
-            angle = 2*math.pi - angle if normal.y < 0 else angle
-            rotations.append(angle)
-
-        total_length += sub.Length
-    return points, rotations
-
-    def get_length(point, wire):
-        point.distToShape(wire)
+    return transforms

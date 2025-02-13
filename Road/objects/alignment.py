@@ -39,7 +39,10 @@ class Alignment:
 
         self.Type = "Road::Alignment"
 
-        # Metadata properties.
+        obj.addProperty(
+            "App::PropertyPlacement", "Placement", "Base",
+            "Placement").Placement = FreeCAD.Placement()
+
         obj.addProperty(
             "App::PropertyString", "Description", "Base",
             "Alignment description").Description = ""
@@ -93,6 +96,10 @@ class Alignment:
             obj.PIs, obj.Shape = alignment.get_geometry(alignment_model)
             obj.EndStation = sum([sub.Length for sub in obj.Shape.SubShapes])
             obj.Length = sum([sub.Length for sub in obj.Shape.SubShapes])
+
+            placement = FreeCAD.Placement()
+            placement.move(obj.PIs[0])
+            obj.Placement = placement
 
         if prop == "OffsetAlignment":
             parent = obj.getPropertyByName(prop)

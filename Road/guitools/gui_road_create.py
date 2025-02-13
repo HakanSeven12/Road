@@ -25,7 +25,7 @@
 import FreeCAD, FreeCADGui
 
 from ..variables import icons_path
-#from ..make import make_road
+from ..make import make_road
 from ..tasks.task_selection import SingleSelection
 
 
@@ -91,9 +91,16 @@ class RoadCreate:
         structure_label = self.structure_selector.combo_box.currentText()
         structure = self.structure_selector.objects[structure_label]
 
-        #self.profile_frame = make_profile_frame.create()
-
         FreeCADGui.Control.closeDialog()
+
+        road = make_road.create()
+        road.Alignment = alignment
+        road.Profile = profile
+        road.Structure = structure
+
+        roads = FreeCAD.ActiveDocument.getObject("Roads")
+        roads.addObject(road)
+
         FreeCAD.ActiveDocument.recompute()
 
 

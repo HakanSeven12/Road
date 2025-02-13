@@ -246,23 +246,16 @@ class ViewProviderAlignment:
                 self.tick_coords.point.values = []
                 return
 
-            start = vobj.Object.StartStation.Value
-            end = vobj.Object.EndStation.Value
-            increment = 10000
-            stations = list(range(int(start), int(end), increment))
-            points, rotations = transformation(vobj.Object.Shape, stations, True)
-            stations.append(end)
-            if not points: return
-
             matrices = []
-            for i, station in enumerate(stations):
+            stations = transformation(vobj.Object, 10000)
+            for station, transform in stations.items():
+                point = transform["Location"]
+                angle = transform["Rotation"]
+
                 matrix = coin.SbMatrix()
                 transform = coin.SoTransform()
                 location = coin.SoTranslation()
                 text = coin.SoAsciiText()
-
-                point = points[i].sub(georigin().Base)
-                angle = rotations[i]
 
                 matrix.setTransform(
                     coin.SbVec3f(point.x, point.y, point.z), 
