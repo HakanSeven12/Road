@@ -53,9 +53,9 @@ class PiTreeViewWidget(QWidget):
         self.pi_data = {}
         self.alignment = alignment
 
-        if hasattr(alignment, 'ModelKeeper'):
-            if alignment.ModelKeeper:
-                self.pi_data = alignment.ModelKeeper
+        if hasattr(alignment, 'Model'):
+            if alignment.Model:
+                self.pi_data = alignment.Model
 
         # Main layout
         main_layout = QVBoxLayout()
@@ -216,7 +216,7 @@ class PiTreeViewWidget(QWidget):
             self.pi_data[pi_name] = data
 
         if self.alignment:
-            self.alignment.ModelKeeper = self.pi_data
+            self.alignment.Model = self.pi_data
 
     def load_data(self):
         """Load data from the pi_data dictionary into the tree."""

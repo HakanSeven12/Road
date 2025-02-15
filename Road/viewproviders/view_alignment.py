@@ -93,7 +93,7 @@ class ViewProviderAlignment:
         line_view.addChild(self.line_color)
 
         # Line data
-        self.line_coords = coin.SoGeoCoordinate()
+        self.line_coords = coin.SoCoordinate3()
         self.line_lines = coin.SoIndexedLineSet()
 
         line_data = coin.SoGroup()
@@ -117,7 +117,7 @@ class ViewProviderAlignment:
         curve_view.addChild(self.curve_color)
 
         # Curve data
-        self.curve_coords = coin.SoGeoCoordinate()
+        self.curve_coords = coin.SoCoordinate3()
         self.curve_lines = coin.SoIndexedLineSet()
 
         curve_data = coin.SoGroup()
@@ -141,7 +141,7 @@ class ViewProviderAlignment:
         spiral_view.addChild(self.spiral_color)
 
         # Spiral data
-        self.spiral_coords = coin.SoGeoCoordinate()
+        self.spiral_coords = coin.SoCoordinate3()
         self.spiral_lines = coin.SoIndexedLineSet()
 
         spiral_data = coin.SoGroup()
@@ -171,7 +171,7 @@ class ViewProviderAlignment:
         tangent_view.addChild(tangent_color)
 
         # Tangent data
-        self.tangent_coords = coin.SoGeoCoordinate()
+        self.tangent_coords = coin.SoCoordinate3()
         tangent_lines = coin.SoLineSet()
 
         tangent_data = coin.SoGroup()
@@ -201,7 +201,7 @@ class ViewProviderAlignment:
 
         self.texts = coin.SoGroup()
 
-        self.labels = coin.SoGeoSeparator()
+        self.labels = coin.SoSeparator()
         self.labels.addChild(self.font)
         self.labels.addChild(self.label_color)
         self.labels.addChild(self.tick_copy)
@@ -212,23 +212,29 @@ class ViewProviderAlignment:
         #-----------------------------------------------------------------
 
         # Centerline group
-        centerline = coin.SoType.fromName('SoFCSelection').createInstance()
-        centerline.style = 'EMISSIVE_DIFFUSE'
-        centerline.addChild(lines)
-        centerline.addChild(curves)
-        centerline.addChild(spirals)
-        centerline.addChild(tangents)
-        centerline.addChild(self.labels)
+        centerline_selection = coin.SoType.fromName('SoFCSelection').createInstance()
+        centerline_selection.style = 'EMISSIVE_DIFFUSE'
+        centerline_selection.addChild(lines)
+        centerline_selection.addChild(curves)
+        centerline_selection.addChild(spirals)
+        centerline_selection.addChild(tangents)
+        centerline_selection.addChild(self.labels)
+
+        self.centerline = coin.SoGeoSeparator()
+        self.centerline.addChild(centerline_selection)
 
         # Offset group
-        offset = coin.SoType.fromName('SoFCSelection').createInstance()
-        offset.style = 'EMISSIVE_DIFFUSE'
-        offset.addChild(lines)
-        offset.addChild(curves)
-        offset.addChild(spirals)
+        offset_selection = coin.SoType.fromName('SoFCSelection').createInstance()
+        offset_selection.style = 'EMISSIVE_DIFFUSE'
+        offset_selection.addChild(lines)
+        offset_selection.addChild(curves)
+        offset_selection.addChild(spirals)
 
-        vobj.addDisplayMode(centerline, "Centerline")
-        vobj.addDisplayMode(offset, "Offset")
+        self.offset = coin.SoGeoSeparator()
+        self.offset.addChild(centerline_selection)
+
+        vobj.addDisplayMode(self.centerline, "Centerline")
+        vobj.addDisplayMode(self.offset, "Offset")
 
         self.onChanged(vobj, "Labels")
         #self.onChanged(vobj, "TickSize")
@@ -325,7 +331,7 @@ class ViewProviderAlignment:
         elif prop == "LabelOffset":
             self.onChanged(vobj, "Labels")
 
-        if prop == "DisplayMode":
+        elif prop == "DisplayMode":
             mode = vobj.getPropertyByName(prop)
             if mode == "Centerline":
                 self.line_color.rgb = (1.0, 0.0, 0.0)
@@ -334,7 +340,7 @@ class ViewProviderAlignment:
 
                 self.draw_style.lineWidth = 2
 
-            if mode == "Offset":
+            elif mode == "Offset":
                 color = (1.0, 1.0, 1.0)
                 self.line_color.rgb = color
                 self.spiral_color.rgb = color
@@ -344,63 +350,62 @@ class ViewProviderAlignment:
 
     def updateData(self, obj, prop):
         """Update Object visuals when a data property changed."""
+        if prop == "Placement":
+            placement = obj.getPropertyByName(prop)
+            origin = georigin(placement.Base)
+            geo_system = ["UTM", origin.UtmZone, "FLAT"]
+
+            self.centerline.geoSystem.setValues(geo_system)
+            self.centerline.geoCoords.setValue(*placement.Base)
+
+            self.offset.geoSystem.setValues(geo_system)
+            self.offset.geoCoords.setValue(*placement.Base)
+
+        elif prop == "Shape":
+            shape = obj.getPropertyByName(prop).copy()
+            shape.Placement.move(obj.Placement.Base.negative())
+
+            line_coords, line_index = [], []
+            curves_coords, curves_index = [], []
+            spirals_coords, spirals_index = [], []
+            for edge in shape.Edges:
+                if edge.Curve.TypeId == 'Part::GeomLine':
+                    start = len(line_coords)
+                    line_coords.extend(edge.discretize(2))
+                    end = len(line_coords)
+
+                    line_index.extend(range(start,end))
+                    line_index.append(-1)
+
+                elif edge.Curve.TypeId == 'Part::GeomCircle':
+                    start = len(curves_coords)
+                    curves_coords.extend(edge.discretize(50))
+                    end = len(curves_coords)
+
+                    curves_index.extend(range(start,end))
+                    curves_index.append(-1)
+
+                elif edge.Curve.TypeId == 'Part::GeomBSplineCurve':
+                    start = len(spirals_coords)
+                    spirals_coords.extend(edge.discretize(50))
+                    end = len(spirals_coords)
+
+                    spirals_index.extend(range(start,end))
+                    spirals_index.append(-1)
+
+            self.line_coords.point.values = line_coords
+            self.line_lines.coordIndex.values = line_index
+            self.curve_coords.point.values = curves_coords
+            self.curve_lines.coordIndex.values = curves_index
+            self.spiral_coords.point.values = spirals_coords
+            self.spiral_lines.coordIndex.values = spirals_index
+
         if prop == "PIs":
-            pi_list = obj.getPropertyByName(prop)
-            if pi_list:
-                # Coordinate system
-                origin = georigin(pi_list[0])
-                geo_system = ["UTM", origin.UtmZone, "FLAT"]
+            pis = obj.getPropertyByName(prop)
+            base = obj.Placement.Base
+            points = [point.add(base.negative()) for point in pis]
 
-                self.line_coords.geoSystem.setValues(geo_system)
-                self.curve_coords.geoSystem.setValues(geo_system)
-                self.spiral_coords.geoSystem.setValues(geo_system)
-                self.tangent_coords.geoSystem.setValues(geo_system)
-                self.tangent_coords.point.values = pi_list
-                self.labels.geoSystem.setValues(geo_system)
-                self.labels.geoCoords.setValue(origin.Base.x, origin.Base.y, origin.Base.z)
-
-        if prop == "Shape":
-            shape = obj.getPropertyByName(prop)
-            if shape.SubShapes:
-                line_coords = []
-                curves_coords = []
-                spirals_coords = []
-
-                line_index = []
-                curves_index = []
-                spirals_index = []
-
-                for shp in shape.SubShapes:
-                    if shp.Curve.TypeId == 'Part::GeomLine':
-                        start = len(line_coords)
-                        line_coords.extend(shp.discretize(2))
-                        end = len(line_coords)
-
-                        line_index.extend(range(start,end))
-                        line_index.append(-1)
-
-                    elif shp.Curve.TypeId == 'Part::GeomCircle':
-                        start = len(curves_coords)
-                        curves_coords.extend(shp.discretize(50))
-                        end = len(curves_coords)
-
-                        curves_index.extend(range(start,end))
-                        curves_index.append(-1)
-
-                    elif shp.Curve.TypeId == 'Part::GeomBSplineCurve':
-                        start = len(spirals_coords)
-                        spirals_coords.extend(shp.discretize(50))
-                        end = len(spirals_coords)
-
-                        spirals_index.extend(range(start,end))
-                        spirals_index.append(-1)
-
-                self.line_coords.point.values = line_coords
-                self.line_lines.coordIndex.values = line_index
-                self.curve_coords.point.values = curves_coords
-                self.curve_lines.coordIndex.values = curves_index
-                self.spiral_coords.point.values = spirals_coords
-                self.spiral_lines.coordIndex.values = spirals_index
+            self.tangent_coords.point.values = points
 
     def getDisplayModes(self,vobj):
         """Return a list of display modes."""
