@@ -26,6 +26,10 @@ import FreeCAD
 
 import Part
 
+import math
+
+from ..functions.alignment import transformation
+
 
 class Road:
     """This class is about Road object data features."""
@@ -55,10 +59,36 @@ class Road:
             "Road structure").Structure = None
 
         obj.Proxy = self
-
+            
     def execute(self, obj):
         """Do something when doing a recomputation."""
-        pass
+        com_list = []
+        for component in obj.Structure.Group:
+            for part in component.Group:
+                part_copy = part.Shape.copy()
+                part_copy.Placement.move(obj.Structure.Placement.Base.negative())
+                com_list.append(part_copy)
+
+        sec_list = []
+        base_shp = Part.makeCompound(com_list)
+        stations = transformation(obj.Alignment, 10000)
+        for station, transform in stations.items():
+            point = transform["Location"]
+            angle = transform["Rotation"]
+
+            global_matrix = FreeCAD.Matrix()
+            global_matrix.rotateX(math.pi/2)
+            global_matrix.rotateZ(angle)
+
+            new_placement = FreeCAD.Placement(global_matrix)
+            new_placement.Base = point
+
+            section = base_shp.copy()
+            section.Placement = new_placement
+            sec_list.append(section)
+
+        obj.Shape = Part.makeCompound(sec_list)
+        Part.show(obj.Shape)
 
     def onChanged(self, obj, prop):
         """Update Object when a property changed."""

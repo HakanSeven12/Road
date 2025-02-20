@@ -56,9 +56,9 @@ class RoadCreate:
 
         self.frame_selector = SingleSelection()
         self.frame_selector.combo_box.currentTextChanged.connect(self.profile_update)
-        self.frame_update()
 
         self.profile_selector = SingleSelection()
+        self.frame_update()
         self.profile_update()
 
         structures = FreeCAD.ActiveDocument.getObject("Structures")
