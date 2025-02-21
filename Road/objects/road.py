@@ -65,6 +65,7 @@ class Road:
         com_list = []
         for component in obj.Structure.Group:
             for part in component.Group:
+                if part.Proxy.Type == "Road::ComponentPoint": continue
                 part_copy = part.Shape.copy()
                 part_copy.Placement.move(obj.Structure.Placement.Base.negative())
                 com_list.append(part_copy)
@@ -72,22 +73,42 @@ class Road:
         sec_list = []
         base_shp = Part.makeCompound(com_list)
         stations = transformation(obj.Alignment, 10000)
+        pos = obj.Profile.Placement.Base
+        dy=FreeCAD.Vector(0, obj.Profile.Shape.BoundBox.YLength)
+
         for station, transform in stations.items():
+            length = station
             point = transform["Location"]
             angle = transform["Rotation"]
+
+            start = pos.add(FreeCAD.Vector(length,0))
+            end = start.add(dy)
+            line_edge = Part.LineSegment(start, end)
+            line_shape = line_edge.toShape()
+
+            result = obj.Profile.Shape.distToShape(line_shape.SubShapes[0])
+            print(result)
+            elevation = result[1][0][0].y - start.y + 3000
 
             global_matrix = FreeCAD.Matrix()
             global_matrix.rotateX(math.pi/2)
             global_matrix.rotateZ(angle)
 
             new_placement = FreeCAD.Placement(global_matrix)
-            new_placement.Base = point
+            new_placement.Base = point.add(FreeCAD.Vector(0, 0, elevation))
 
             section = base_shp.copy()
             section.Placement = new_placement
             sec_list.append(section)
-
-        obj.Shape = Part.makeCompound(sec_list)
+        
+        shp_list = []
+        for i in range(len(base_shp.Edges)):
+            l = [sec.Edges[i] for sec in sec_list]
+            shp = Part.makeLoft(l)
+            shp_list.append(shp)
+        
+        Part.show(Part.makeCompound(sec_list))
+        obj.Shape = Part.makeCompound(shp_list)
         Part.show(obj.Shape)
 
     def onChanged(self, obj, prop):
