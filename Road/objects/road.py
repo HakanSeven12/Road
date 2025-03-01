@@ -87,7 +87,6 @@ class Road:
             line_shape = line_edge.toShape()
 
             result = obj.Profile.Shape.distToShape(line_shape.SubShapes[0])
-            print(result)
             elevation = result[1][0][0].y - start.y + 3000
 
             global_matrix = FreeCAD.Matrix()
@@ -107,10 +106,10 @@ class Road:
             shp = Part.makeLoft(l)
             shp_list.append(shp)
         
-        Part.show(Part.makeCompound(sec_list))
         obj.Shape = Part.makeCompound(shp_list)
-        Part.show(obj.Shape)
 
     def onChanged(self, obj, prop):
         """Update Object when a property changed."""
-        pass
+        if prop == "Alignment":
+            alignment = obj.getPropertyByName(prop)
+            obj.Placement = alignment.Placement if alignment else FreeCAD.Placement()

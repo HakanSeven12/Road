@@ -29,7 +29,7 @@ from ..variables import icons_path
 from ..utils.get_group import georigin
 
 
-class ViewProviderComponentShape:
+class ViewProviderRoad:
     """This class is about Shape Object view features."""
     def __init__(self, vobj):
         """Set view properties."""
@@ -69,37 +69,19 @@ class ViewProviderComponentShape:
         faces.addChild(face_view)
         faces.addChild(face_data)
 
-        #-------------------------------------------------------------
-        # Labels
-        #-------------------------------------------------------------
-
-        self.font = coin.SoFont()
-        self.font.size = 250
-        self.location = coin.SoTranslation()
-        self.label_color = coin.SoBaseColor()
-        self.label_color.rgb = (1.0, 0.0, 0.0)
-        self.text = coin.SoAsciiText()
-
-        self.label = coin.SoAnnotation()
-        self.label.addChild(self.font)
-        self.label.addChild(self.location)
-        self.label.addChild(self.label_color)
-        self.label.addChild(self.text)
-
         #-----------------------------------------------------------------
         # Face
         #-----------------------------------------------------------------
 
         # Terrain group
-        structure_selection = coin.SoType.fromName('SoFCSelection').createInstance()
-        structure_selection.style = 'EMISSIVE_DIFFUSE'
-        structure_selection.addChild(faces)
-        structure_selection.addChild(self.label)
+        road_selection = coin.SoType.fromName('SoFCSelection').createInstance()
+        road_selection.style = 'EMISSIVE_DIFFUSE'
+        road_selection.addChild(faces)
 
-        self.structure = coin.SoGeoSeparator()
-        self.structure.addChild(structure_selection)
+        self.road = coin.SoGeoSeparator()
+        self.road.addChild(road_selection)
 
-        vobj.addDisplayMode(self.structure, "Faces")
+        vobj.addDisplayMode(self.road, "Model")
 
     def updateData(self, obj, prop):
         """Update Object visuals when a data property changed."""
@@ -108,17 +90,16 @@ class ViewProviderComponentShape:
             origin = georigin()
             geo_system = ["UTM", origin.UtmZone, "FLAT"]
 
-            self.structure.geoSystem.setValues(geo_system)
-            self.structure.geoCoords.setValue(placement.Base.x, placement.Base.y, placement.Base.z)
+            self.road.geoSystem.setValues(geo_system)
+            self.road.geoCoords.setValue(placement.Base.x, placement.Base.y, placement.Base.z)
 
         elif prop == "Shape":
-            shape = obj.getPropertyByName(prop).copy()
-            shape.Placement.move(obj.Placement.Base.negative())
+            shape = obj.getPropertyByName(prop)
 
             index = 0
             points, indexes = [], []
             for face in shape.Faces:
-                vertices, triangles = face.tessellate(1)
+                vertices, triangles = face.tessellate(1000)
                 points.extend(vertices)
                 for tri in triangles:
                     indexes.extend([i + index for i in tri])
@@ -129,21 +110,14 @@ class ViewProviderComponentShape:
             self.face_coords.point.values = points
             self.faces.coordIndex.values = indexes
 
-            component = obj.getParentGroup()
-            side = coin.SoAsciiText.LEFT if component.Side == "Right" else coin.SoAsciiText.RIGHT
-            self.text.justification = side
-            self.location.translation = shape.CenterOfMass
-            self.text.string.setValues([obj.Label])
-
-
     def getDisplayModes(self,vobj):
         """Return a list of display modes."""
-        modes = ["Faces"]
+        modes = ["Model"]
         return modes
 
     def getDefaultDisplayMode(self):
         """Return the name of the default display mode."""
-        return "Faces"
+        return "Model"
 
     def setDisplayMode(self,mode):
         """Map the display mode defined in attach with 
@@ -152,7 +126,7 @@ class ViewProviderComponentShape:
 
     def getIcon(self):
         """Return object treeview icon."""
-        return icons_path + "/ComponentShape.svg"
+        return icons_path + "/Road.svg"
 
     def dumps(self):
         """Called during document saving"""
