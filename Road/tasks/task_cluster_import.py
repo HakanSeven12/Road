@@ -86,7 +86,7 @@ class TaskClusterImport(TaskPanel):
     def create_cluster(self):
         """Create a new cluster and add it to the combo box."""
         group_name = self.subpanel.PointGroupNameLE.text()
-        new_group = make_cluster.create(name=group_name)
+        new_group = make_cluster.create(group_name)
         self.group_dict[new_group.Label] = new_group
         self.form.SubGroupListCB.addItem(new_group.Label)
         self.subpanel.close()
