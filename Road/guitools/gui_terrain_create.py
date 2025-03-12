@@ -26,23 +26,18 @@ import FreeCAD, FreeCADGui
 
 from ..variables import icons_path
 from ..make import make_terrain
+from ..tasks.task_selection import MultipleSelection
 
 
-class CreateTerrain:
-    """
-    Command to create a new Terrain.
-    """
+class TerrainCreate:
+    """Command to create a new Terrain."""
 
     def __init__(self):
-        """
-        Constructor
-        """
+        """Constructor"""
         pass
 
     def GetResources(self):
-        """
-        Return the command resources dictionary
-        """
+        """Return the command resources dictionary"""
         return {
             'Pixmap': icons_path + '/TerrainCreate.svg',
             'MenuText': "Create Terrain",
@@ -50,31 +45,27 @@ class CreateTerrain:
             }
 
     def IsActive(self):
-        """
-        Define tool button activation situation
-        """
-        # Check for document
-        if FreeCAD.ActiveDocument:
-            return True
-        return False
+        """Define tool button activation situation"""
+        return bool(FreeCADGui.ActiveDocument)
 
     def Activated(self):
-        """
-        Command activation method
-        """
-        # Check for selected object
+        """Command activation method"""
+        clusters = FreeCAD.ActiveDocument.getObject("Clusters")
+        self.cluster_selector = MultipleSelection(clusters)
+
+        self.form = self.cluster_selector
+        FreeCADGui.Control.showDialog(self)
+
+    def accept(self):
+        """Panel 'OK' button clicked"""
+        cluster_labels = self.cluster_selector.list_widget.selectedItems()
+        clusters = [self.cluster_selector.objects[sel.text()] for sel in cluster_labels]
+
+        FreeCADGui.Control.closeDialog()
+
         terrain = make_terrain.create()
-        selection = FreeCADGui.Selection.getSelection()
-
-        if selection:
-            clusters = terrain.Clusters.copy()
-
-            for obj in selection:
-                if obj.Proxy.Type == 'Road::Cluster':
-                    clusters.append(obj)
-
-            terrain.Clusters = clusters
+        terrain.Clusters = clusters
 
         FreeCAD.ActiveDocument.recompute()
 
-FreeCADGui.addCommand('Create Terrain', CreateTerrain())
+FreeCADGui.addCommand('Create Terrain', TerrainCreate())

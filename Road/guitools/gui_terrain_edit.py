@@ -26,172 +26,99 @@ import FreeCAD, FreeCADGui
 from pivy import coin
 
 from ..variables import icons_path
+from ..utils.trackers import ViewTracker
 
 
-class AddPoint:
-    """
-    Command to add a point to Terrain.
-    """
+class TerrainAddPoint:
+    """Command to add a point to Terrain."""
 
     def __init__(self):
-        """
-        Constructor
-        """
+        """Constructor"""
         pass
 
     def GetResources(self):
-        """
-        Return the command resources dictionary
-        """
+        """Return the command resources dictionary"""
         return {
-            'Pixmap': icons_path + '/AddTriangle.svg',
-            'MenuText': "Add Point",
-            'ToolTip': "Add a point to selected Terrain."
+            "Pixmap": icons_path + "/AddTriangle.svg",
+            "MenuText": "Add Point",
+            "ToolTip": "Add a point to selected Terrain."
             }
 
     def IsActive(self):
-        """
-        Define tool button activation situation
-        """
-        # Check for document
-        if FreeCAD.ActiveDocument:
-            # Check for selected object
-            selection = FreeCADGui.Selection.getSelection()
-            if selection:
-                if selection[-1].Proxy.Type == 'Road::Terrain':
-                    return True
-        return False
+        """Define tool button activation situation"""
+        return True
 
     def Activated(self):
-        """
-        Command activation method
-        """
-        # Create an event callback for add_point() function
-        self.view = FreeCADGui.ActiveDocument.ActiveView
-        self.event_callback = self.view.addEventCallbackPivy(
-            coin.SoButtonEvent.getClassTypeId(), self.add_point)
+        """Command activation method"""
+        self.terrain = FreeCADGui.Selection.getSelection()[-1]
+        tracker = ViewTracker("Mouse", key="Left", function=self.add_point)
+        tracker.start()
 
-    def add_point(self, cb):
-        """
-        Take two triangle by mouse clicks and swap edge between them
-        """
-        # Get event
-        event = cb.getEvent()
+    def add_point(self, callback):
+        """Take two triangle by mouse clicks and swap edge between them"""
+        picked_point = callback.getPickedPoint()
+        if picked_point:
+            detail = picked_point.getDetail()
+            if detail.isOfType(coin.SoFaceDetail.getClassTypeId()):
+                face_detail = coin.cast(detail, str(detail.getTypeId().getName()))
+                index = face_detail.getFaceIndex()
 
-        # If mouse right button pressed finish swap edge operation
-        if event.getTypeId().isDerivedFrom(coin.SoKeyboardEvent.getClassTypeId()):
-            if event.getKey() == coin.SoKeyboardEvent.ESCAPE \
-                and event.getState() == coin.SoKeyboardEvent.DOWN:
-                self.view.removeEventCallbackPivy(
-                    coin.SoButtonEvent.getClassTypeId(), self.event_callback)
+                point = picked_point.getPoint().getValue()
+                vector = FreeCAD.Vector(*point)
 
-        # If mouse left button pressed get picked point
-        elif event.getTypeId().isDerivedFrom(coin.SoMouseButtonEvent.getClassTypeId()):
-            if event.getButton() == coin.SoMouseButtonEvent.BUTTON1 \
-                and event.getState() == coin.SoMouseButtonEvent.DOWN:
-                picked_point = cb.getPickedPoint()
-
-                # Get triangle index at picket point
-                if picked_point:
-                    detail = picked_point.getDetail()
-
-                    if detail.isOfType(coin.SoFaceDetail.getClassTypeId()):
-                        face_detail = coin.cast(
-                            detail, str(detail.getTypeId().getName()))
-                        index = face_detail.getFaceIndex()
-                        print(index)
-
-                        obj = self.view.getObjectInfo(self.view.getCursorPos())
-                        curpos = FreeCAD.Vector(float(obj["x"]),float(obj["y"]),float(obj["z"]))           
-
-                        terrain = FreeCADGui.Selection.getSelection()[-1]
-                        terrain.AddPoints[index] = curpos
-
-FreeCADGui.addCommand('Add Point', AddPoint())
+                origin = FreeCAD.ActiveDocument.getObject("GeoOrigin")
+                if origin: vector = vector.add(origin.Base)
+                operations = self.terrain.Operations
+                operations.append({"type":"Add Point", "index":index, "vector":vector})
+                self.terrain.Operations = operations
 
 
 class AddTriangle:
-    """
-    Command to add a triangle to Terrain.
-    """
+    """Command to add a triangle to Terrain."""
 
     def __init__(self):
-        """
-        Constructor
-        """
+        """Constructor"""
         pass
 
     def GetResources(self):
-        """
-        Return the command resources dictionary
-        """
+        """Return the command resources dictionary"""
         return {
-            'Pixmap': icons_path + '/AddTriangle.svg',
-            'MenuText': "Add Triangle",
-            'ToolTip': "Add a triangle to selected Terrain."
+            "Pixmap": icons_path + "/AddTriangle.svg",
+            "MenuText": "Add Triangle",
+            "ToolTip": "Add a triangle to selected Terrain."
             }
 
     def IsActive(self):
-        """
-        Define tool button activation situation
-        """
-        # Check for document
-        if FreeCAD.ActiveDocument:
-            # Check for selected object
-            selection = FreeCADGui.Selection.getSelection()
-            if selection:
-                if selection[-1].Proxy.Type == 'Road::Terrain':
-                    return True
-        return False
+        """Define tool button activation situation"""
+        return True
 
     def Activated(self):
-        """
-        Command activation method
-        """
+        """Command activation method"""
         # Call for Mesh.Addfacet function
         FreeCADGui.runCommand("Mesh_AddFacet")
 
-FreeCADGui.addCommand('Add Triangle', AddTriangle())
-
 
 class DeleteTriangle:
-    """
-    Command to delete a triangle from Terrain.
-    """
+    """Command to delete a triangle from Terrain."""
 
     def __init__(self):
-        """
-        Constructor
-        """
+        """Constructor"""
         pass
 
     def GetResources(self):
-        """
-        Return the command resources dictionary
-        """
+        """Return the command resources dictionary"""
         return {
-            'Pixmap': icons_path + '/DeleteTriangle.svg',
-            'MenuText': "Delete Triangle",
-            'ToolTip': "Delete triangles from selected Terrain."
+            "Pixmap": icons_path + "/DeleteTriangle.svg",
+            "MenuText": "Delete Triangle",
+            "ToolTip": "Delete triangles from selected Terrain."
               }
 
     def IsActive(self):
-        """
-        Define tool button activation situation
-        """
-        # Check for document
-        if FreeCAD.ActiveDocument:
-            # Check for selected object
-            selection = FreeCADGui.Selection.getSelection()
-            if selection:
-                if selection[-1].Proxy.Type == 'Road::Terrain':
-                    return True
-        return False
+        """Define tool button activation situation"""
+        return True
 
     def Activated(self):
-        """
-        Command activation method
-        """
+        """Command activation method"""
         # Create an event callback for delete() function
         self.view = FreeCADGui.ActiveDocument.ActiveView
         self.event_callback = self.view.addEventCallbackPivy(
@@ -199,9 +126,7 @@ class DeleteTriangle:
         self.indexes = []
 
     def delete(self, cb):
-        """
-        Take two triangle by mouse clicks and swap edge between them
-        """
+        """Take two triangle by mouse clicks and swap edge between them"""
         # Get event
         event = cb.getEvent()
 
@@ -239,47 +164,28 @@ class DeleteTriangle:
                 self.indexes.clear()
                 terrain.Mesh = copy_mesh
 
-FreeCADGui.addCommand('Delete Triangle', DeleteTriangle())
-
 
 class SwapEdge:
-    """
-    Command to swap an edge between two triangles
-    """
+    """Command to swap an edge between two triangles"""
 
     def __init__(self):
-        """
-        Constructor
-        """
+        """Constructor"""
         pass
 
     def GetResources(self):
-        """
-        Return the command resources dictionary
-        """
+        """Return the command resources dictionary"""
         return {
-            'Pixmap': icons_path + '/SwapEdge.svg',
-            'MenuText': "Swap Edge",
-            'ToolTip': "Swap Edge of selected Terrain."
+            "Pixmap": icons_path + "/SwapEdge.svg",
+            "MenuText": "Swap Edge",
+            "ToolTip": "Swap Edge of selected Terrain."
             }
 
     def IsActive(self):
-        """
-        Define tool button activation situation
-        """
-        # Check for document
-        if FreeCAD.ActiveDocument:
-            # Check for selected object
-            selection = FreeCADGui.Selection.getSelection()
-            if selection:
-                if selection[-1].Proxy.Type == 'Road::Terrain':
-                    return True
-        return False
+        """Define tool button activation situation"""
+        return True
 
     def Activated(self):
-        """
-        Command activation method
-        """
+        """Command activation method"""
         # Create an event callback for SwapEdge() function
         self.view = FreeCADGui.ActiveDocument.ActiveView
         self.face_indexes = []
@@ -287,9 +193,7 @@ class SwapEdge:
             coin.SoButtonEvent.getClassTypeId(), self.SwapEdge)
 
     def SwapEdge(self, cb):
-        """
-        Take two triangle by mouse clicks and swap edge between them
-        """
+        """Take two triangle by mouse clicks and swap edge between them"""
         # Get event
         event = cb.getEvent()
 
@@ -332,56 +236,30 @@ class SwapEdge:
                             self.face_indexes.clear()
                             FreeCAD.ActiveDocument.recompute()
 
-FreeCADGui.addCommand('Swap Edge', SwapEdge())
-
 
 class SmoothTerrain:
-    """
-    Command to smooth Terrain.
-    """
+    """Command to smooth Terrain."""
 
     def __init__(self):
-        """
-        Constructor
-        """
-
-        # Set icon,  menu text and tooltip
-        self.resources = {
-            'Pixmap': icons_path + '/SmoothSurface.svg',
-            'MenuText': "Smooth Terrain",
-            'ToolTip': "Smooth selected Terrain."
-            }
+        """Constructor"""
+        pass
 
     def GetResources(self):
-        """
-        Return the command resources dictionary
-        """
-        return self.resources
+        """Return the command resources dictionary"""
+        return {
+            "Pixmap": icons_path + "/SmoothSurface.svg",
+            "MenuText": "Smooth Terrain",
+            "ToolTip": "Smooth selected Terrain."
+            }
 
     def IsActive(self):
-        """
-        Define tool button activation situation
-        """
-        # Check for document
-        if FreeCAD.ActiveDocument:
-            # Check for selected object
-            selection = FreeCADGui.Selection.getSelection()
-            if selection:
-                if selection[-1].Proxy.Type == 'Road::Terrain':
-                    return True
-        return False
+        """Define tool button activation situation"""
+        return True
 
-    @staticmethod
-    def Activated():
-        """
-        Command activation method
-        """
-        # Get selected terrain and smooth it
+    def Activated(self):
+        """Command activation method"""
         terrain = FreeCADGui.Selection.getSelection()[0]
         terrain.Mesh.smooth()
-
-
-FreeCADGui.addCommand('Smooth Terrain', SmoothTerrain())
 
 
 class TerrainEditGroup:
@@ -390,20 +268,30 @@ class TerrainEditGroup:
     def GetResources(self):
         """Set icon, menu and tooltip."""
         return {
-            'Pixmap': icons_path + '/TerrainEdit.svg',
+            "Pixmap": icons_path + "/TerrainEdit.svg",
             "MenuText": "Edit Surface",
             "ToolTip": "Edit surfaces."}
 
     def GetCommands(self):
         """Return a tuple of commands in the group."""
-        return ('Add Point',
-                'Delete Triangle',
-                'Swap Edge',
-                'Smooth Terrain')
+        return ("Add Point",
+                "Delete Triangle",
+                "Swap Edge",
+                "Smooth Terrain")
 
     def IsActive(self):
         """Return True when this command should be available."""
-        return bool(FreeCADGui.getMainWindow().getActiveWindow())
+        if FreeCAD.ActiveDocument:
+            selection = FreeCADGui.Selection.getSelection()
+            if selection:
+                if selection[-1].Proxy.Type == "Road::Terrain":
+                    return True
+        return False
 
 
-FreeCADGui.addCommand('Terrain Edit', TerrainEditGroup())
+FreeCADGui.addCommand("Add Point", TerrainAddPoint())
+FreeCADGui.addCommand("Add Triangle", AddTriangle())
+FreeCADGui.addCommand("Delete Triangle", DeleteTriangle())
+FreeCADGui.addCommand("Swap Edge", SwapEdge())
+FreeCADGui.addCommand("Smooth Terrain", SmoothTerrain())
+FreeCADGui.addCommand("Terrain Edit", TerrainEditGroup())

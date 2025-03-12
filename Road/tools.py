@@ -33,7 +33,7 @@ from .guitools import (
     gui_geopoint_import,
     gui_geopoint_export,
     gui_terrain_create,
-    gui_terrain_data,
+    gui_terrain_object,
     gui_terrain_edit,
     gui_terrain_demolish,
     gui_alignment_create,

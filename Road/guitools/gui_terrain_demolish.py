@@ -56,9 +56,6 @@ class TerrainExtractPoints:
             Part.show(point)
 
 
-FreeCADGui.addCommand("Terrain Extract Points", TerrainExtractPoints())
-
-
 class TerrainExtractTrianglesMesh:
     """Command to extract Triangles(Mesh) from Terrain."""
 
@@ -82,9 +79,6 @@ class TerrainExtractTrianglesMesh:
         """Command activation method"""
         terrain = FreeCADGui.Selection.getSelection()[0]
         Mesh.show(terrain.Mesh)
-
-
-FreeCADGui.addCommand("Terrain Extract Triangles(Mesh)", TerrainExtractTrianglesMesh())
 
 
 class TerrainExtractTrianglesShape:
@@ -114,9 +108,6 @@ class TerrainExtractTrianglesShape:
         Part.show(shape)
 
 
-FreeCADGui.addCommand("Terrain Extract Triangles(Shape)", TerrainExtractTrianglesShape())
-
-
 class TerrainExtractBoundary:
     """Command to extract Boundary from Terrain."""
 
@@ -142,9 +133,6 @@ class TerrainExtractBoundary:
         Part.show(terrain.Boundary)
 
 
-FreeCADGui.addCommand("Terrain Extract Boundary", TerrainExtractBoundary())
-
-
 class TerrainExtractContours:
     """Command to extract Contours from Terrain."""
 
@@ -168,9 +156,6 @@ class TerrainExtractContours:
         """Command activation method"""
         terrain = FreeCADGui.Selection.getSelection()[0]
         Part.show(terrain.Contour)
-
-
-FreeCADGui.addCommand("Terrain Extract Contours", TerrainExtractContours())
 
 
 class TerrainDemolishGroup:
@@ -201,4 +186,9 @@ class TerrainDemolishGroup:
         return False
 
 
+FreeCADGui.addCommand("Terrain Extract Points", TerrainExtractPoints())
+FreeCADGui.addCommand("Terrain Extract Triangles(Mesh)", TerrainExtractTrianglesMesh())
+FreeCADGui.addCommand("Terrain Extract Triangles(Shape)", TerrainExtractTrianglesShape())
+FreeCADGui.addCommand("Terrain Extract Boundary", TerrainExtractBoundary())
+FreeCADGui.addCommand("Terrain Extract Contours", TerrainExtractContours())
 FreeCADGui.addCommand("Terrain Demolish", TerrainDemolishGroup())

@@ -20,79 +20,87 @@
 # *                                                                         *
 # ***************************************************************************
 
-"""Provides GUI tools to add data to Terrain objects."""
+"""Provides GUI tools to add object to Terrain objects."""
 
 import FreeCAD, FreeCADGui
 
 from ..variables import icons_path
 from ..tasks import task_set_prop
 from ..utils import get_group
+from ..tasks.task_selection import MultipleSelection
 
 
-class AddCluster:
-    """
-    Command to add a point to Terrain.
-    """
+class TerrainAddCluster:
+    """Command to add a cluster to Terrain."""
 
     def __init__(self):
-        """
-        Constructor
-        """
+        """Constructor"""
         pass
 
     def GetResources(self):
-        """
-        Return the command resources dictionary
-        """
-        return {'Pixmap': icons_path + '/AddTriangle.svg',
-            'MenuText': "Add Cluster",
-            'ToolTip': "Add a cluster to selected Terrain."}
+        """Return the command resources dictionary"""
+        return {"Pixmap": icons_path + "/TerrainAddCluster.svg",
+            "MenuText": "Add Cluster",
+            "ToolTip": "Add a cluster to selected Terrain."}
 
     def IsActive(self):
-        """
-        Define tool button activation situation
-        """
-        # Check for document
-        if FreeCAD.ActiveDocument:
-            # Check for selected object
-            selection = FreeCADGui.Selection.getSelection()
-            if len(selection)==1:
-                if selection[0].Proxy.Type == 'Road::Terrain':
-                    self.terrain = selection[0]
-                    return True
-        return False
+        """Define tool button activation situation"""
+        return True
 
     def Activated(self):
         """
         Command activation method
         """
+        terrain = FreeCADGui.Selection.getSelection()[0]
         clusters = get_group.get("Clusters")
-        panel = task_set_prop.TaskSetProperty(self.terrain, "Clusters", clusters)
+        panel = task_set_prop.TaskSetProperty(terrain, "Clusters", clusters)
         FreeCADGui.Control.showDialog(panel)
         
         FreeCAD.ActiveDocument.recompute()
 
+    def Activated(self):
+        """Command activation method"""
+        self.terrain = FreeCADGui.Selection.getSelection()[0]
+        clusters = FreeCAD.ActiveDocument.getObject("Clusters")
+        self.cluster_selector = MultipleSelection(clusters)
 
-FreeCADGui.addCommand('Add Cluster', AddCluster())
+        self.form = self.cluster_selector
+        FreeCADGui.Control.showDialog(self)
 
+    def accept(self):
+        """Panel 'OK' button clicked"""
+        cluster_labels = self.cluster_selector.list_widget.selectedItems()
+        clusters = [self.cluster_selector.objects[sel.text()] for sel in cluster_labels]
 
-class TerrainDataGroup:
+        FreeCADGui.Control.closeDialog()
+
+        self.terrain.Clusters = clusters
+
+        FreeCAD.ActiveDocument.recompute()
+
+class TerrainObjectGroup:
     """Gui Command group for the Arc tools."""
 
     def GetResources(self):
         """Set icon, menu and tooltip."""
-        return {'Pixmap': icons_path + '/TerrainData.svg',
-                "MenuText": "Add Data",
-                "ToolTip": "Add data to surfaces."}
+        return {"Pixmap": icons_path + "/TerrainObject.svg",
+                "MenuText": "Add Object",
+                "ToolTip": "Add object to selected Terrain."}
 
     def GetCommands(self):
         """Return a tuple of commands in the group."""
-        return ('Import Points',
-                'Add Cluster')
+        return ("Terrain Add Cluster",
+                "Terrain Add Cluster")
 
     def IsActive(self):
         """Return True when this command should be available."""
-        return bool(FreeCADGui.ActiveDocument)
+        if FreeCAD.ActiveDocument:
+            selection = FreeCADGui.Selection.getSelection()
+            if selection:
+                if selection[-1].Proxy.Type == "Road::Terrain":
+                    return True
+        return False
 
 
-FreeCADGui.addCommand('Terrain Data', TerrainDataGroup())
+FreeCADGui.addCommand("Terrain Add Cluster", TerrainAddCluster())
+FreeCADGui.addCommand("Terrain Object", TerrainObjectGroup())

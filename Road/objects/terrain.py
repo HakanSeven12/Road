@@ -22,6 +22,7 @@
 
 """Provides the object code for Terrain objects."""
 
+import FreeCAD
 import Mesh, Part
 import MeshGui
 
@@ -47,16 +48,8 @@ class Terrain:
             "Clusters added to the Delaunay triangulation").Clusters = []
 
         obj.addProperty(
-            "App::PropertyPythonObject", "AddPoints", "Triangulation",
-            "Points added to the triangulation").AddPoints = {}
-
-        obj.addProperty(
-            "App::PropertyVectorList", "DeletePoints", "Triangulation",
-            "Points deleted from the triangulation").DeletePoints = []
-
-        obj.addProperty(
-            "App::PropertyVectorList", "SwapEdges", "Triangulation",
-            "Edges swapped in the triangulation").SwapEdges = []
+            "App::PropertyPythonObject", "Operations", "Triangulation",
+            "Terrain edit operations").Operations = []
 
         obj.addProperty(
             "Mesh::PropertyMeshKernel", "Mesh", "Triangulation",
@@ -96,11 +89,6 @@ class Terrain:
 
         obj.Proxy = self
 
-    def onChanged(self, obj, prop):
-        """Do something when a data property has changed."""
-        if prop == "MinorInterval":
-            obj.MajorInterval = obj.getPropertyByName(prop) * 5
-
     def execute(self, obj):
         """Do something when doing a recomputation."""
         points = []
@@ -123,3 +111,22 @@ class Terrain:
 
         obj.Contour = get_contours(obj.Mesh, obj.MajorInterval.Value, obj.MinorInterval.Value)
         obj.Boundary = get_boundary(obj.Mesh)
+
+    def onChanged(self, obj, prop):
+        """Do something when a data property has changed."""
+        if prop == "MinorInterval":
+            obj.MajorInterval = obj.getPropertyByName(prop) * 5
+
+        elif prop == "Operations":
+            operations = obj.getPropertyByName(prop)
+            mesh = obj.Mesh.copy()
+            for op in operations:
+                origin = FreeCAD.ActiveDocument.getObject("GeoOrigin")
+
+                if op.get("type") == "Add Point":
+                    idx = op.get("index")
+                    vec = op.get("vector")
+                    if origin: vec = vec.add(origin.Base.negative())
+                    mesh.insertVertex(idx, vec)
+
+            obj.Mesh = mesh

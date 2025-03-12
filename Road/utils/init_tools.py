@@ -32,7 +32,7 @@ def get_point_commands():
 def get_surface_commands():
     """Return the surface commands list."""
     return ["Create Terrain",
-            "Terrain Data",
+            "Terrain Object",
             "Terrain Edit",
             "Terrain Demolish"]
 
