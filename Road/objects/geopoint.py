@@ -73,19 +73,17 @@ class GeoPoint:
         """Do something when a data property has changed."""
         if prop in ["Easting", "Northing", "PointElevation"]:
             coordinate = FreeCAD.Vector(obj.Easting, obj.Northing, obj.PointElevation)
-            placement = FreeCAD.Placement()
-            placement.move(coordinate.multiply(1000))
+            location = coordinate.multiply(1000)
 
-            if obj.Placement != placement:
-                obj.Placement = placement
+            if obj.Placement.Base != location:
+                obj.Placement.Base = location
 
         if prop == "Placement":
             placement = obj.getPropertyByName(prop)
             coordinate = FreeCAD.Vector(obj.Easting, obj.Northing, obj.PointElevation)
-            pl = FreeCAD.Placement()
-            pl.move(coordinate.multiply(1000))
+            location = coordinate.multiply(1000)
 
-            if placement != pl:
+            if placement.Base != location:
                 obj.Easting = placement.Base.x / 1000
                 obj.Northing = placement.Base.y / 1000
                 obj.PointElevation = placement.Base.z / 1000

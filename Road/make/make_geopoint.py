@@ -33,15 +33,9 @@ def create(name="GeoPoint", easting=0, northing=0, elevation=0, description=""):
     GeoPoint(obj)
     ViewProviderGeoPoint(obj.ViewObject)
 
-    if obj.Name != "GeoPoint":
-        number = int(obj.Name[8:]) + 1
-    else: number = 1
-
     obj.Label = name
-    obj.Number = number
-    obj.Easting = easting
-    obj.Northing = northing
-    obj.PointElevation = elevation
+    obj.Number = int(obj.Name[8:]) + 1 if obj.Name != "GeoPoint" else 1
+    obj.Placement.Base = FreeCAD.Vector(easting, northing, elevation)
     obj.Description = description
 
     return obj
