@@ -24,13 +24,14 @@ import FreeCAD, FreeCADGui
 from pivy import coin
 
 class ViewTracker:
-    def __init__(self, eventid="Event", key=None, state="Down", function=None, cancelable=True):
+    def __init__(self, eventid="Event", key=None, state="Up", function=None, cancelable=True, selection=False):
         self.view = FreeCADGui.ActiveDocument.ActiveView
         self.eventid = eventid
         self.key = key
         self.state = state
         self.function = function
         self.cancelable = cancelable
+        self.selection = selection
 
         self.eventids = {
             "Event": coin.SoEvent.getClassTypeId(),
@@ -171,6 +172,10 @@ class ViewTracker:
             "Grave": coin.SoKeyboardEvent.GRAVE}
 
     def start(self):
+        if not self.selection:
+            self.root=self.view.getSceneGraph()
+            self.root.getField("selectionRole").setValue(0)
+
         self.callback = self.view.addEventCallbackPivy(
             self.eventids[self.eventid], self.tracker)
 
@@ -197,8 +202,13 @@ class ViewTracker:
                 if self.eventid == "Mouse" and self.function: self.function(callback)
 
     def stop(self, canceled=False):
+        if not self.selection:
+            self.root.getField("selectionRole").setValue(1)
+
         self.view.removeEventCallbackPivy(
             self.eventids[self.eventid], self.callback)
+
         self.view.removeEventCallbackPivy(
             self.eventids["Keyboard"], self.cancel)
+
         if canceled: FreeCAD.Console.PrintWarning("Canceled")

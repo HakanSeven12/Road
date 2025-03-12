@@ -35,7 +35,7 @@ class GeoWidget(QLineEdit):
         mw.statusBar().addPermanentWidget(self)
         self.view = FreeCADGui.ActiveDocument.ActiveView
 
-        self.tracker = ViewTracker("Location", function=self.coordinate_update, cancelable=False)
+        self.tracker = ViewTracker("Location", function=self.coordinate_update, cancelable=False, selection=True)
 
     def show(self):
         super().show()
