@@ -25,7 +25,7 @@
 import FreeCAD
 import Part
 
-import numpy, math, colorsys
+import numpy, math, colorsys, copy
 
 
 def test_triangulation(tri, lmax, amax):

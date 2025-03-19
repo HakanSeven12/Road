@@ -42,7 +42,10 @@ class Terrain:
         """Set data properties."""
         self.Type = "Road::Terrain"
 
-        # Triangulation properties.
+        obj.addProperty(
+            "App::PropertyVectorList", "Points", "Triangulation",
+            "Clusters added to the Delaunay triangulation", attr=16).Points = []
+
         obj.addProperty(
             "App::PropertyLinkList", "Clusters", "Triangulation",
             "Clusters added to the Delaunay triangulation").Clusters = []
@@ -96,37 +99,65 @@ class Terrain:
             for geopoint in cluster.Group:
                 points.append(geopoint.Placement.Base)
 
-        if len(points) < 3:
-            obj.Mesh = Mesh.Mesh()
-            obj.Contour = Part.Shape()
-            obj.Boundary = Part.Shape()
-            return
-
-        tri = Delaunay(numpy.array([[point.x, point.y] for point in points]))
-        tested_tri = test_triangulation(tri, obj.MaxLength, obj.MaxAngle)
-
-        origin = georigin(points[0])
-        points = [point.sub(origin.Base) for point in points]
-        obj.Mesh = Mesh.Mesh([points[i] for i in tested_tri])
-
-        obj.Contour = get_contours(obj.Mesh, obj.MajorInterval.Value, obj.MinorInterval.Value)
-        obj.Boundary = get_boundary(obj.Mesh)
+        if obj.Points == points: return
+        obj.Points = points
 
     def onChanged(self, obj, prop):
         """Do something when a data property has changed."""
-        if prop == "MinorInterval":
-            obj.MajorInterval = obj.getPropertyByName(prop) * 5
+        if prop in ["Points", "Operations"]:
+            points = obj.Points
 
-        elif prop == "Operations":
-            operations = obj.getPropertyByName(prop)
-            mesh = obj.Mesh.copy()
-            for op in operations:
-                origin = FreeCAD.ActiveDocument.getObject("GeoOrigin")
+            if len(points) < 3:
+                obj.Mesh = Mesh.Mesh()
+                obj.Contour = Part.Shape()
+                obj.Boundary = Part.Shape()
+                return
 
+            tri = Delaunay(numpy.array([[point.x, point.y] for point in points]))
+            tested_tri = test_triangulation(tri, obj.MaxLength, obj.MaxAngle)
+
+            origin = georigin(points[0])
+            points = [point.sub(origin.Base) for point in points]
+            mesh = Mesh.Mesh([points[i] for i in tested_tri])
+
+            for op in obj.Operations:
                 if op.get("type") == "Add Point":
                     idx = op.get("index")
                     vec = op.get("vector")
                     if origin: vec = vec.add(origin.Base.negative())
                     mesh.insertVertex(idx, vec)
 
+                if op.get("type") == "Delete Triangle":
+                    idx = op.get("index")
+                    mesh.removeFacets([idx])
+
+                if op.get("type") == "Swap Edge":
+                    idx = op.get("index")
+                    vec = op.get("vector")
+                    if origin: vec = vec.add(origin.Base.negative())
+
+                    facet = mesh.Facets[idx]
+                    min_distance = float("inf")
+                    other = -1
+                    for i in range(3):
+                        edge = facet.getEdge(i)
+                        distance = vec.distanceToLine(*[FreeCAD.Vector(*point) for point in edge.Points])
+                        if distance < min_distance:
+                            min_distance = distance
+                            other = facet.NeighbourIndices[i] 
+
+                    try:
+                        mesh.swapEdge(idx, other)
+
+                    except Exception:
+                        print("The edge between these triangles cannot be swappable")
+
             obj.Mesh = mesh
+        
+        elif prop == "Mesh":
+            mesh = obj.getPropertyByName(prop)
+            obj.Contour = get_contours(mesh, obj.MajorInterval.Value, obj.MinorInterval.Value)
+            obj.Boundary = get_boundary(mesh)
+
+        elif prop == "MinorInterval":
+            obj.MajorInterval = obj.getPropertyByName(prop) * 5

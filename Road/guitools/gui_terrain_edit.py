@@ -32,10 +32,6 @@ from ..utils.trackers import ViewTracker
 class TerrainAddPoint:
     """Command to add a point to Terrain."""
 
-    def __init__(self):
-        """Constructor"""
-        pass
-
     def GetResources(self):
         """Return the command resources dictionary"""
         return {
@@ -44,10 +40,6 @@ class TerrainAddPoint:
             "ToolTip": "Add a point to selected Terrain."
             }
 
-    def IsActive(self):
-        """Define tool button activation situation"""
-        return True
-
     def Activated(self):
         """Command activation method"""
         self.terrain = FreeCADGui.Selection.getSelection()[-1]
@@ -55,7 +47,7 @@ class TerrainAddPoint:
         tracker.start()
 
     def add_point(self, callback):
-        """Take two triangle by mouse clicks and swap edge between them"""
+        """Add a point to the selected triangle"""
         picked_point = callback.getPickedPoint()
         if picked_point:
             detail = picked_point.getDetail()
@@ -73,37 +65,8 @@ class TerrainAddPoint:
                 self.terrain.Operations = operations
 
 
-class AddTriangle:
-    """Command to add a triangle to Terrain."""
-
-    def __init__(self):
-        """Constructor"""
-        pass
-
-    def GetResources(self):
-        """Return the command resources dictionary"""
-        return {
-            "Pixmap": icons_path + "/AddTriangle.svg",
-            "MenuText": "Add Triangle",
-            "ToolTip": "Add a triangle to selected Terrain."
-            }
-
-    def IsActive(self):
-        """Define tool button activation situation"""
-        return True
-
-    def Activated(self):
-        """Command activation method"""
-        # Call for Mesh.Addfacet function
-        FreeCADGui.runCommand("Mesh_AddFacet")
-
-
 class DeleteTriangle:
     """Command to delete a triangle from Terrain."""
-
-    def __init__(self):
-        """Constructor"""
-        pass
 
     def GetResources(self):
         """Return the command resources dictionary"""
@@ -113,64 +76,28 @@ class DeleteTriangle:
             "ToolTip": "Delete triangles from selected Terrain."
               }
 
-    def IsActive(self):
-        """Define tool button activation situation"""
-        return True
-
     def Activated(self):
         """Command activation method"""
-        # Create an event callback for delete() function
-        self.view = FreeCADGui.ActiveDocument.ActiveView
-        self.event_callback = self.view.addEventCallbackPivy(
-            coin.SoButtonEvent.getClassTypeId(), self.delete)
-        self.indexes = []
+        self.terrain = FreeCADGui.Selection.getSelection()[-1]
+        tracker = ViewTracker("Mouse", key="Left", function=self.delete_triangle)
+        tracker.start()
 
-    def delete(self, cb):
-        """Take two triangle by mouse clicks and swap edge between them"""
-        # Get event
-        event = cb.getEvent()
+    def delete_triangle(self, callback):
+        """Delete selected triangle"""
+        picked_point = callback.getPickedPoint()
+        if picked_point:
+            detail = picked_point.getDetail()
+            if detail.isOfType(coin.SoFaceDetail.getClassTypeId()):
+                face_detail = coin.cast(detail, str(detail.getTypeId().getName()))
+                index = face_detail.getFaceIndex()
 
-        # If mouse right button pressed finish swap edge operation
-        if event.getTypeId().isDerivedFrom(coin.SoKeyboardEvent.getClassTypeId()):
-            if event.getKey() == coin.SoKeyboardEvent.ESCAPE \
-                and event.getState() == coin.SoKeyboardEvent.DOWN:
-                self.view.removeEventCallbackPivy(
-                    coin.SoButtonEvent.getClassTypeId(), self.event_callback)
-
-        # If mouse left button pressed get picked point
-        elif event.getTypeId().isDerivedFrom(coin.SoMouseButtonEvent.getClassTypeId()):
-            if event.getButton() == coin.SoMouseButtonEvent.BUTTON1 \
-                and event.getState() == coin.SoMouseButtonEvent.DOWN:
-                picked_point = cb.getPickedPoint()
-
-                # Get triangle index at picket point
-                if picked_point:
-                    detail = picked_point.getDetail()
-
-                    if detail.isOfType(coin.SoFaceDetail.getClassTypeId()):
-                        face_detail = coin.cast(
-                            detail, str(detail.getTypeId().getName()))
-                        index = face_detail.getFaceIndex()
-                        self.indexes.append(index)
-
-        # If mouse left button pressed get picked point
-        if event.getTypeId().isDerivedFrom(coin.SoKeyboardEvent.getClassTypeId()):
-            if event.getKey() == coin.SoKeyboardEvent.R \
-                and event.getState() == coin.SoKeyboardEvent.DOWN:
-
-                terrain = FreeCADGui.Selection.getSelection()[-1]
-                copy_mesh = terrain.Mesh.copy()
-                copy_mesh.removeFacets(self.indexes)
-                self.indexes.clear()
-                terrain.Mesh = copy_mesh
+                operations = self.terrain.Operations
+                operations.append({"type":"Delete Triangle", "index":index})
+                self.terrain.Operations = operations
 
 
 class SwapEdge:
     """Command to swap an edge between two triangles"""
-
-    def __init__(self):
-        """Constructor"""
-        pass
 
     def GetResources(self):
         """Return the command resources dictionary"""
@@ -180,69 +107,43 @@ class SwapEdge:
             "ToolTip": "Swap Edge of selected Terrain."
             }
 
-    def IsActive(self):
-        """Define tool button activation situation"""
-        return True
-
     def Activated(self):
         """Command activation method"""
-        # Create an event callback for SwapEdge() function
-        self.view = FreeCADGui.ActiveDocument.ActiveView
-        self.face_indexes = []
-        self.MC = FreeCADGui.ActiveDocument.ActiveView.addEventCallbackPivy(
-            coin.SoButtonEvent.getClassTypeId(), self.SwapEdge)
+        self.terrain = FreeCADGui.Selection.getSelection()[-1]
+        tracker = ViewTracker("Mouse", key="Left", function=self.swap_edge)
+        tracker.start()
 
-    def SwapEdge(self, cb):
-        """Take two triangle by mouse clicks and swap edge between them"""
-        # Get event
-        event = cb.getEvent()
+    def swap_edge(self, callback):
+        """Swap edge between two triangles"""
+        picked_point = callback.getPickedPoint()
+        if picked_point:
+            detail = picked_point.getDetail()
+            if detail.isOfType(coin.SoFaceDetail.getClassTypeId()):
+                face_detail = coin.cast(detail, str(detail.getTypeId().getName()))
+                index = face_detail.getFaceIndex()
 
-        # If mouse right button pressed finish swap edge operation
-        if event.getTypeId().isDerivedFrom(coin.SoKeyboardEvent.getClassTypeId()):
-            if event.getKey() == coin.SoKeyboardEvent.ESCAPE \
-                and event.getState() == coin.SoKeyboardEvent.DOWN:
-                self.view.removeEventCallbackPivy(
-                    coin.SoButtonEvent.getClassTypeId(), self.MC)
+                point = picked_point.getPoint().getValue()
+                vector = FreeCAD.Vector(*point)
 
-        # If mouse left button pressed get picked point
-        elif event.getTypeId().isDerivedFrom(coin.SoMouseButtonEvent.getClassTypeId()):
-            if event.getButton() == coin.SoMouseButtonEvent.BUTTON1 \
-                and event.getState() == coin.SoMouseButtonEvent.DOWN:
-                picked_point = cb.getPickedPoint()
+                facet = self.terrain.Mesh.Facets[idx]
+                min_distance = float("inf")
+                other = -1
 
-                # Get triangle index at picket point
-                if picked_point is not None:
-                    detail = picked_point.getDetail()
+                for i in range(3):
+                    edge = facet.getEdge(i)
+                    distance = vector.distanceToLine(*[FreeCAD.Vector(*point) for point in edge.Points])
+                    if distance < min_distance:
+                        min_distance = distance
+                        other = facet.NeighbourIndices[i] 
 
-                    if detail.isOfType(coin.SoFaceDetail.getClassTypeId()):
-                        face_detail = coin.cast(
-                            detail, str(detail.getTypeId().getName()))
-                        index = face_detail.getFaceIndex()
-                        self.face_indexes.append(index)
+                operations = self.terrain.Operations
+                operations.append({"type":"Swap Edge", "index":index, "other":other})
+                self.terrain.Operations = operations
 
-                        # try to swap edge between picked triangle
-                        if len(self.face_indexes) == 2:
-                            terrain = FreeCADGui.Selection.getSelection()[-1]
-                            copy_mesh = terrain.Mesh.copy()
-
-                            try:
-                                copy_mesh.swapEdge(
-                                    self.face_indexes[0], self.face_indexes[1])
-
-                            except Exception:
-                                print("The edge between these triangles cannot be swappable")
-
-                            terrain.Mesh = copy_mesh
-                            self.face_indexes.clear()
-                            FreeCAD.ActiveDocument.recompute()
 
 
 class SmoothTerrain:
     """Command to smooth Terrain."""
-
-    def __init__(self):
-        """Constructor"""
-        pass
 
     def GetResources(self):
         """Return the command resources dictionary"""
@@ -252,13 +153,9 @@ class SmoothTerrain:
             "ToolTip": "Smooth selected Terrain."
             }
 
-    def IsActive(self):
-        """Define tool button activation situation"""
-        return True
-
     def Activated(self):
         """Command activation method"""
-        terrain = FreeCADGui.Selection.getSelection()[0]
+        terrain = FreeCADGui.Selection.getSelection()[-1]
         terrain.Mesh.smooth()
 
 
@@ -290,7 +187,6 @@ class TerrainEditGroup:
 
 
 FreeCADGui.addCommand("Add Point", TerrainAddPoint())
-FreeCADGui.addCommand("Add Triangle", AddTriangle())
 FreeCADGui.addCommand("Delete Triangle", DeleteTriangle())
 FreeCADGui.addCommand("Swap Edge", SwapEdge())
 FreeCADGui.addCommand("Smooth Terrain", SmoothTerrain())
