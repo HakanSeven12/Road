@@ -28,7 +28,6 @@ import MeshGui
 
 import numpy
 from scipy.spatial import Delaunay
-from ..utils.get_group import georigin
 from ..functions.terrain_functions import (
     test_triangulation, 
     get_contours, 
@@ -41,6 +40,10 @@ class Terrain:
     def __init__(self, obj):
         """Set data properties."""
         self.Type = "Road::Terrain"
+
+        obj.addProperty(
+            "App::PropertyPlacement", "Placement", "Base",
+            "Placement").Placement = FreeCAD.Placement()
 
         obj.addProperty(
             "App::PropertyVectorList", "Points", "Triangulation",
@@ -113,18 +116,19 @@ class Terrain:
                 obj.Boundary = Part.Shape()
                 return
 
+            obj.Placement.Base = points[0]
+            obj.Placement.Base.z = 0
+
             tri = Delaunay(numpy.array([[point.x, point.y] for point in points]))
             tested_tri = test_triangulation(tri, obj.MaxLength, obj.MaxAngle)
 
-            origin = georigin(points[0])
-            points = [point.sub(origin.Base) for point in points]
+            points = [point.sub(obj.Placement.Base) for point in points]
             mesh = Mesh.Mesh([points[i] for i in tested_tri])
 
             for op in obj.Operations:
                 if op.get("type") == "Add Point":
                     idx = op.get("index")
-                    vec = op.get("vector")
-                    if origin: vec = vec.add(origin.Base.negative())
+                    vec = op.get("vector").add(obj.Placement.Base.negative())
                     mesh.insertVertex(idx, vec)
 
                 if op.get("type") == "Delete Triangle":
@@ -133,24 +137,15 @@ class Terrain:
 
                 if op.get("type") == "Swap Edge":
                     idx = op.get("index")
-                    vec = op.get("vector")
-                    if origin: vec = vec.add(origin.Base.negative())
-
-                    facet = mesh.Facets[idx]
-                    min_distance = float("inf")
-                    other = -1
-                    for i in range(3):
-                        edge = facet.getEdge(i)
-                        distance = vec.distanceToLine(*[FreeCAD.Vector(*point) for point in edge.Points])
-                        if distance < min_distance:
-                            min_distance = distance
-                            other = facet.NeighbourIndices[i] 
-
+                    other = op.get("other")
+                    print(idx,other)
+                    """
                     try:
                         mesh.swapEdge(idx, other)
 
                     except Exception:
                         print("The edge between these triangles cannot be swappable")
+                    """
 
             obj.Mesh = mesh
         

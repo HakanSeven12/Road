@@ -32,14 +32,11 @@ from ..functions.terrain_functions import wire_view, elevation_analysis, slope_a
 
 
 class ViewProviderTerrain:
-    """
-    This class is about Terrain Object view features.
-    """
+    """This class is about Terrain Object view features."""
 
     def __init__(self, vobj):
-        '''
-        Set view properties.
-        '''
+        """Set view properties."""
+
         (r, g, b) = (random.random(), random.random(), random.random())
 
         # Triangulation properties.
@@ -109,11 +106,10 @@ class ViewProviderTerrain:
         vobj.ShapeMaterial.DiffuseColor = vobj.ShapeColor
 
     def attach(self, vobj):
-        '''
-        Create Object visuals in 3D view.
-        '''
+        """Create Object visuals in 3D view."""
+
         # GeoCoords Node.
-        self.geo_coords = coin.SoGeoCoordinate()
+        self.terrain_coords = coin.SoCoordinate3()
 
         # Terrain features.
         self.triangles = coin.SoIndexedFaceSet()
@@ -133,14 +129,14 @@ class ViewProviderTerrain:
 
         # Boundary features.
         self.boundary_color = coin.SoBaseColor()
-        self.boundary_coords = coin.SoGeoCoordinate()
+        self.boundary_coords = coin.SoCoordinate3()
         self.boundary_lines = coin.SoLineSet()
         self.boundary_style = coin.SoDrawStyle()
         self.boundary_style.style = coin.SoDrawStyle.LINES
 
         # Boundary root.
-        boundaries = coin.SoType.fromName('SoFCSelection').createInstance()
-        boundaries.style = 'EMISSIVE_DIFFUSE'
+        boundaries = coin.SoType.fromName("SoFCSelection").createInstance()
+        boundaries.style = "EMISSIVE_DIFFUSE"
         boundaries.addChild(self.boundary_color)
         boundaries.addChild(self.boundary_style)
         boundaries.addChild(self.boundary_coords)
@@ -148,7 +144,7 @@ class ViewProviderTerrain:
 
         # Major Contour features.
         self.major_color = coin.SoBaseColor()
-        self.major_coords = coin.SoGeoCoordinate()
+        self.major_coords = coin.SoCoordinate3()
         self.major_lines = coin.SoLineSet()
         self.major_style = coin.SoDrawStyle()
         self.major_style.style = coin.SoDrawStyle.LINES
@@ -162,7 +158,7 @@ class ViewProviderTerrain:
 
         # Minor Contour features.
         self.minor_color = coin.SoBaseColor()
-        self.minor_coords = coin.SoGeoCoordinate()
+        self.minor_coords = coin.SoCoordinate3()
         self.minor_lines = coin.SoLineSet()
         self.minor_style = coin.SoDrawStyle()
         self.minor_style.style = coin.SoDrawStyle.LINES
@@ -175,11 +171,11 @@ class ViewProviderTerrain:
         minor_contours.addChild(self.minor_lines)
 
         # Highlight for selection.
-        highlight = coin.SoType.fromName('SoFCSelection').createInstance()
-        highlight.style = 'EMISSIVE_DIFFUSE'
+        highlight = coin.SoType.fromName("SoFCSelection").createInstance()
+        highlight.style = "EMISSIVE_DIFFUSE"
         highlight.addChild(shape_hints)
         highlight.addChild(self.mat_binding)
-        highlight.addChild(self.geo_coords)
+        highlight.addChild(self.terrain_coords)
         highlight.addChild(self.triangles)
         highlight.addChild(boundaries)
 
@@ -195,39 +191,33 @@ class ViewProviderTerrain:
         edge.addChild(highlight)
 
         # Terrain root.
-        terrain_root = coin.SoSeparator()
-        terrain_root.addChild(face)
-        terrain_root.addChild(offset)
-        terrain_root.addChild(edge)
-        terrain_root.addChild(major_contours)
-        terrain_root.addChild(minor_contours)
-        vobj.addDisplayMode(terrain_root,"Terrain")
+        self.terrain_root = coin.SoGeoSeparator()
+        self.terrain_root.addChild(face)
+        self.terrain_root.addChild(offset)
+        self.terrain_root.addChild(edge)
+        self.terrain_root.addChild(major_contours)
+        self.terrain_root.addChild(minor_contours)
 
         # Boundary root.
-        boundary_root = coin.SoSeparator()
-        boundary_root.addChild(boundaries)
-        vobj.addDisplayMode(boundary_root,"Boundary")
-
-        # Elevation/Shaded root.
-        shaded_root = coin.SoSeparator()
-        shaded_root.addChild(face)
-        #vobj.addDisplayMode(shaded_root,"Elevation")
-        #vobj.addDisplayMode(shaded_root,"Slope")
-        vobj.addDisplayMode(shaded_root,"Shaded")
+        self.boundary_root = coin.SoGeoSeparator()
+        self.boundary_root.addChild(boundaries)
 
         # Flat Lines root.
-        flatlines_root = coin.SoSeparator()
-        flatlines_root.addChild(face)
-        flatlines_root.addChild(offset)
-        flatlines_root.addChild(edge)
-        vobj.addDisplayMode(flatlines_root,"Flat Lines")
+        self.flatlines_root = coin.SoGeoSeparator()
+        self.flatlines_root.addChild(face)
+        self.flatlines_root.addChild(offset)
+        self.flatlines_root.addChild(edge)
 
         # Wireframe root.
-        wireframe_root = coin.SoSeparator()
-        wireframe_root.addChild(edge)
-        wireframe_root.addChild(major_contours)
-        wireframe_root.addChild(minor_contours)
-        vobj.addDisplayMode(wireframe_root,"Wireframe")
+        self.wireframe_root = coin.SoGeoSeparator()
+        self.wireframe_root.addChild(edge)
+        self.wireframe_root.addChild(major_contours)
+        self.wireframe_root.addChild(minor_contours)
+
+        vobj.addDisplayMode(self.terrain_root,"Terrain")
+        vobj.addDisplayMode(self.boundary_root,"Boundary")
+        vobj.addDisplayMode(self.flatlines_root,"Flat Lines")
+        vobj.addDisplayMode(self.wireframe_root,"Wireframe")
 
         # Take features from properties.
         self.onChanged(vobj,"ShapeColor")
@@ -243,52 +233,50 @@ class ViewProviderTerrain:
         self.onChanged(vobj,"MinorWidth")
 
     def updateData(self, obj, prop):
-        '''
-        Update Object visuals when a data property changed.
-        '''
+        """Update Object visuals when a data property changed."""
+
+        if prop == "Placement":
+            placement = obj.getPropertyByName(prop)
+            geo_system = ["UTM", georigin().UtmZone, "FLAT"]
+
+            self.terrain_root.geoSystem.setValues(geo_system)
+            self.terrain_root.geoCoords.setValue(*placement.Base)
+
+            self.boundary_root.geoSystem.setValues(geo_system)
+            self.boundary_root.geoCoords.setValue(*placement.Base)
+
+            self.flatlines_root.geoSystem.setValues(geo_system)
+            self.flatlines_root.geoCoords.setValue(*placement.Base)
+
+            self.wireframe_root.geoSystem.setValues(geo_system)
+            self.wireframe_root.geoCoords.setValue(*placement.Base)
+
         if prop == "Mesh":
             mesh = obj.getPropertyByName(prop)
-            if not mesh.Topology[0]: return
-
-            # Set System.
-            origin = georigin(mesh.Topology[0][0])
-            geo_system = ["UTM", origin.UtmZone, "FLAT"]
-            self.geo_coords.geoSystem.setValues(geo_system)
-            self.boundary_coords.geoSystem.setValues(geo_system)
-            self.major_coords.geoSystem.setValues(geo_system)
-            self.minor_coords.geoSystem.setValues(geo_system)
-
-            triangles = []
-            for i in mesh.Topology[1]:
-                triangles.extend(list(i))
-                triangles.append(-1)
-
-            self.geo_coords.point.values = [point.add(origin.Base) for point in mesh.Topology[0]]
-            self.triangles.coordIndex.values = triangles
+            self.terrain_coords.point.values = mesh.Topology[0]
+            self.triangles.coordIndex.values = [x for i in mesh.Topology[1] for x in (*i, -1)]
 
         elif prop == "Contour":
-            origin = georigin()
             shape = obj.getPropertyByName(prop)
 
             if shape.SubShapes:
                 major = shape.SubShapes[0]
                 points, vertices = wire_view(major)
 
-                self.major_coords.point.values = [point.add(origin.Base) for point in points]
+                self.major_coords.point.values = points
                 self.major_lines.numVertices.values = vertices
 
                 minor = shape.SubShapes[1]
                 points, vertices = wire_view(minor)
 
-                self.minor_coords.point.values = [point.add(origin.Base) for point in points]
+                self.minor_coords.point.values = points
                 self.minor_lines.numVertices.values = vertices
 
         elif prop == "Boundary":
-            origin = georigin()
             boundary = obj.getPropertyByName(prop)
             points, vertices = wire_view(boundary)
 
-            self.boundary_coords.point.values = [point.add(origin.Base) for point in points]
+            self.boundary_coords.point.values = points
             self.boundary_lines.numVertices.values = vertices
         
         elif prop == "AnalysisType" or prop == "Ranges":
@@ -317,9 +305,8 @@ class ViewProviderTerrain:
                 self.face_material.diffuseColor.setValues(0,len(colorlist),colorlist)
         
     def onChanged(self, vobj, prop):
-        '''
-        Update Object visuals when a view property changed.
-        '''
+        """Update Object visuals when a view property changed."""
+
         if prop == "ShapeColor" or prop == "Transparency":
             if hasattr(vobj, "ShapeColor") and hasattr(vobj, "Transparency"):
                 color = vobj.getPropertyByName("ShapeColor")
@@ -384,31 +371,24 @@ class ViewProviderTerrain:
             self.minor_style.lineWidth = width
 
     def getDisplayModes(self,vobj):
-        '''
-        Return a list of display modes.
-        '''
+        """Return a list of display modes."""
+
         modes = ["Terrain", "Boundary", "Flat Lines", "Shaded", "Wireframe"]
 
         return modes
 
     def getDefaultDisplayMode(self):
-        '''
-        Return the name of the default display mode.
-        '''
+        """Return the name of the default display mode."""
         return "Terrain"
 
     def setDisplayMode(self,mode):
-        '''
-        Map the display mode defined in attach with 
-        those defined in getDisplayModes.
-        '''
+        """Map the display mode defined in attach with 
+        those defined in getDisplayModes."""
         return mode
 
     def getIcon(self):
-        '''
-        Return object treeview icon.
-        '''
-        return icons_path + '/Terrain.svg'
+        """Return object treeview icon."""
+        return icons_path + "/Terrain.svg"
 
     def dumps(self):
         """Called during document saving"""
