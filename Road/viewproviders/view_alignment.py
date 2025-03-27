@@ -361,6 +361,13 @@ class ViewProviderAlignment:
             self.offset.geoSystem.setValues(geo_system)
             self.offset.geoCoords.setValue(*placement.Base)
 
+        elif prop == "PIs":
+            pis = obj.getPropertyByName(prop)
+            base = obj.Placement.Base
+            points = [point.sub(obj.Placement.Base) for point in pis]
+
+            self.tangent_coords.point.values = points
+
         elif prop == "Shape":
             shape = obj.getPropertyByName(prop).copy()
             shape.Placement.move(obj.Placement.Base.negative())
@@ -399,13 +406,6 @@ class ViewProviderAlignment:
             self.curve_lines.coordIndex.values = curves_index
             self.spiral_coords.point.values = spirals_coords
             self.spiral_lines.coordIndex.values = spirals_index
-
-        if prop == "PIs":
-            pis = obj.getPropertyByName(prop)
-            base = obj.Placement.Base
-            points = [point.add(base.negative()) for point in pis]
-
-            self.tangent_coords.point.values = points
 
     def getDisplayModes(self,vobj):
         """Return a list of display modes."""
