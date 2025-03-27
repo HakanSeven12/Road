@@ -89,11 +89,16 @@ class Alignment:
             obj.EndStation = sum([sub.Length for sub in obj.Shape.SubShapes])
             obj.Length = sum([sub.Length for sub in obj.Shape.SubShapes])
 
+        elif prop == "PIs":
+            pis = obj.getPropertyByName(prop)
             placement = FreeCAD.Placement()
-            placement.move(obj.PIs[0])
+            placement.move(pis[0])
             obj.Placement = placement
 
-        if prop == "OffsetAlignment":
+        elif prop == "OffsetLength":
+            if obj.getPropertyByName(prop): self.onChanged(obj, "OffsetAlignment")
+
+        elif prop == "OffsetAlignment":
             parent = obj.getPropertyByName(prop)
             if parent:
                 wire = Part.makePolygon(parent.PIs)
@@ -122,6 +127,3 @@ class Alignment:
                             if 'Spiral Length Out' in values: values['Spiral Length Out'] = float(values['Spiral Length Out']) * ( 1 + factor * ((abs(offset) / 1000) / (2 * R)))
 
                 obj.Model = model
-
-        if prop == "OffsetLength":
-            if obj.getPropertyByName(prop): self.onChanged(obj, "OffsetAlignment")
