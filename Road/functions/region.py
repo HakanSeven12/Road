@@ -20,60 +20,25 @@
 # *                                                                         *
 # ***************************************************************************
 
-"""Provides GUI tools to create Region objects."""
+"""Provides functions to object and viewprovider classes of Region."""
 
-import FreeCAD, FreeCADGui
+import FreeCAD
+import Part
+import copy
 
-from ..variables import icons_path
-from ..make import make_region
-from ..utils import get_group
-from ..tasks.task_selection import SingleSelection
+from ..functions.alignment import transformation
 
 
-class RegionCreate:
-    """
-    Command to create a new Region object for selected alignment
-    """
+def get_lines(alignment, increment, offset_left, offset_right):
+    """Create Region guide lines"""
+    lines = []
+    stations = transformation(alignment, increment)
+    for station, transform in stations.items():
+        point = transform["Location"]
+        normal = transform["Normal"]
 
-    def __init__(self):
-        """
-        Constructor
-        """
-        pass
+        left_side = point.add(normal.multiply(offset_left))
+        right_side = point.add(normal.negative().multiply(offset_right))
+        lines.append(Part.makePolygon([left_side, point, right_side]))
 
-    def GetResources(self):
-        """
-        Return the command resources dictionary
-        """
-        return {
-            'Pixmap': icons_path + '/RegionCreate.svg',
-            'MenuText': "Create Region",
-            'ToolTip': "Create Region for selected alignment"
-            }
-
-    def IsActive(self):
-        """
-        Define tool button activation situation
-        """
-        # Check for document
-        if FreeCAD.ActiveDocument:
-            return True
-        return False
-
-    def Activated(self):
-        """
-        Command activation method
-        """
-        # Check for selected object
-        try:
-            if selection[-1].Proxy.Type == 'Road::Alignment':
-                selection = FreeCADGui.Selection.getSelection()
-                make_region.create(selection[-1])
-
-        except Exception:
-            panel = SingleSelection("Alignments")
-            FreeCADGui.Control.showDialog(panel)
-            
-        FreeCAD.ActiveDocument.recompute()
-
-FreeCADGui.addCommand('Create Region', RegionCreate())
+    return Part.makeCompound(lines)

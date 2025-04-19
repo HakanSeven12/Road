@@ -24,11 +24,10 @@
 
 import Part
 
-from ..functions.region_functions import RegionFunctions
-from ..utils.get_group import georigin
+from ..functions.region import get_lines
 
 
-class Region(RegionFunctions):
+class Region:
     """
     This class is about Region object data features.
     """
@@ -100,13 +99,12 @@ class Region(RegionFunctions):
         Do something when a data property has changed.
         '''
         alignment = obj.InList[0].InList[0]
-        start, end = self.get_alignment_infos(alignment)
 
         if prop == "FromAlignmentStart":
             from_start = obj.getPropertyByName("FromAlignmentStart")
             if from_start:
                 obj.setEditorMode('StartStation', 1)
-                obj.StartStation = start
+                obj.StartStation = alignment.StartStation
             else:
                 obj.setEditorMode('StartStation', 0)
 
@@ -114,7 +112,7 @@ class Region(RegionFunctions):
             to_end = obj.getPropertyByName("ToAlignmentEnd")
             if to_end:
                 obj.setEditorMode('EndStation', 1)
-                obj.EndStation = end
+                obj.EndStation = alignment.EndStation
             else:
                 obj.setEditorMode('EndStation', 0)
 
@@ -122,24 +120,19 @@ class Region(RegionFunctions):
         '''
         Do something when doing a recomputation.
         '''
-        alignment = obj.InList[0].InList[0]
 
+        """
         tangent = obj.getPropertyByName("IncrementAlongTangents")
         curve = obj.getPropertyByName("IncrementAlongCurves")
         spiral = obj.getPropertyByName("IncrementAlongSpirals")
-        increments = [tangent, curve, spiral]
-
         start = obj.getPropertyByName("StartStation")
         end = obj.getPropertyByName("EndStation")
-        region = [start, end]
-
         horiz_pnts = obj.getPropertyByName("AtHorizontalAlignmentPoints")
+        """
 
-        obj.StationList = self.generate(alignment,increments, region, horiz_pnts)
+        offset_left = obj.getPropertyByName("LeftOffset")
+        offset_right = obj.getPropertyByName("RightOffset")
 
-        left_offset = obj.getPropertyByName("LeftOffset")
-        right_offset = obj.getPropertyByName("RightOffset")
-        offsets = [left_offset, right_offset]
-        origin = georigin()
-
-        obj.Shape = self.get_lines(origin.Origin, alignment, offsets, obj.StationList)
+        increment = 10000
+        alignment = obj.InList[0].InList[0]
+        obj.Shape = get_lines(alignment, increment, offset_left, offset_right)

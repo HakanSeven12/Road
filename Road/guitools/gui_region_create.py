@@ -20,29 +20,50 @@
 # *                                                                         *
 # ***************************************************************************
 
-"""Provides functions to create Region objects."""
+"""Provides GUI tools to create Region objects."""
 
-import FreeCAD
+import FreeCAD, FreeCADGui
 
-from ..objects.region import Region
-from ..viewproviders.view_region import ViewProviderRegion
-from . import make_sections, make_volumes, make_tables
+from ..variables import icons_path
+from ..make import make_region
+from ..tasks.task_selection import SingleSelection
 
-def create(alignment, name="Region"):
-    """Factory method for Region object."""
 
-    for item in alignment.Group:
-        if item.Proxy.Type == "Road::Regions":
-            regions = item
-            break
+class RegionCreate:
+    """Command to create a new Region object for selected alignment"""
 
-    obj = FreeCAD.ActiveDocument.addObject(
-        "App::DocumentObjectGroupPython", "Region")
-    regions.addObject(obj)
+    def __init__(self):
+        """Constructor"""
+        pass
 
-    Region(obj)
-    ViewProviderRegion(obj.ViewObject)
+    def GetResources(self):
+        """Return the command resources dictionary"""
+        return {
+            "Pixmap": icons_path + "/RegionCreate.svg",
+            "MenuText": "Create Region",
+            "ToolTip": "Create Region lines at stations along an alignment"
+            }
 
-    obj.Label = name
+    def IsActive(self):
+        """Define tool button activation situation"""
+        return bool(FreeCADGui.ActiveDocument)
 
-    return obj
+    def Activated(self):
+        """Command activation method"""
+        alignments = FreeCAD.ActiveDocument.getObject("Alignments")
+        self.alignment_selector = SingleSelection(alignments)
+
+        self.form = self.alignment_selector
+        FreeCADGui.Control.showDialog(self)
+
+    def accept(self):
+        """Panel 'OK' button clicked"""
+        alignment_label = self.alignment_selector.combo_box.currentText()
+        alignment = self.alignment_selector.objects[alignment_label]
+
+        FreeCADGui.Control.closeDialog()
+        make_region.create(alignment)
+        FreeCAD.ActiveDocument.recompute()
+
+
+FreeCADGui.addCommand("Region Create", RegionCreate())
