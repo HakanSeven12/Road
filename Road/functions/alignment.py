@@ -186,6 +186,6 @@ def transformation(obj, increment):
         angle = FreeCAD.Vector(1, 0, 0).getAngle(normal)
         angle = 2*math.pi - angle if normal.y < 0 else angle
         
-        transforms[station] = {"Location": points[i], "Rotation": angle}
+        transforms[station] = {"Location": points[i], "Rotation": angle, "Normal": normal}
 
     return transforms

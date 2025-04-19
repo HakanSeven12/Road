@@ -39,9 +39,9 @@ class RoadCreate:
     def GetResources(self):
         """Return the command resources dictionary"""
         return {
-            'Pixmap': icons_path + '/RoadCreate.svg',
-            'MenuText': "Create Road",
-            'ToolTip': "Create a Road from alignment, profile and structure."
+            "Pixmap": icons_path + "/RoadCreate.svg",
+            "MenuText": "Create Road",
+            "ToolTip": "Create a Road from alignment, profile and structure."
             }
 
     def IsActive(self):
@@ -72,7 +72,7 @@ class RoadCreate:
         alignment = self.alignment_selector.objects[alignment_label]
 
         for item in alignment.Group:
-            if item.Proxy.Type == 'Road::Profiles':
+            if item.Proxy.Type == "Road::Profiles":
                 self.frame_selector.update_items(item)
 
     def profile_update(self):
@@ -104,4 +104,4 @@ class RoadCreate:
         FreeCAD.ActiveDocument.recompute()
 
 
-FreeCADGui.addCommand('Road Create', RoadCreate())
+FreeCADGui.addCommand("Road Create", RoadCreate())

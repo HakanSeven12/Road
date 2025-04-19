@@ -181,7 +181,7 @@ class TerrainDemolishGroup:
         if FreeCAD.ActiveDocument:
             selection = FreeCADGui.Selection.getSelection()
             if selection:
-                if selection[-1].Proxy.Type == 'Road::Terrain':
+                if selection[-1].Proxy.Type == "Road::Terrain":
                     return True
         return False
 

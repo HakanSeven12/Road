@@ -40,9 +40,9 @@ class ProfileFrameCreate:
     def GetResources(self):
         """Return the command resources dictionary"""
         return {
-            'Pixmap': icons_path + '/ProfileFrameCreate.svg',
-            'MenuText': "Create Profile Frame",
-            'ToolTip': "Create a Profile Frame for selected Alignment."
+            "Pixmap": icons_path + "/ProfileFrameCreate.svg",
+            "MenuText": "Create Profile Frame",
+            "ToolTip": "Create a Profile Frame for selected Alignment."
             }
 
     def IsActive(self):
@@ -71,7 +71,7 @@ class ProfileFrameCreate:
         self.profile_frame = make_profile_frame.create()
 
         for item in alignment.Group:
-            if item.Proxy.Type == 'Road::Profiles':
+            if item.Proxy.Type == "Road::Profiles":
                 item.addObject(self.profile_frame)
                 break
 
@@ -104,4 +104,4 @@ class ProfileFrameCreate:
         FreeCAD.ActiveDocument.recompute()
 
 
-FreeCADGui.addCommand('Profile Frame Create', ProfileFrameCreate())
+FreeCADGui.addCommand("Profile Frame Create", ProfileFrameCreate())

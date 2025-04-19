@@ -39,9 +39,9 @@ class TerrainCreate:
     def GetResources(self):
         """Return the command resources dictionary"""
         return {
-            'Pixmap': icons_path + '/TerrainCreate.svg',
-            'MenuText': "Create Terrain",
-            'ToolTip': "Create Terrain from selected point group(s)."
+            "Pixmap": icons_path + "/TerrainCreate.svg",
+            "MenuText": "Create Terrain",
+            "ToolTip": "Create Terrain from selected point group(s)."
             }
 
     def IsActive(self):
@@ -68,4 +68,4 @@ class TerrainCreate:
 
         FreeCAD.ActiveDocument.recompute()
 
-FreeCADGui.addCommand('Create Terrain', TerrainCreate())
+FreeCADGui.addCommand("Create Terrain", TerrainCreate())

@@ -40,9 +40,15 @@ def create(label="Alignment"):
 
     profiles = make_profiles.create()
     regions = make_regions.create()
+    sections = make_sections.create()
+    volumes = make_volumes.create()
+    tables = make_tables.create()
 
     obj.addObject(profiles)
     obj.addObject(regions)
+    obj.addObject(sections)
+    obj.addObject(volumes)
+    obj.addObject(tables)
 
     group = get_group.get("Alignments")
     group.addObject(obj)
