@@ -29,14 +29,13 @@ from ..objects.group import Group
 from ..viewproviders.view_group import ViewProviderGroup
 
 def create():
-    obj=FreeCAD.ActiveDocument.addObject(
+    """Factory method for Volume group."""
+
+    obj = FreeCAD.ActiveDocument.addObject(
         "App::DocumentObjectGroupPython", "Volumes")
 
-    Group(obj)
-    ViewProviderGroup(obj.ViewObject)
-
+    Group(obj, "Road::Volumes")
+    ViewProviderGroup(obj.ViewObject, icons_path + "/Volumes.svg")
     obj.Label = "Volumes"
-    obj.Proxy.Type = "Road::Volumes"
-    obj.ViewObject.Proxy.Icon = icons_path + '/volume.svg'
 
     return obj

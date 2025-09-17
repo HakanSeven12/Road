@@ -29,14 +29,13 @@ from ..objects.group import Group
 from ..viewproviders.view_group import ViewProviderGroup
 
 def create():
-    obj=FreeCAD.ActiveDocument.addObject(
+    """Factory method for Table group."""
+
+    obj = FreeCAD.ActiveDocument.addObject(
         "App::DocumentObjectGroupPython", "Tables")
 
-    Group(obj)
-    ViewProviderGroup(obj.ViewObject)
-
+    Group(obj, "Road::Tables")
+    ViewProviderGroup(obj.ViewObject, icons_path + "/Tables.svg")
     obj.Label = "Tables"
-    obj.Proxy.Type = "Road::Tables"
-    obj.ViewObject.Proxy.Icon = icons_path + '/table.svg'
 
     return obj

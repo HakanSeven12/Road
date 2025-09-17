@@ -34,6 +34,10 @@ class ViewProviderSections:
     This class is about Point Group Object view features.
     """
 
+    def __init__(self, vobj):
+        """Set view properties."""
+        vobj.Proxy = self
+
     def attach(self, vobj):
         '''
         Create Object visuals in 3D view.

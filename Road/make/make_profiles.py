@@ -29,7 +29,7 @@ from ..objects.group import Group
 from ..viewproviders.view_group import ViewProviderGroup
 
 def create():
-    """Factory method for Region group."""
+    """Factory method for Profile group."""
 
     obj = FreeCAD.ActiveDocument.addObject(
         "App::DocumentObjectGroupPython", "Profiles")

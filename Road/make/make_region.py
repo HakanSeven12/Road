@@ -43,6 +43,14 @@ def create(alignment, name="Region"):
     Region(obj)
     ViewProviderRegion(obj.ViewObject)
 
+    sections = make_sections.create()
+    volumes = make_volumes.create()
+    tables = make_tables.create()
+
+    obj.addObject(sections)
+    obj.addObject(volumes)
+    obj.addObject(tables)
+
     obj.Label = name
 
     return obj
