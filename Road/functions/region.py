@@ -30,15 +30,15 @@ from ..functions.alignment import transformation
 
 
 def get_lines(alignment, increment, offset_left, offset_right):
-    """Create Region guide lines"""
+    """Create guide lines at given increment along the alignment."""
     lines = []
     stations = transformation(alignment, increment)
     for station, transform in stations.items():
         point = transform["Location"]
         normal = transform["Normal"]
 
-        left_side = point.add(normal.multiply(offset_left))
-        right_side = point.add(normal.negative().multiply(offset_right))
+        left_side = point + normal * offset_left
+        right_side = point - normal * offset_right
         lines.append(Part.makePolygon([left_side, point, right_side]))
 
     return Part.makeCompound(lines)

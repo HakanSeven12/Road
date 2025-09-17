@@ -174,14 +174,14 @@ def transformation(obj, increment):
 
     start = obj.StartStation.Value
     end = obj.EndStation.Value
-    stations = list(range(int(start), int(end), increment))
+    stations = list(range(int(start), int(end), int(increment)))
     stations.append(end)
 
     transforms = {}
     for i, station in enumerate(stations):
         param = bs.parameter(points[i])
         tangent = bs.tangent(param)[0]
-        normal = FreeCAD.Vector(-tangent.y, tangent.x, tangent.z)
+        normal = FreeCAD.Vector(-tangent.y, tangent.x, tangent.z).normalize()
 
         angle = FreeCAD.Vector(1, 0, 0).getAngle(normal)
         angle = 2*math.pi - angle if normal.y < 0 else angle

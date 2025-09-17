@@ -67,24 +67,24 @@ class Region:
             "Guide lines end station").EndStation = 0
 
         obj.addProperty(
-            "App::PropertyLength", "IncrementAlongTangents", "Increment",
-            "Distance between guide lines along tangents").IncrementAlongTangents = 10000
+            "App::PropertyFloat", "IncrementAlongTangents", "Increment",
+            "Distance between guide lines along tangents").IncrementAlongTangents = 10
 
         obj.addProperty(
-            "App::PropertyLength", "IncrementAlongCurves", "Increment",
-            "Distance between guide lines along curves").IncrementAlongCurves = 5000
+            "App::PropertyFloat", "IncrementAlongCurves", "Increment",
+            "Distance between guide lines along curves").IncrementAlongCurves = 10
 
         obj.addProperty(
-            "App::PropertyLength", "IncrementAlongSpirals", "Increment",
-            "Distance between guide lines along spirals").IncrementAlongSpirals = 5000
+            "App::PropertyFloat", "IncrementAlongSpirals", "Increment",
+            "Distance between guide lines along spirals").IncrementAlongSpirals = 10
 
         obj.addProperty(
-            "App::PropertyLength", "RightOffset", "Offset",
-            "Length of right offset").RightOffset = 20000
+            "App::PropertyFloat", "RightOffset", "Offset",
+            "Length of right offset").RightOffset = 20
 
         obj.addProperty(
-            "App::PropertyLength", "LeftOffset", "Offset",
-            "Length of left offset").LeftOffset = 20000
+            "App::PropertyFloat", "LeftOffset", "Offset",
+            "Length of left offset").LeftOffset = 20
 
         obj.setEditorMode('StartStation', 1)
         obj.setEditorMode('EndStation', 1)
@@ -101,16 +101,14 @@ class Region:
         alignment = obj.InList[0].InList[0]
 
         if prop == "FromAlignmentStart":
-            from_start = obj.getPropertyByName("FromAlignmentStart")
-            if from_start:
+            if obj.getPropertyByName(prop):
                 obj.setEditorMode('StartStation', 1)
                 obj.StartStation = alignment.StartStation
             else:
                 obj.setEditorMode('StartStation', 0)
 
         if prop == "ToAlignmentEnd":
-            to_end = obj.getPropertyByName("ToAlignmentEnd")
-            if to_end:
+            if obj.getPropertyByName(prop):
                 obj.setEditorMode('EndStation', 1)
                 obj.EndStation = alignment.EndStation
             else:
@@ -130,9 +128,9 @@ class Region:
         horiz_pnts = obj.getPropertyByName("AtHorizontalAlignmentPoints")
         """
 
-        offset_left = obj.getPropertyByName("LeftOffset")
-        offset_right = obj.getPropertyByName("RightOffset")
+        offset_left = obj.getPropertyByName("LeftOffset")*1000
+        offset_right = obj.getPropertyByName("RightOffset")*1000
+        increment = obj.getPropertyByName("IncrementAlongTangents")*1000
 
-        increment = 10000
         alignment = obj.InList[0].InList[0]
         obj.Shape = get_lines(alignment, increment, offset_left, offset_right)
