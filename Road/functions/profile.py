@@ -136,7 +136,7 @@ def get_geometry(model):
 
     if current: whole.append(current)
 
-    # Create Part Wire for every seperated segment in the profile
+    # Create Part Wire for every separated segment in the profile
     compound = []
     for segment in whole:
         all_points = [pvi["point"] for pvi in segment]
