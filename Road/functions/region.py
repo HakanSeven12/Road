@@ -24,15 +24,11 @@
 
 import FreeCAD
 import Part
-import copy
-
-from ..functions.alignment import transformation
 
 
-def get_lines(alignment, increment, offset_left, offset_right):
+def get_lines(stations, offset_left, offset_right):
     """Create guide lines at given increment along the alignment."""
     lines = []
-    stations = transformation(alignment, increment)
     for station, transform in stations.items():
         point = transform["Location"]
         normal = transform["Normal"]

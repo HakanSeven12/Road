@@ -26,6 +26,7 @@ import FreeCAD
 import Part
 
 from ..functions.region import get_lines
+from ..functions.alignment import transformation2
 
 
 class Region:
@@ -105,20 +106,23 @@ class Region:
         """
 
         """
-        tangent = obj.getPropertyByName("IncrementAlongTangents")
-        curve = obj.getPropertyByName("IncrementAlongCurves")
-        spiral = obj.getPropertyByName("IncrementAlongSpirals")
         start = obj.getPropertyByName("StartStation")
         end = obj.getPropertyByName("EndStation")
         horiz_pnts = obj.getPropertyByName("AtHorizontalAlignmentPoints")
         """
 
-        offset_left = obj.getPropertyByName("LeftOffset")*1000
-        offset_right = obj.getPropertyByName("RightOffset")*1000
-        increment = obj.getPropertyByName("IncrementAlongTangents")*1000
+        tangent = obj.getPropertyByName("IncrementAlongTangents")
+        curve = obj.getPropertyByName("IncrementAlongCurves")
+        spiral = obj.getPropertyByName("IncrementAlongSpirals")
 
         alignment = obj.InList[0].InList[0]
-        obj.Shape = get_lines(alignment, increment, offset_left, offset_right)
+        stations = transformation2(alignment, tangent, curve, spiral)
+        print(stations)
+
+        offset_left = obj.getPropertyByName("LeftOffset")*1000
+        offset_right = obj.getPropertyByName("RightOffset")*1000
+
+        obj.Shape = get_lines(stations, offset_left, offset_right)
 
     def onChanged(self, obj, prop):
         """

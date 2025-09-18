@@ -38,7 +38,7 @@ class ViewProviderRegion:
         """Set view properties."""
         vobj.addProperty(
             "App::PropertyBool", "Labels", "Base",
-            "Show/hide labels").Labels = False
+            "Show/hide labels").Labels = True
 
         vobj.addProperty(
             "App::PropertyColor", "LabelColor", "Label Style",
@@ -134,7 +134,6 @@ class ViewProviderRegion:
         vobj.addDisplayMode(self.standard, "Standard")
 
         self.onChanged(vobj, "Labels")
-        #self.onChanged(vobj, "TickSize")
         self.onChanged(vobj, "LabelColor")
         self.onChanged(vobj, "LabelSize")
         self.onChanged(vobj, "FontName")
@@ -145,26 +144,16 @@ class ViewProviderRegion:
         """Update Object visuals when a view property changed."""
         if prop == "Labels":
             self.texts.removeAllChildren()
-            if not vobj.getPropertyByName(prop):
-                self.tick_coords.point.values = []
-                return
 
-            matrices = []
             stations = transformation(vobj.Object, 10000)
             for station, transform in stations.items():
                 point = transform["Location"]
                 angle = transform["Rotation"]
 
-                matrix = coin.SbMatrix()
                 transform = coin.SoTransform()
                 location = coin.SoTranslation()
                 text = coin.SoAsciiText()
 
-                matrix.setTransform(
-                    coin.SbVec3f(point.x, point.y, point.z), 
-                    coin.SbRotation(coin.SbVec3f(0, 0, 1), angle), 
-                    coin.SbVec3f(1.0, 1.0, 1.0))
-                matrices.append(matrix)
 
                 if vobj.Justification == "Left":
                     text.justification = coin.SoAsciiText.LEFT
@@ -179,7 +168,7 @@ class ViewProviderRegion:
 
                 transform.translation = point
                 transform.rotation.setValue(coin.SbVec3f(0, 0, 1), angle)
-                location.translation = vobj.LabelOffset
+                location.translation = vobj.LabelOffset 
 
                 station = str(round(station / 1000, 2)).zfill(6)
                 integer = station.split('.')[0]
@@ -193,13 +182,6 @@ class ViewProviderRegion:
                 group.addChild(text)
                 self.texts.addChild(group)
 
-            self.tick_copy.matrix.values = matrices
-
-        elif prop == "TickSize":
-            size = vobj.getPropertyByName(prop)
-            self.tick_coords.point.values = [
-                FreeCAD.Vector((size / 2) * 1000, 0, 0), 
-                FreeCAD.Vector((-size / 2) * 1000, 0, 0)]
 
         elif prop == "LabelColor":
             color = vobj.getPropertyByName(prop)

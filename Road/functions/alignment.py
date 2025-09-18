@@ -189,3 +189,51 @@ def transformation(obj, increment):
         transforms[station] = {"Location": points[i], "Rotation": angle, "Normal": normal}
 
     return transforms
+
+
+
+def transformation2(obj, tangent_inc, curve_inc, spiral_inc):
+    if not isinstance(obj.Shape, Part.Wire): return {}
+    base = obj.Placement.Base
+    wire = obj.Shape.copy()
+    wire.Placement.move(base.negative())
+
+    total = 0.0
+    carry = 0.0
+    transforms = {}
+    for edge in wire.Edges:
+
+        if edge.Curve.TypeId == 'Part::GeomLine':
+            step = tangent_inc * 1000
+            carry = total % step
+            start = step - carry
+            end = edge.Length
+
+        elif edge.Curve.TypeId == 'Part::GeomCircle':
+            step = curve_inc * 1000
+            carry = total % step
+            start = step - carry
+            start = start/edge.Length * edge.LastParameter
+            end = edge.LastParameter
+
+        elif edge.Curve.TypeId == 'Part::GeomBSplineCurve':
+            step = spiral_inc * 1000
+            carry = total % step
+            start = step - carry
+            end = edge.Length
+
+        pts = edge.discretize(Distance=step, First=start, Last=end)
+        for pt in pts:
+            param = edge.Curve.parameter(pt)
+            station = int(total + param * edge.Length) / 1000
+            tangent = edge.Curve.tangent(param)[0]
+            normal = FreeCAD.Vector(-tangent.y, tangent.x, tangent.z).normalize()
+
+            angle = FreeCAD.Vector(1, 0, 0).getAngle(normal)
+            angle = 2*math.pi - angle if normal.y < 0 else angle
+            
+            transforms[station] = {"Location": pt, "Rotation": angle, "Normal": normal}
+
+        total += edge.Length
+
+    return transforms
