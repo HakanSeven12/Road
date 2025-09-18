@@ -24,172 +24,277 @@
 
 import FreeCAD
 from pivy import coin
+
 import math
 
 from ..variables import icons_path
 from ..utils.get_group import georigin
+from ..functions.alignment import transformation
 
 
 class ViewProviderRegion:
-    """
-    This class is about Region object view features.
-    """
-
+    """This class is about Region Object view features."""
     def __init__(self, vobj):
-        '''
-        Set view properties.
-        '''
-        self.Object = vobj.Object
+        """Set view properties."""
+        vobj.addProperty(
+            "App::PropertyBool", "Labels", "Base",
+            "Show/hide labels").Labels = False
+
+        vobj.addProperty(
+            "App::PropertyColor", "LabelColor", "Label Style",
+            "Color of station label").LabelColor = (1.0, 1.0, 1.0)
+
+        vobj.addProperty(
+            "App::PropertyFloat", "LabelSize", "Label Style",
+            "Size of station label").LabelSize = 1
+
+        vobj.addProperty(
+            "App::PropertyFont", "FontName", "Label Style",
+            "Font name of station label").FontName
+
+        vobj.addProperty(
+            "App::PropertyEnumeration", "Justification", "Label Placement",
+            "Justification of station label").Justification = ["Left", "Center", "Right"]
+
+        vobj.addProperty(
+            "App::PropertyFloat", "OffsetX", "Label Placement",
+            "Horizontal offset between station label and tick").OffsetX = 1
+
+        vobj.addProperty(
+            "App::PropertyFloat", "OffsetY", "Label Placement",
+            "Vertical offset between point station and tick").OffsetY = 0
+
+        vobj.addProperty(
+            "App::PropertyVector", "LabelOffset", "Label Placement",
+            "Points of reference for station label").LabelOffset = FreeCAD.Vector(vobj.OffsetX, vobj.OffsetY)
+
         vobj.Proxy = self
 
     def attach(self, vobj):
-        '''
-        Create Object visuals in 3D view.
-        '''
+        """Create Object visuals in 3D view."""
         self.Object = vobj.Object
 
-        # Lines root.
-        self.line_coords = coin.SoGeoCoordinate()
-        self.lines = coin.SoLineSet()
-        self.gl_labels = coin.SoSeparator()
+        self.draw_style = coin.SoDrawStyle()
+        self.draw_style.style = coin.SoDrawStyle.LINES
 
-        # Line style.
-        line_color = coin.SoBaseColor()
-        line_color.rgb = (0.0, 1.0, 1.0)
-        line_style = coin.SoDrawStyle()
-        line_style.style = coin.SoDrawStyle.LINES
-        line_style.lineWidth = 2
 
-        # Highlight for selection.
-        highlight = coin.SoType.fromName('SoFCSelection').createInstance()
-        highlight.style = 'EMISSIVE_DIFFUSE'
-        highlight.addChild(line_style)
-        highlight.addChild(self.line_coords)
-        highlight.addChild(self.lines)
+        #-----------------------------------------------------------------
+        # Lines
+        #-----------------------------------------------------------------
 
-        # Surface root.
-        guidelines_root = coin.SoSeparator()
-        guidelines_root.addChild(self.gl_labels)
-        guidelines_root.addChild(line_color)
-        guidelines_root.addChild(highlight)
-        vobj.addDisplayMode(guidelines_root,"Lines")
+        # Line view
+        self.line_color = coin.SoBaseColor()
+
+        line_view = coin.SoGroup()
+        line_view.addChild(self.draw_style)
+        line_view.addChild(self.line_color)
+
+        # Line data
+        self.line_coords = coin.SoCoordinate3()
+        self.line_lines = coin.SoIndexedLineSet()
+
+        line_data = coin.SoGroup()
+        line_data.addChild(self.line_coords)
+        line_data.addChild(self.line_lines)
+
+        # Line group
+        lines = coin.SoAnnotation()
+        lines.addChild(line_view)
+        lines.addChild(line_data)
+
+
+        #-----------------------------------------------------------------
+        # Labels
+        #-----------------------------------------------------------------
+
+        # Text
+        self.font = coin.SoFont()
+        self.label_color = coin.SoBaseColor()
+
+        self.texts = coin.SoGroup()
+
+        self.labels = coin.SoSeparator()
+        self.labels.addChild(self.font)
+        self.labels.addChild(self.label_color)
+        self.labels.addChild(self.texts)
+
+        #-----------------------------------------------------------------
+        # Region
+        #-----------------------------------------------------------------
+
+        # Standard group
+        standard_selection = coin.SoType.fromName('SoFCSelection').createInstance()
+        standard_selection.style = 'EMISSIVE_DIFFUSE'
+        standard_selection.addChild(lines)
+        standard_selection.addChild(self.labels)
+
+        self.standard = coin.SoGeoSeparator()
+        self.standard.addChild(standard_selection)
+
+        vobj.addDisplayMode(self.standard, "Standard")
+
+        self.onChanged(vobj, "Labels")
+        #self.onChanged(vobj, "TickSize")
+        self.onChanged(vobj, "LabelColor")
+        self.onChanged(vobj, "LabelSize")
+        self.onChanged(vobj, "FontName")
+        self.onChanged(vobj, "Justification")
+
 
     def onChanged(self, vobj, prop):
-        '''
-        Update Object visuals when a view property changed.
-        '''
-        pass
+        """Update Object visuals when a view property changed."""
+        if prop == "Labels":
+            self.texts.removeAllChildren()
+            if not vobj.getPropertyByName(prop):
+                self.tick_coords.point.values = []
+                return
 
-    def updateData(self, obj, prop):
-        '''
-        Update Object visuals when a data property changed.
-        '''
-        if prop == "Shape" and obj.StationList:
-            self.gl_labels.removeAllChildren()
-            shape = obj.getPropertyByName("Shape")
+            matrices = []
+            stations = transformation(vobj.Object, 10000)
+            for station, transform in stations.items():
+                point = transform["Location"]
+                angle = transform["Rotation"]
 
-            # Set System.
-            origin = georigin()
-            geo_system = ["UTM", origin.UtmZone, "FLAT"]
-            self.line_coords.geoSystem.setValues(geo_system)
-
-            points = []
-            line_vert = []
-            for i, wire in enumerate(shape.Wires):
-                font = coin.SoFont()
-                font.size = 3000
-                gl_label = coin.SoSeparator()
-                location = coin.SoTransform()
+                matrix = coin.SbMatrix()
+                transform = coin.SoTransform()
+                location = coin.SoTranslation()
                 text = coin.SoAsciiText()
 
-                label = str(round(obj.StationList[i], 2))
-                start = wire.Vertexes[0].Point
-                end = wire.Vertexes[-1].Point
+                matrix.setTransform(
+                    coin.SbVec3f(point.x, point.y, point.z), 
+                    coin.SbRotation(coin.SbVec3f(0, 0, 1), angle), 
+                    coin.SbVec3f(1.0, 1.0, 1.0))
+                matrices.append(matrix)
 
-                if start.y>end.y:
-                    angle = start.sub(end).getAngle(FreeCAD.Vector(1,0,0))-math.pi
+                if vobj.Justification == "Left":
+                    text.justification = coin.SoAsciiText.LEFT
+                elif vobj.Justification == "Right":
+                    text.justification = coin.SoAsciiText.RIGHT
                 else:
-                    angle = end.sub(start).getAngle(FreeCAD.Vector(1,0,0))
+                    text.justification = coin.SoAsciiText.CENTER
 
-                location.translation = end
-                location.rotation.setValue(coin.SbVec3f(0, 0, 1), angle)
-                text.string.setValues([label])
+                if math.pi / 2 < angle < 3 * math.pi /2:
+                    text.justification = 2 if text.justification == 1 else 1
+                    angle = (angle + math.pi) % (2 * math.pi)
 
-                gl_label.addChild(font)
-                gl_label.addChild(location)
-                gl_label.addChild(text)
-                self.gl_labels.addChild(gl_label)
+                transform.translation = point
+                transform.rotation.setValue(coin.SbVec3f(0, 0, 1), angle)
+                location.translation = vobj.LabelOffset
 
-                for vertex in wire.Vertexes:
-                    points.append(vertex.Point.add(origin.Origin))
+                station = str(round(station / 1000, 2)).zfill(6)
+                integer = station.split('.')[0]
+                new_integer = integer[:-3] + "+" + integer[-3:]
 
-                line_vert.append(len(wire.Vertexes))
+                text.string.setValues([new_integer + "." + station.split('.')[1]])
 
-            self.line_coords.point.values = points
-            self.lines.numVertices.values = line_vert
+                group = coin.SoTransformSeparator()
+                group.addChild(transform)
+                group.addChild(location)
+                group.addChild(text)
+                self.texts.addChild(group)
 
-    def getDisplayModes(self, vobj):
-        '''
-        Return a list of display modes.
-        '''
-        modes=[]
-        modes.append("Lines")
+            self.tick_copy.matrix.values = matrices
 
+        elif prop == "TickSize":
+            size = vobj.getPropertyByName(prop)
+            self.tick_coords.point.values = [
+                FreeCAD.Vector((size / 2) * 1000, 0, 0), 
+                FreeCAD.Vector((-size / 2) * 1000, 0, 0)]
+
+        elif prop == "LabelColor":
+            color = vobj.getPropertyByName(prop)
+            self.label_color.rgb = (color[0], color[1], color[2])
+
+        elif prop == "LabelSize":
+            self.font.size = vobj.getPropertyByName(prop) * 1000
+            self.onChanged(vobj, "OffsetY")
+
+        elif prop == "FontName":
+            self.font.name = vobj.getPropertyByName(prop).encode("utf8")
+
+        elif prop == "Justification":
+            self.onChanged(vobj, "OffsetX")
+
+        elif prop == "OffsetX":
+            justification = -1 if vobj.Justification == "Right" else 1
+            vobj.LabelOffset.x = vobj.getPropertyByName(prop) * 1000 * justification
+            self.onChanged(vobj, "LabelOffset")
+
+        elif prop == "OffsetY":
+            y_offset = vobj.getPropertyByName(prop)
+            vobj.LabelOffset.y = -vobj.LabelSize / 2 + y_offset * 1000
+            self.onChanged(vobj, "LabelOffset")
+
+        elif prop == "LabelOffset":
+            self.onChanged(vobj, "Labels")
+
+    def updateData(self, obj, prop):
+        """Update Object visuals when a data property changed."""
+        if prop == "Placement":
+            placement = obj.getPropertyByName(prop)
+            origin = georigin(placement.Base)
+            geo_system = ["UTM", origin.UtmZone, "FLAT"]
+
+            self.standard.geoSystem.setValues(geo_system)
+            self.standard.geoCoords.setValue(*placement.Base)
+
+        elif prop == "Shape":
+            shape = obj.getPropertyByName(prop).copy()
+            shape.Placement.move(obj.Placement.Base.negative())
+
+            line_coords, line_index = [], []
+            for edge in shape.Edges:
+                if edge.Curve.TypeId == 'Part::GeomLine':
+                    start = len(line_coords)
+                    line_coords.extend(edge.discretize(2))
+                    end = len(line_coords)
+
+                    line_index.extend(range(start,end))
+                    line_index.append(-1)
+
+            self.line_coords.point.values = line_coords
+            self.line_lines.coordIndex.values = line_index
+
+    def getDisplayModes(self,vobj):
+        """Return a list of display modes."""
+        modes = ["Standard"]
         return modes
 
     def getDefaultDisplayMode(self):
-        '''
-        Return the name of the default display mode.
-        '''
-        return "Lines"
+        """Return the name of the default display mode."""
+        return "Standard"
 
     def setDisplayMode(self,mode):
-        '''
-        Map the display mode defined in attach with 
-        those defined in getDisplayModes.
-        '''
+        """Map the display mode defined in attach with 
+        those defined in getDisplayModes."""
         return mode
 
     def getIcon(self):
-        '''
-        Return object treeview icon.
-        '''
-        return icons_path + '/Region.svg'
+        """Return object treeview icon."""
+        return icons_path + "/Region.svg"
 
     def claimChildren(self):
-        """
-        Provides object grouping
-        """
+        """Provides object grouping"""
         return self.Object.Group
 
     def setEdit(self, vobj, mode=0):
-        """
-        Enable edit
-        """
+        """Enable edit"""
         return True
 
     def unsetEdit(self, vobj, mode=0):
-        """
-        Disable edit
-        """
+        """Disable edit"""
         return False
 
     def doubleClicked(self, vobj):
-        """
-        Detect double click
-        """
+        """Detect double click"""
         pass
 
-    def setupContextMenu(self, vobj, menu):
-        """
-        Context menu construction
-        """
+    def setupContextMenu(self, obj, menu):
+        """Context menu construction"""
         pass
 
     def edit(self):
-        """
-        Edit callback
-        """
+        """Edit callback"""
         pass
 
     def dumps(self):

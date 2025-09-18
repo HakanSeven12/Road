@@ -21,6 +21,7 @@
 # ***************************************************************************
 
 """Provides the object code for Region objects."""
+import FreeCAD
 
 import Part
 
@@ -28,15 +29,23 @@ from ..functions.region import get_lines
 
 
 class Region:
-    """
-    This class is about Region object data features.
-    """
+    """This class is about Region object data features."""
 
     def __init__(self, obj):
-        '''
-        Set data properties.
-        '''
-        self.Type = 'Road::Region'
+        """Set data properties."""
+        self.Type = "Road::Region"
+
+        obj.addProperty(
+            "App::PropertyPlacement", "Placement", "Base",
+            "Placement").Placement = FreeCAD.Placement()
+
+        obj.addProperty(
+            "Part::PropertyPartShape", "Shape", "Base",
+            "Object shape").Shape = Part.Shape()
+
+        obj.addProperty(
+            "App::PropertyLink", "Alignment", "Model",
+            "Base line Alignment").Alignment = None
 
         obj.addProperty(
             "App::PropertyBool", "AtHorizontalAlignmentPoints", "Base",
@@ -45,10 +54,6 @@ class Region:
         obj.addProperty(
             "App::PropertyFloatList", "StationList", "Base",
             "List of stations").StationList = []
-
-        obj.addProperty(
-            "Part::PropertyPartShape", "Shape", "Base",
-            "Object shape").Shape = Part.Shape()
 
         obj.addProperty(
             "App::PropertyBool", "FromAlignmentStart", "Region",
@@ -94,30 +99,10 @@ class Region:
 
         obj.Proxy = self
 
-    def onChanged(self, obj, prop):
-        '''
-        Do something when a data property has changed.
-        '''
-        alignment = obj.InList[0].InList[0]
-
-        if prop == "FromAlignmentStart":
-            if obj.getPropertyByName(prop):
-                obj.setEditorMode('StartStation', 1)
-                obj.StartStation = alignment.StartStation
-            else:
-                obj.setEditorMode('StartStation', 0)
-
-        if prop == "ToAlignmentEnd":
-            if obj.getPropertyByName(prop):
-                obj.setEditorMode('EndStation', 1)
-                obj.EndStation = alignment.EndStation
-            else:
-                obj.setEditorMode('EndStation', 0)
-
     def execute(self, obj):
-        '''
+        """
         Do something when doing a recomputation.
-        '''
+        """
 
         """
         tangent = obj.getPropertyByName("IncrementAlongTangents")
@@ -134,3 +119,27 @@ class Region:
 
         alignment = obj.InList[0].InList[0]
         obj.Shape = get_lines(alignment, increment, offset_left, offset_right)
+
+    def onChanged(self, obj, prop):
+        """
+        Do something when a data property has changed.
+        """
+        alignment = obj.getPropertyByName("Alignment")
+        if not alignment: return
+
+        if prop == "Alignment":
+            obj.Placement = alignment.Placement if alignment else FreeCAD.Placement()
+
+        if prop == "FromAlignmentStart":
+            if obj.getPropertyByName(prop):
+                obj.setEditorMode('StartStation', 1)
+                obj.StartStation = alignment.StartStation
+            else:
+                obj.setEditorMode('StartStation', 0)
+
+        if prop == "ToAlignmentEnd":
+            if obj.getPropertyByName(prop):
+                obj.setEditorMode('EndStation', 1)
+                obj.EndStation = alignment.EndStation
+            else:
+                obj.setEditorMode('EndStation', 0)
