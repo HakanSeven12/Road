@@ -162,37 +162,7 @@ def get_geometry(alignment_data):
 
     return all_points, shape
 
-def transformation(obj, increment):
-    if not isinstance(obj.Shape, Part.Wire): return {}
-    base = obj.Placement.Base
-    wire = obj.Shape.copy()
-    wire.Placement.move(base.negative())
-
-    points = wire.discretize(Distance=increment)
-    bs = Part.BSplineCurve()
-    bs.interpolate(points)
-
-    start = obj.StartStation.Value
-    end = obj.EndStation.Value
-    stations = list(range(int(start), int(end), int(increment)))
-    stations.append(end)
-
-    transforms = {}
-    for i, station in enumerate(stations):
-        param = bs.parameter(points[i])
-        tangent = bs.tangent(param)[0]
-        normal = FreeCAD.Vector(-tangent.y, tangent.x, tangent.z).normalize()
-
-        angle = FreeCAD.Vector(1, 0, 0).getAngle(normal)
-        angle = 2*math.pi - angle if normal.y < 0 else angle
-        
-        transforms[station] = {"Location": points[i], "Rotation": angle, "Normal": normal}
-
-    return transforms
-
-
-
-def transformation2(obj, tangent_inc, curve_inc, spiral_inc):
+def transformation(obj, tangent_inc, curve_inc, spiral_inc, horiz_pnts=False):
     if not isinstance(obj.Shape, Part.Wire): return {}
     base = obj.Placement.Base
     wire = obj.Shape.copy()
@@ -213,7 +183,7 @@ def transformation2(obj, tangent_inc, curve_inc, spiral_inc):
             step = curve_inc * 1000
             carry = total % step
             start = step - carry
-            start = start/edge.Length * edge.LastParameter
+            start = start / edge.Length * edge.LastParameter
             end = edge.LastParameter
 
         elif edge.Curve.TypeId == 'Part::GeomBSplineCurve':
@@ -221,18 +191,25 @@ def transformation2(obj, tangent_inc, curve_inc, spiral_inc):
             carry = total % step
             start = step - carry
             end = edge.Length
+            #end = edge.Length - (edge.Length - start) % step
 
         pts = edge.discretize(Distance=step, First=start, Last=end)
+        #if not horiz_pnts: pts.pop()
         for pt in pts:
             param = edge.Curve.parameter(pt)
-            station = int(total + param * edge.Length) / 1000
+
+            if edge.Curve.TypeId == 'Part::GeomCircle':
+                station = total +  edge.Length * param / edge.LastParameter
+            else:
+                station = total + param
+
             tangent = edge.Curve.tangent(param)[0]
             normal = FreeCAD.Vector(-tangent.y, tangent.x, tangent.z).normalize()
 
             angle = FreeCAD.Vector(1, 0, 0).getAngle(normal)
             angle = 2*math.pi - angle if normal.y < 0 else angle
             
-            transforms[station] = {"Location": pt, "Rotation": angle, "Normal": normal}
+            transforms[round(station / 1000, 2)] = {"Location": pt, "Rotation": angle, "Normal": normal}
 
         total += edge.Length
 

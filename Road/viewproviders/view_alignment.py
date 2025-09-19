@@ -253,7 +253,7 @@ class ViewProviderAlignment:
                 return
 
             matrices = []
-            stations = transformation(vobj.Object, 10000)
+            stations = transformation(vobj.Object, 10, 10, 10)
             for station, transform in stations.items():
                 point = transform["Location"]
                 angle = transform["Rotation"]
@@ -284,7 +284,7 @@ class ViewProviderAlignment:
                 transform.rotation.setValue(coin.SbVec3f(0, 0, 1), angle)
                 location.translation = vobj.LabelOffset
 
-                station = str(round(station / 1000, 2)).zfill(6)
+                station = str(station).zfill(6)
                 integer = station.split('.')[0]
                 new_integer = integer[:-3] + "+" + integer[-3:]
 

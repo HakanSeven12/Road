@@ -26,7 +26,7 @@ import FreeCAD
 import Part
 
 from ..functions.region import get_lines
-from ..functions.alignment import transformation2
+from ..functions.alignment import transformation
 
 
 class Region:
@@ -45,16 +45,12 @@ class Region:
             "Object shape").Shape = Part.Shape()
 
         obj.addProperty(
-            "App::PropertyLink", "Alignment", "Model",
-            "Base line Alignment").Alignment = None
-
-        obj.addProperty(
             "App::PropertyBool", "AtHorizontalAlignmentPoints", "Base",
             "Show/hide labels").AtHorizontalAlignmentPoints = True
 
         obj.addProperty(
-            "App::PropertyFloatList", "StationList", "Base",
-            "List of stations").StationList = []
+            "App::PropertyPythonObject", "Stations", "Base",
+            "List of stations").Stations = {}
 
         obj.addProperty(
             "App::PropertyBool", "FromAlignmentStart", "Region",
@@ -108,16 +104,17 @@ class Region:
         """
         start = obj.getPropertyByName("StartStation")
         end = obj.getPropertyByName("EndStation")
-        horiz_pnts = obj.getPropertyByName("AtHorizontalAlignmentPoints")
         """
+
+        regions = obj.getParentGroup()
+        alignment = regions.getParentGroup()
 
         tangent = obj.getPropertyByName("IncrementAlongTangents")
         curve = obj.getPropertyByName("IncrementAlongCurves")
         spiral = obj.getPropertyByName("IncrementAlongSpirals")
+        horizontal = obj.getPropertyByName("AtHorizontalAlignmentPoints")
 
-        alignment = obj.InList[0].InList[0]
-        stations = transformation2(alignment, tangent, curve, spiral)
-        print(stations)
+        stations = transformation(alignment, tangent, curve, spiral, horizontal)
 
         offset_left = obj.getPropertyByName("LeftOffset")*1000
         offset_right = obj.getPropertyByName("RightOffset")*1000
@@ -128,10 +125,11 @@ class Region:
         """
         Do something when a data property has changed.
         """
-        alignment = obj.getPropertyByName("Alignment")
-        if not alignment: return
+        regions = obj.getParentGroup()
+        if not regions: return
+        alignment = regions.getParentGroup()
 
-        if prop == "Alignment":
+        if prop == "Stations":
             obj.Placement = alignment.Placement if alignment else FreeCAD.Placement()
 
         if prop == "FromAlignmentStart":

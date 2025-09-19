@@ -144,8 +144,15 @@ class ViewProviderRegion:
         """Update Object visuals when a view property changed."""
         if prop == "Labels":
             self.texts.removeAllChildren()
+            regions = vobj.Object.getParentGroup()
+            alignment = regions.getParentGroup()
 
-            stations = transformation(vobj.Object, 10000)
+            tangent = vobj.Object.IncrementAlongTangents
+            curve = vobj.Object.IncrementAlongCurves
+            spiral = vobj.Object.IncrementAlongSpirals
+            horizontal = vobj.Object.AtHorizontalAlignmentPoints
+
+            stations = transformation(alignment, tangent, curve, spiral, horizontal)
             for station, transform in stations.items():
                 point = transform["Location"]
                 angle = transform["Rotation"]
@@ -170,7 +177,7 @@ class ViewProviderRegion:
                 transform.rotation.setValue(coin.SbVec3f(0, 0, 1), angle)
                 location.translation = vobj.LabelOffset 
 
-                station = str(round(station / 1000, 2)).zfill(6)
+                station = str(station).zfill(6)
                 integer = station.split('.')[0]
                 new_integer = integer[:-3] + "+" + integer[-3:]
 
@@ -226,13 +233,12 @@ class ViewProviderRegion:
 
             line_coords, line_index = [], []
             for edge in shape.Edges:
-                if edge.Curve.TypeId == 'Part::GeomLine':
-                    start = len(line_coords)
-                    line_coords.extend(edge.discretize(2))
-                    end = len(line_coords)
+                start = len(line_coords)
+                line_coords.extend(edge.discretize(2))
+                end = len(line_coords)
 
-                    line_index.extend(range(start,end))
-                    line_index.append(-1)
+                line_index.extend(range(start,end))
+                line_index.append(-1)
 
             self.line_coords.point.values = line_coords
             self.line_lines.coordIndex.values = line_index

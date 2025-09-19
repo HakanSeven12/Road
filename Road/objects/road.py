@@ -72,7 +72,7 @@ class Road:
 
         sec_list = []
         base_shp = Part.makeCompound(com_list)
-        stations = transformation(obj.Alignment, 10000)
+        stations = transformation(obj.Alignment, 10000, 10000, 10000)
         pos = obj.Profile.Placement.Base
         dy=FreeCAD.Vector(0, obj.Profile.Shape.BoundBox.YLength)
 
