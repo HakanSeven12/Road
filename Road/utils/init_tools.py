@@ -22,6 +22,10 @@
 
 """Provides functions and lists of commands to set up Road menus and toolbars."""
 
+def get_io_commands():
+    """Return the input/output commands list."""
+    return ["LandXML Import"]
+
 def get_point_commands():
     """Return the point commands list."""
     return ["Cluster Create",
@@ -66,10 +70,6 @@ def get_geoline_commands():
     """Return the geoline commands list."""
     return ["Create Pad"]
 
-def get_io_commands():
-    """Return the input/output commands list."""
-    return []
-
 def init_toolbar(workbench, toolbar, cmd_list):
     """Initialize a toolbar.
 
@@ -90,7 +90,6 @@ def init_toolbar(workbench, toolbar, cmd_list):
                 workbench.appendToolbar(toolbar, [cmd[0]])
         else:
             workbench.appendToolbar(toolbar, [cmd])
-
 
 def init_menu(workbench, menu_list, cmd_list):
     """Initialize a menu.

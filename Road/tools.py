@@ -28,6 +28,7 @@ that is, those actions that can be called from menus and buttons.
 
 # Functions
 from .guitools import (
+    gui_landxml_import,
     gui_cluster_create,
     gui_geopoint_create,
     gui_geopoint_import,
