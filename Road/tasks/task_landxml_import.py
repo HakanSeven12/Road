@@ -62,9 +62,9 @@ class TaskLandXMLImport(TaskPanel):
         # Middle TreeView
         self.tree = QTreeWidget()
         self.tree.setHeaderLabels(['Item', 'Detail'])
-        # Checkbox'lar için MultiSelection yerine NoSelection kullanıyoruz
+        # Use NoSelection instead of MultiSelection, since we are using checkboxes
         self.tree.setSelectionMode(QTreeWidget.NoSelection)
-        # Checkbox değişikliklerini dinlemek için signal bağla
+        # Connect signal to listen for checkbox state changes
         self.tree.itemChanged.connect(self.on_item_changed)
         main_layout.addWidget(self.tree)
         
@@ -108,7 +108,7 @@ class TaskLandXMLImport(TaskPanel):
         root_item.setText(0, 'LandXML')
         root_item.setText(1, 'Root Document')
         root_item.setExpanded(True)
-        # Root için checkbox ekle
+        # Add checkbox for root
         root_item.setCheckState(0, Qt.Unchecked)
         root_item.setFlags(root_item.flags() | Qt.ItemIsUserCheckable)
         
@@ -121,7 +121,7 @@ class TaskLandXMLImport(TaskPanel):
         # Alignments
         self._add_alignments_items(root_item, tree_data['alignments'])
         
-        # CogoPoints - Yeni eklenen bölüm
+        # CogoPoints - newly added section
         self._add_cogo_points_items(root_item, tree_data['cogo_points'])
         
     def _add_metadata_items(self, root_item, metadata):
@@ -163,7 +163,7 @@ class TaskLandXMLImport(TaskPanel):
         surfaces_item.setText(0, 'Surfaces')
         surfaces_item.setText(1, 'Terrain Surfaces')
         surfaces_item.setExpanded(True)
-        # Grup için checkbox ekle
+        # Add checkbox for group
         surfaces_item.setCheckState(0, Qt.Unchecked)
         surfaces_item.setFlags(surfaces_item.flags() | Qt.ItemIsUserCheckable)
         
@@ -172,7 +172,7 @@ class TaskLandXMLImport(TaskPanel):
             surf_item.setText(0, surface['name'])
             surf_item.setText(1, f"Surface - {surface['name']}")
             surf_item.setData(0, Qt.UserRole, surface)
-            # Checkbox ekle
+            # Add checkbox
             surf_item.setCheckState(0, Qt.Unchecked)
             surf_item.setFlags(surf_item.flags() | Qt.ItemIsUserCheckable)
             
@@ -185,7 +185,7 @@ class TaskLandXMLImport(TaskPanel):
         alignments_item.setText(0, 'Alignments')
         alignments_item.setText(1, 'Road Alignments')
         alignments_item.setExpanded(True)
-        # Grup için checkbox ekle
+        # Add checkbox for group
         alignments_item.setCheckState(0, Qt.Unchecked)
         alignments_item.setFlags(alignments_item.flags() | Qt.ItemIsUserCheckable)
         
@@ -194,7 +194,7 @@ class TaskLandXMLImport(TaskPanel):
             align_item.setText(0, alignment['name'])
             align_item.setText(1, f"Alignment - {alignment['name']}")
             align_item.setData(0, Qt.UserRole, alignment)
-            # Checkbox ekle
+            # Add checkbox
             align_item.setCheckState(0, Qt.Unchecked)
             align_item.setFlags(align_item.flags() | Qt.ItemIsUserCheckable)
 
@@ -207,27 +207,27 @@ class TaskLandXMLImport(TaskPanel):
         cogo_points_item.setText(0, 'CogoPoints')
         cogo_points_item.setText(1, 'Survey Points')
         cogo_points_item.setExpanded(True)
-        # Grup için checkbox ekle
+        # Add checkbox for group
         cogo_points_item.setCheckState(0, Qt.Unchecked)
         cogo_points_item.setFlags(cogo_points_item.flags() | Qt.ItemIsUserCheckable)
         
         for cogo_group in cogo_points:
-            # CogoPoints grubu
+            # CogoPoints group
             group_item = QTreeWidgetItem(cogo_points_item)
             group_item.setText(0, cogo_group['name'])
             group_item.setText(1, f"Points: {len(cogo_group['points'])}")
             group_item.setData(0, Qt.UserRole, cogo_group)
             group_item.setExpanded(True)
-            # Checkbox ekle
+            # Add checkbox
             group_item.setCheckState(0, Qt.Unchecked)
             group_item.setFlags(group_item.flags() | Qt.ItemIsUserCheckable)
             
-            # Grup içindeki her bir point'i alt item olarak ekle
+            # Add each point inside the group as child items
             for point in cogo_group['points']:
                 point_item = QTreeWidgetItem(group_item)
                 point_item.setText(0, point['name'])
                 
-                # Point detayları
+                # Point details
                 details = []
                 if 'x' in point and 'y' in point and 'z' in point:
                     details.append(f"X:{point['x']:.3f}")
@@ -239,47 +239,48 @@ class TaskLandXMLImport(TaskPanel):
                     details.append(f"Desc:{point['desc']}")
                     
                 point_item.setText(1, " | ".join(details))
-                point_item.setFlags(point_item.flags() & ~Qt.ItemIsSelectable)  # Individual points seçilemez, sadece grup seçilebilir
+                # Individual points cannot be selected, only groups can
+                point_item.setFlags(point_item.flags() & ~Qt.ItemIsSelectable)  
             
     def on_item_changed(self, item, column):
-        """Checkbox değişikliklerini handle eder."""
-        if column != 0:  # Sadece ilk sütundaki checkbox'ları dinle
+        """Handles checkbox state changes."""
+        if column != 0:  # Only listen to checkboxes in the first column
             return
             
-        # Signal'i geçici olarak devre dışı bırak (sonsuz döngüyü önlemek için)
+        # Temporarily block signals to avoid infinite recursion
         self.tree.blockSignals(True)
         
         try:
-            # Eğer grup başlığı ise (Surfaces, Alignments, CogoPoints), alt itemları güncelle
+            # If the item is a group header (Surfaces, Alignments, CogoPoints), update children
             if self._is_group_header(item):
                 new_state = item.checkState(0)
                 self._update_children_checkboxes(item, new_state)
             
-            # Alt item ise, üst item'in durumunu güncelle
+            # If it is a child item, update the parent state
             else:
                 self._update_parent_checkbox(item)
                 
         finally:
-            # Signal'i yeniden etkinleştir
+            # Re-enable signals
             self.tree.blockSignals(False)
     
     def _is_group_header(self, item):
-        """Item'in grup başlığı olup olmadığını kontrol eder."""
+        """Checks if the item is a group header."""
         item_text = item.text(0)
         return item_text in ['LandXML', 'Surfaces', 'Alignments', 'CogoPoints']
     
     def _update_children_checkboxes(self, parent_item, state):
-        """Üst item'in durumuna göre alt itemların checkbox'larını günceller."""
+        """Updates the checkboxes of child items based on the parent's state."""
         for i in range(parent_item.childCount()):
             child = parent_item.child(i)
-            # Sadece checkbox'ı olan itemları güncelle
+            # Only update items that have checkboxes
             if child.flags() & Qt.ItemIsUserCheckable:
                 child.setCheckState(0, state)
-                # Eğer alt item'in kendisi de çocukları varsa, onları da güncelle
+                # If the child itself has children, update them too
                 self._update_children_checkboxes(child, state)
     
     def _update_parent_checkbox(self, item):
-        """Alt itemların durumuna göre üst item'in checkbox'ını günceller."""
+        """Updates the parent's checkbox state based on its children's states."""
         parent = item.parent()
         if parent is None or not (parent.flags() & Qt.ItemIsUserCheckable):
             return
@@ -288,7 +289,7 @@ class TaskLandXMLImport(TaskPanel):
         total_count = 0
         partially_checked = False
         
-        # Üst item'in tüm alt itemlarını kontrol et
+        # Check all children of the parent
         for i in range(parent.childCount()):
             child = parent.child(i)
             if child.flags() & Qt.ItemIsUserCheckable:
@@ -299,7 +300,7 @@ class TaskLandXMLImport(TaskPanel):
                 elif child_state == Qt.PartiallyChecked:
                     partially_checked = True
         
-        # Üst item'in durumunu belirle
+        # Determine parent state
         if checked_count == 0 and not partially_checked:
             parent.setCheckState(0, Qt.Unchecked)
         elif checked_count == total_count and not partially_checked:
@@ -307,13 +308,14 @@ class TaskLandXMLImport(TaskPanel):
         else:
             parent.setCheckState(0, Qt.PartiallyChecked)
         
-        # Recursive olarak üst seviyeyi de güncelle
+        # Recursively update higher-level parents
         self._update_parent_checkbox(parent)
+        
     def process_selected(self):
         """Processes the checked items."""
         print("Processing checked items...")
         
-        # Checkbox'ı işaretli olan itemları topla
+        # Collect checked items
         items_to_process = []
         self._collect_checked_items(self.tree.invisibleRootItem(), items_to_process)
         
@@ -332,22 +334,22 @@ class TaskLandXMLImport(TaskPanel):
         for i in range(parent_item.childCount()):
             child = parent_item.child(i)
             
-            # Eğer checkbox işaretli ise ve data içeriyorsa listeye ekle
+            # If checkbox is checked and item has data, add it
             if (child.checkState(0) == Qt.Checked and 
                 child.data(0, Qt.UserRole) is not None):
                 items_list.append(child.data(0, Qt.UserRole))
             
-            # Alt itemları da kontrol et
+            # Check child items as well
             self._collect_checked_items(child, items_list)
         
     def _show_results(self, results):
         """Shows the processing results to the user."""
         surfaces_count = results['surfaces_processed']
         alignments_count = results['alignments_processed']
-        cogo_points_count = results['cogo_points_processed']  # CogoPoints sayısı eklendi
+        cogo_points_count = results['cogo_points_processed']  # CogoPoints count added
         errors = results['errors']
         
-        # Sonuç mesajını oluştur
+        # Build result message
         message_parts = []
         if surfaces_count > 0:
             message_parts.append(f'{surfaces_count} surface(s)')
