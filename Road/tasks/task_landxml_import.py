@@ -30,10 +30,10 @@ from .task_panel import TaskPanel
 from ..make import make_terrain, make_alignment
 
 import xml.etree.ElementTree as ET
-from PySide2.QtWidgets import (QWidget, QVBoxLayout, 
+from PySide.QtWidgets import (QWidget, QVBoxLayout, 
                              QHBoxLayout, QPushButton, QLabel, QTreeWidget, 
                              QTreeWidgetItem, QFileDialog, QMessageBox)
-from PySide2.QtCore import Qt
+from PySide.QtCore import Qt
 import FreeCAD
 
 class TaskLandXMLImport(TaskPanel):
