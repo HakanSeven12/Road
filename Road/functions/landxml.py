@@ -1,454 +1,332 @@
-import xml.etree.ElementTree as ET
+# ***************************************************************************
+# *                                                                         *
+# *   Copyright (c) 2025 Hakan Seven <hakanseven12@gmail.com>               *
+# *                                                                         *
+# *   This program is free software; you can redistribute it and/or modify  *
+# *   it under the terms of the GNU Lesser General Public License (LGPL)    *
+# *   as published by the Free Software Foundation; either version 2 of     *
+# *   the License, or (at your option) any later version.                   *
+# *   for detail see the LICENCE text file.                                 *
+# *                                                                         *
+# *   This program is distributed in the hope that it will be useful,       *
+# *   but WITHOUT ANY WARRANTY; without even the implied warranty of        *
+# *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         *
+# *   GNU Library General Public License for more details.                  *
+# *                                                                         *
+# *   You should have received a copy of the GNU Library General Public     *
+# *   License along with this program; if not, write to the Free Software   *
+# *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  *
+# *   USA                                                                   *
+# *                                                                         *
+# ***************************************************************************
+
+"""LandXML Parser Class for processing LandXML files."""
+
 import FreeCAD
+import Part
 import Mesh
-import numpy as np
+from ..make import make_terrain, make_alignment
+from.alignment import get_geometry
 
-def parse_landxml_surface(landxml_file_path):
+import xml.etree.ElementTree as ET
+
+
+class LandXMLParser:
     """
-    Reads surface data from LandXML file
+    Class for parsing and processing LandXML files.
     """
-    try:
-        # Parse XML file
-        tree = ET.parse(landxml_file_path)
-        root = tree.getroot()
+    
+    def __init__(self):
+        self.xml_data = None
+        self.file_path = None
+        self.surfaces = []
+        self.alignments = []
+        self.units = None
+        self.project_info = None
+        self.application_info = None
         
-        # Namespace definitions (LandXML usually uses namespaces)
-        namespaces = {'': 'http://www.landxml.org/schema/LandXML-1.2'}
+    def load_file(self, file_path):
+        """
+        Loads and parses a LandXML file.
         
-        # If no namespace, use empty string
-        if not root.tag.startswith('{'):
-            namespaces = {'': ''}
-        
-        points = []
-        faces = []
-        
-        # Find Surface elements
-        for surface in root.findall('.//Surface', namespaces):
-            print(f"Surface found: {surface.get('name', 'Unnamed')}")
+        Args:
+            file_path (str): Path to the LandXML file
             
-            # Find Pnts element under Definition
-            definition = surface.find('Definition', namespaces)
-            if definition is not None:
-                pnts = definition.find('Pnts', namespaces)
-                if pnts is not None:
-                    # Read points from P elements
-                    for p in pnts.findall('P', namespaces):
-                        coords = p.text.strip().split()
-                        if len(coords) >= 3:
-                            x, y, z = map(float, coords[:3])
-                            points.append([x, y, z])
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try:
+            tree = ET.parse(file_path)
+            self.xml_data = tree.getroot()
+            self.file_path = file_path
+            
+            # Parse basic information
+            self._parse_metadata()
+            self._parse_surfaces()
+            self._parse_alignments()
+            
+            return True
+            
+        except Exception as e:
+            print(f"File loading error: {e}")
+            return False
+            
+    def _parse_metadata(self):
+        """Parses metadata from the XML file."""
+        if self.xml_data is None:
+            return
+            
+        # Get units information
+        units = self.xml_data.find('.//{*}Units')
+        if units is not None:
+            self.units = units.attrib
+            
+        # Get project information
+        project = self.xml_data.find('.//{*}Project')
+        if project is not None:
+            self.project_info = {
+                'name': project.get('name', 'Unnamed'),
+                'attributes': project.attrib
+            }
+            
+        # Get application information
+        app = self.xml_data.find('.//{*}Application')
+        if app is not None:
+            self.application_info = {
+                'name': app.get('name', 'Unknown'),
+                'description': app.get('desc', ''),
+                'attributes': app.attrib
+            }
+            
+    def _parse_surfaces(self):
+        """Parses surfaces from the XML file."""
+        if self.xml_data is None:
+            return
+            
+        self.surfaces = []
+        for surface in self.xml_data.findall('.//{*}Surface'):
+            surface_data = {
+                'element': surface,
+                'name': surface.get('name', 'Unnamed Surface'),
+                'attributes': surface.attrib,
+                'type': 'surface'
+            }
+            self.surfaces.append(surface_data)
+            
+    def _parse_alignments(self):
+        """Parses alignments from the XML file."""
+        if self.xml_data is None:
+            return
+            
+        self.alignments = []
+        for alignment in self.xml_data.findall('.//{*}Alignment'):
+            alignment_data = {
+                'element': alignment,
+                'name': alignment.get('name', 'Unnamed Alignment'),
+                'attributes': alignment.attrib,
+                'type': 'alignment'
+            }
+            self.alignments.append(alignment_data)
+            
+    def get_tree_data(self):
+        """
+        Returns data needed for UI TreeWidget.
+        
+        Returns:
+            dict: Data structure for tree view
+        """
+        tree_data = {
+            'metadata': {
+                'units': self.units,
+                'project': self.project_info,
+                'application': self.application_info
+            },
+            'surfaces': self.surfaces,
+            'alignments': self.alignments
+        }
+        return tree_data
+        
+    def process_surface(self, surface_data):
+        """
+        Converts selected surface to FreeCAD Mesh object.
+        
+        Args:
+            surface_data (dict): Parsed surface data
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try:
+            surface = surface_data['element']
+            mesh_obj = Mesh.Mesh()
+            
+            # Get faces and points for TIN surfaces
+            faces = surface.findall('.//{*}Faces/{*}F')
+            pnts = surface.findall('.//{*}Pnts/{*}P')
+            
+            # Create points dictionary
+            points_dict = {}
+            for pnt in pnts:
+                pid = pnt.get('id')
+                coords = pnt.text.strip().split()
+                if len(coords) >= 3:
+                    x, y, z = float(coords[1]), float(coords[0]), float(coords[2])
+                    points_dict[pid] = FreeCAD.Vector(x * 1000, y * 1000, z * 1000)
+            
+            # Add faces
+            for face in faces:
+                vertices_str = face.text.strip().split()
+                if len(vertices_str) >= 3:
+                    try:
+                        v1 = points_dict[vertices_str[0]]
+                        v2 = points_dict[vertices_str[1]]
+                        v3 = points_dict[vertices_str[2]]
+                        mesh_obj.addFacet(v1, v2, v3)
+                    except KeyError:
+                        continue
+                        
+            # Add mesh to FreeCAD
+            if mesh_obj.CountFacets > 0:
+                terrain = make_terrain.create(label=surface_data['name'])
+                terrain.Mesh = mesh_obj
+                FreeCAD.ActiveDocument.recompute()
+                return True
                 
-                # Find Faces element - this is mandatory!
-                faces_elem = definition.find('Faces', namespaces)
-                if faces_elem is not None:
-                    for face in faces_elem.findall('F', namespaces):
-                        face_indices = list(map(int, face.text.strip().split()))
-                        if len(face_indices) >= 3:
-                            # LandXML indices might be 1-based, convert to 0-based
-                            face_indices = [idx - 1 for idx in face_indices]
-                            faces.append(face_indices)
-                else:
-                    print("WARNING: <Faces> element not found for this surface!")
-                    print("Triangulation information is missing in LandXML file!")
-        
-        print(f"Points read: {len(points)}")
-        print(f"Faces read: {len(faces)}")
-        
-        return np.array(points), faces
-        
-    except Exception as e:
-        print(f"LandXML reading error: {e}")
-        return None, None
-
-def parse_landxml_alignment(landxml_file_path):
-    """
-    Reads alignment data from LandXML file and converts to get_geometry compatible format
-    """
-    try:
-        # Parse XML file
-        tree = ET.parse(landxml_file_path)
-        root = tree.getroot()
-        
-        # Namespace definitions
-        namespaces = {'': 'http://www.landxml.org/schema/LandXML-1.2'}
-        
-        # If no namespace, use empty string
-        if not root.tag.startswith('{'):
-            namespaces = {'': ''}
-        
-        alignments_data = {}
-        
-        # Find Alignment elements
-        for alignment in root.findall('.//Alignment', namespaces):
-            alignment_name = alignment.get('name', 'Unnamed')
-            print(f"Alignment found: {alignment_name}")
+        except Exception as e:
+            print(f"Surface processing error: {e}")
             
-            # Find geometry elements under CoordGeom element
-            coord_geom = alignment.find('CoordGeom', namespaces)
-            if coord_geom is not None:
-                # Advanced processing: detect Spiral-Curve-Spiral groups
-                alignment_points = process_spiral_curve_spiral_group(coord_geom, namespaces)
-                alignments_data[alignment_name] = alignment_points
+        return False
         
-        return alignments_data
+    def process_alignment(self, alignment_data):
+        """
+        Converts selected alignment to FreeCAD object.
         
-    except Exception as e:
-        print(f"Alignment reading error: {e}")
-        return None
-
-def calculate_curve_center(curve_element):
-    """
-    Calculates center point from Curve element
-    """
-    try:
-        # Various possible center point attributes
-        center_x = (curve_element.get('centerX') or 
-                   curve_element.get('cxX') or 
-                   curve_element.get('centerNorthing'))
-        center_y = (curve_element.get('centerY') or 
-                   curve_element.get('cxY') or 
-                   curve_element.get('centerEasting'))
+        Args:
+            alignment_data (dict): Parsed alignment data
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try:
+            alignment = alignment_data['element']
+            parsed_alignment = self._parse_alignment_geometry(alignment)
+            
+            if parsed_alignment:
+                # Create geometry (you should adapt this function from original code)
+                points, wire = get_geometry(parsed_alignment)
+                if wire:
+                    # Create alignment object
+                    alignment_obj = make_alignment.create(label=alignment_data['name'])
+                    Part.show(wire)
+                    return True
+                    
+        except Exception as e:
+            print(f"Alignment processing error: {e}")
+            
+        return False
         
-        if center_x and center_y:
-            return [float(center_x), float(center_y)]
-    except:
-        pass
-    
-    return None
-
-def calculate_pi_point_for_curve(start_point, end_point, center_point, radius):
-    """
-    Calculates PI (Point of Intersection) point for curve
-    """
-    if not start_point or not end_point:
-        return None
-    
-    try:
-        # Simple approach: take midpoint of start and end points
-        # In real application, need to calculate intersection of tangent lines
+    def _parse_alignment_geometry(self, alignment):
+        """
+        Parses alignment geometry.
         
-        if center_point:
-            # If center point exists, do geometric calculation
-            # This requires more complex calculation
-            return center_point
-        else:
-            # Simple approach: midpoint
-            pi_x = (start_point[0] + end_point[0]) / 2
-            pi_y = (start_point[1] + end_point[1]) / 2
-            return [pi_x, pi_y]
-    
-    except:
-        return None
-
-def parse_point(element, point_type):
-    """
-    Extracts point coordinates from XML element (Start/End/Center)
-    """
-    try:
-        if point_type == 'Start':
-            # Various possible start point attributes
-            x = (element.get('staStart') or element.get('x1') or element.get('startX') or 
-                 element.get('startNorthing') or element.get('startEasting'))
-            y = (element.get('northStart') or element.get('y1') or element.get('startY') or 
-                 element.get('startEasting') or element.get('startNorthing'))
-        elif point_type == 'End':
-            # Various possible end point attributes
-            x = (element.get('staEnd') or element.get('x2') or element.get('endX') or 
-                 element.get('endNorthing') or element.get('endEasting'))
-            y = (element.get('northEnd') or element.get('y2') or element.get('endY') or 
-                 element.get('endEasting') or element.get('endNorthing'))
-        elif point_type == 'Center':
-            # For center point
-            x = (element.get('centerX') or element.get('cxX') or element.get('centerNorthing'))
-            y = (element.get('centerY') or element.get('cxY') or element.get('centerEasting'))
+        Args:
+            alignment: XML alignment element
+            
+        Returns:
+            dict: Parsed alignment geometry
+        """
+        alignment_geom = {}
         
-        if x and y:
-            return [float(x), float(y)]
-    except Exception as e:
-        print(f"Point parsing error ({point_type}): {e}")
-    
-    return None
-
-def process_spiral_curve_spiral_group(coord_geom, namespaces):
-    """
-    Detects and processes Spiral-Curve-Spiral groups
-    """
-    elements = list(coord_geom)
-    processed_points = {}
-    point_counter = 1
-    
-    i = 0
-    previous_end_point = None
-    
-    while i < len(elements):
-        element = elements[i]
-        tag_name = element.tag.split('}')[-1] if '}' in element.tag else element.tag
-        
-        # Check for Spiral-Curve-Spiral combination
-        if (i + 2 < len(elements) and 
-            tag_name == 'Spiral' and
-            elements[i+1].tag.split('}')[-1] == 'Curve' and 
-            elements[i+2].tag.split('}')[-1] == 'Spiral'):
-            
-            # Spiral-Curve-Spiral group found
-            spiral_in = elements[i]
-            curve = elements[i+1]
-            spiral_out = elements[i+2]
-            
-            # Start point
-            start_point = parse_point(spiral_in, 'Start')
-            if previous_end_point is None and start_point:
-                processed_points[str(point_counter)] = {
-                    'X': str(start_point[0]),
-                    'Y': str(start_point[1]),
-                    'Curve Type': 'None',
-                    'Spiral Length In': '0',
-                    'Radius': '0',
-                    'Spiral Length Out': '0'
-                }
-                point_counter += 1
-                previous_end_point = start_point
-            
-            # PI point (curve center point or calculated point)
-            curve_start = parse_point(curve, 'Start')
-            curve_end = parse_point(curve, 'End')
-            curve_center = parse_point(curve, 'Center') or calculate_curve_center(curve)
-            
-            pi_point = calculate_pi_point_for_curve(curve_start, curve_end, curve_center, 
-                                                   float(curve.get('radius', '0')))
-            
-            if pi_point:
-                processed_points[str(point_counter)] = {
-                    'X': str(pi_point[0]),
-                    'Y': str(pi_point[1]),
-                    'Curve Type': 'Spiral-Curve-Spiral',
-                    'Spiral Length In': str(float(spiral_in.get('length', '0'))),
-                    'Radius': str(float(curve.get('radius', '0'))),
-                    'Spiral Length Out': str(float(spiral_out.get('length', '0')))
-                }
-                point_counter += 1
-                previous_end_point = parse_point(spiral_out, 'End')
-            
-            i += 3  # Skip all three elements
-            
-        else:
-            # Single element processing
-            if tag_name == 'Line':
-                start_point = parse_point(element, 'Start')
-                end_point = parse_point(element, 'End')
+        try:
+            # Find geometry elements in CoordGeom
+            coord_geom = alignment.find('.//{*}CoordGeom')
+            if coord_geom is None:
+                return None
                 
-                if previous_end_point is None and start_point:
-                    processed_points[str(point_counter)] = {
-                        'X': str(start_point[0]),
-                        'Y': str(start_point[1]),
-                        'Curve Type': 'None',
-                        'Spiral Length In': '0',
-                        'Radius': '0',
-                        'Spiral Length Out': '0'
-                    }
-                    point_counter += 1
-                    previous_end_point = start_point
+            pi_index = 0
+            for element in coord_geom:
+                tag = element.tag.split('}')[-1]
                 
-                if end_point:
-                    processed_points[str(point_counter)] = {
-                        'X': str(end_point[0]),
-                        'Y': str(end_point[1]),
-                        'Curve Type': 'None',
-                        'Spiral Length In': '0',
-                        'Radius': '0',
-                        'Spiral Length Out': '0'
-                    }
-                    point_counter += 1
-                    previous_end_point = end_point
-            
-            elif tag_name == 'Curve':
-                start_point = parse_point(element, 'Start')
-                end_point = parse_point(element, 'End')
-                center_point = parse_point(element, 'Center') or calculate_curve_center(element)
-                radius = float(element.get('radius', '0'))
-                
-                if previous_end_point is None and start_point:
-                    processed_points[str(point_counter)] = {
-                        'X': str(start_point[0]),
-                        'Y': str(start_point[1]),
-                        'Curve Type': 'None',
-                        'Spiral Length In': '0',
-                        'Radius': '0',
-                        'Spiral Length Out': '0'
-                    }
-                    point_counter += 1
-                    previous_end_point = start_point
-                
-                pi_point = calculate_pi_point_for_curve(start_point, end_point, center_point, radius)
-                if pi_point:
-                    processed_points[str(point_counter)] = {
-                        'X': str(pi_point[0]),
-                        'Y': str(pi_point[1]),
+                if tag == 'Line':
+                    # Get start and end points from Line element
+                    start = element.find('.//{*}Start')
+                    end = element.find('.//{*}End')
+                    
+                    if start is not None:
+                        coords = start.text.strip().split()
+                        if len(coords) >= 2:
+                            alignment_geom[f'PI_{pi_index}'] = {
+                                'X': coords[1],  # Northing
+                                'Y': coords[0],  # Easting
+                                'Curve Type': 'None',
+                                'Spiral Length In': '0',
+                                'Spiral Length Out': '0',
+                                'Radius': '0'
+                            }
+                            pi_index += 1
+                            
+                elif tag == 'Curve':
+                    # Process Curve element
+                    radius = element.get('radius', '0')
+                    alignment_geom[f'PI_{pi_index}'] = {
+                        'X': element.get('centerN', '0'),
+                        'Y': element.get('centerE', '0'),
                         'Curve Type': 'Curve',
                         'Spiral Length In': '0',
-                        'Radius': str(radius),
-                        'Spiral Length Out': '0'
+                        'Spiral Length Out': '0',
+                        'Radius': radius
                     }
-                    point_counter += 1
-                    previous_end_point = end_point
-            
-            i += 1
-    
-    return processed_points
-
-def create_triangulation(points):
-    """
-    This function is no longer used - only triangles from file are used
-    """
-    print("WARNING: Triangle data should be read from file, no automatic triangulation!")
-    return None
-
-def create_freecad_mesh(points, faces=None):
-    """
-    Creates FreeCAD mesh object from points and faces
-    ONLY uses triangle data from file
-    """
-    if points is None or len(points) == 0:
-        print("No point data found to create mesh")
-        return None
-    
-    if faces is None or len(faces) == 0:
-        print("ERROR: No face data found! LandXML file must have <Faces> element.")
-        print("No automatic triangulation performed, please use valid LandXML surface file.")
-        return None
-    
-    try:
-        # Convert to FreeCAD vector format
-        vertices = []
-        for point in points:
-            vertices.append(FreeCAD.Vector(float(point[0]), float(point[1]), float(point[2])))
-        
-        # Prepare faces
-        triangles = []
-        for face in faces:
-            if len(face) >= 3:
-                # Create triangle (if 4 points, split into two triangles)
-                if len(face) == 3:
-                    triangles.append(face[:3])
-                elif len(face) == 4:
-                    # Split quadrilateral into two triangles
-                    triangles.append([face[0], face[1], face[2]])
-                    triangles.append([face[0], face[2], face[3]])
-        
-        if len(triangles) == 0:
-            print("ERROR: No valid triangle data found!")
+                    pi_index += 1
+                    
+                elif tag == 'Spiral':
+                    # Process Spiral element
+                    length = element.get('length', '0')
+                    radius_start = element.get('radiusStart', 'INF')
+                    radius_end = element.get('radiusEnd', 'INF')
+                    
+                    alignment_geom[f'PI_{pi_index}'] = {
+                        'X': '0',  # Coordinates should be calculated from spiral
+                        'Y': '0',
+                        'Curve Type': 'Spiral-Curve-Spiral',
+                        'Spiral Length In': length,
+                        'Spiral Length Out': length,
+                        'Radius': radius_end if radius_end != 'INF' else radius_start
+                    }
+                    pi_index += 1
+                    
+        except Exception as e:
+            print(f"Alignment geometry parsing error: {e}")
             return None
-        
-        print(f"Creating mesh: {len(vertices)} points, {len(triangles)} triangles")
-        
-        # Create mesh object
-        mesh = Mesh.Mesh()
-        
-        # Add triangles
-        for tri in triangles:
-            if len(tri) == 3 and all(0 <= idx < len(vertices) for idx in tri):
-                v1 = vertices[tri[0]]
-                v2 = vertices[tri[1]]
-                v3 = vertices[tri[2]]
-                mesh.addFacet(v1, v2, v3)
-        
-        return mesh
-    
-    except Exception as e:
-        print(f"Mesh creation error: {e}")
-        return None
+            
+        return alignment_geom
 
-def landxml_to_freecad_mesh(landxml_file_path, mesh_name="LandXML_Surface"):
-    """
-    Main function: Converts LandXML file to FreeCAD mesh object
-    """
-    print(f"Processing LandXML file: {landxml_file_path}")
-    
-    # Read data from LandXML
-    points, faces = parse_landxml_surface(landxml_file_path)
-    
-    if points is None:
-        print("Could not read surface data from LandXML file")
-        return None
-    
-    # Create mesh
-    mesh = create_freecad_mesh(points, faces)
-    
-    if mesh is None:
-        print("Could not create mesh")
-        return None
-    
-    # Add mesh object to FreeCAD
-    try:
-        mesh_obj = FreeCAD.ActiveDocument.addObject("Mesh::Feature", mesh_name)
-        mesh_obj.Mesh = mesh
-        mesh_obj.Label = mesh_name
+    def process_selected_items(self, selected_items):
+        """
+        Processes selected items in bulk.
         
-        # Update view
-        if hasattr(FreeCAD, 'Gui'):
-            FreeCAD.Gui.SendMsgToActiveView("ViewFit")
+        Args:
+            selected_items (list): List of items to process
+            
+        Returns:
+            dict: Processing results
+        """
+        results = {
+            'surfaces_processed': 0,
+            'alignments_processed': 0,
+            'errors': []
+        }
         
-        print(f"Mesh object '{mesh_name}' created successfully")
-        print(f"Point count: {mesh.CountPoints}")
-        print(f"Face count: {mesh.CountFacets}")
-        
-        return mesh_obj
-    
-    except Exception as e:
-        print(f"Error adding mesh to FreeCAD: {e}")
-        return None
-
-def landxml_get_alignments(landxml_file_path):
-    """
-    Reads alignment data from LandXML file and returns in specified format
-    """
-    print(f"Reading LandXML alignment data: {landxml_file_path}")
-    
-    alignments = parse_landxml_alignment(landxml_file_path)
-    
-    if alignments:
-        print("Found Alignments:")
-        for name, data in alignments.items():
-            print(f"  {name}: {len(data)} points")
-        return alignments
-    else:
-        print("No alignment data found")
-        return None
-
-# Usage examples:
-def main():
-    """
-    Usage example - Both surface and alignment reading
-    """
-    # Enter your file path here
-    landxml_file = "/path/to/your/surface.xml"  # Enter your file path
-    
-    # Check if there's an active FreeCAD document
-    if FreeCAD.ActiveDocument is None:
-        FreeCAD.newDocument("LandXML_Import")
-    
-    print("=== SURFACE PROCESSING ===")
-    # Convert LandXML to mesh - ONLY with triangles from file
-    mesh_obj = landxml_to_freecad_mesh(landxml_file, "Imported_Surface")
-    
-    if mesh_obj:
-        print("Surface processing successful!")
-    else:
-        print("Surface processing failed!")
-    
-    print("\n=== ALIGNMENT PROCESSING ===")
-    # Read alignment data
-    alignments = landxml_get_alignments(landxml_file)
-    
-    if alignments:
-        print("Alignment data read successfully!")
-        print("\nAlignment format:")
-        for alignment_name, alignment_data in alignments.items():
-            print(f"\n{alignment_name}:")
-            for point_id, point_data in alignment_data.items():
-                print(f"  {point_id}: {point_data}")
-        
-        return mesh_obj, alignments
-    else:
-        print("No alignment data found!")
-        return mesh_obj, None
+        for item_data in selected_items:
+            try:
+                if item_data['type'] == 'surface':
+                    if self.process_surface(item_data):
+                        results['surfaces_processed'] += 1
+                        
+                elif item_data['type'] == 'alignment':
+                    if self.process_alignment(item_data):
+                        results['alignments_processed'] += 1
+                        
+            except Exception as e:
+                results['errors'].append(f"{item_data['name']}: {str(e)}")
+                
+        return results
