@@ -26,7 +26,7 @@ import FreeCAD
 import Part
 import Mesh
 from ..make import make_terrain, make_alignment
-from.alignment import get_geometry
+from .alignment import get_geometry
 
 import xml.etree.ElementTree as ET
 
@@ -41,6 +41,7 @@ class LandXMLParser:
         self.file_path = None
         self.surfaces = []
         self.alignments = []
+        self.cogo_points = []  # CogoPoints listesi eklendi
         self.units = None
         self.project_info = None
         self.application_info = None
@@ -64,6 +65,7 @@ class LandXMLParser:
             self._parse_metadata()
             self._parse_surfaces()
             self._parse_alignments()
+            self._parse_cogo_points()  # CogoPoints parsing eklendi
             
             return True
             
@@ -127,6 +129,95 @@ class LandXMLParser:
                 'type': 'alignment'
             }
             self.alignments.append(alignment_data)
+
+    def _parse_cogo_points(self):
+        """Parses CogoPoints from the XML file."""
+        if self.xml_data is None:
+            return
+            
+        self.cogo_points = []
+        
+        # CogoPoints genellikle CgPoints veya CgPoint etiketleri altında bulunur
+        for cg_points in self.xml_data.findall('.//{*}CgPoints'):
+            cogo_point_group = {
+                'element': cg_points,
+                'name': cg_points.get('name', 'CogoPoints Group'),
+                'attributes': cg_points.attrib,
+                'type': 'cogo_points_group',
+                'points': []
+            }
+            
+            # Grup içindeki her bir CogoPoint'i parse et
+            for cg_point in cg_points.findall('.//{*}CgPoint'):
+                point_data = {
+                    'element': cg_point,
+                    'name': cg_point.get('name', f"Point_{cg_point.get('pntRef', 'Unknown')}"),
+                    'point_id': cg_point.get('pntRef', 'Unknown'),
+                    'code': cg_point.get('code', ''),
+                    'desc': cg_point.get('desc', ''),
+                    'attributes': cg_point.attrib,
+                    'type': 'cogo_point'
+                }
+                
+                # Koordinat bilgilerini al
+                coords_text = cg_point.text
+                if coords_text and coords_text.strip():
+                    coords = coords_text.strip().split()
+                    if len(coords) >= 3:
+                        point_data['x'] = float(coords[1])  # Northing
+                        point_data['y'] = float(coords[0])  # Easting  
+                        point_data['z'] = float(coords[2])  # Elevation
+                    elif len(coords) == 2:
+                        point_data['x'] = float(coords[1])  # Northing
+                        point_data['y'] = float(coords[0])  # Easting
+                        point_data['z'] = 0.0  # Default elevation
+                        
+                cogo_point_group['points'].append(point_data)
+            
+            self.cogo_points.append(cogo_point_group)
+        
+        # Tek tek CogoPoint'leri de kontrol et (gruplanmamış olanlar)
+        for cg_point in self.xml_data.findall('.//{*}CgPoint'):
+            # Bu point'in zaten bir grup içinde olup olmadığını kontrol et
+            already_grouped = False
+            for group in self.cogo_points:
+                if any(p['element'] == cg_point for p in group['points']):
+                    already_grouped = True
+                    break
+            
+            if not already_grouped:
+                point_data = {
+                    'element': cg_point,
+                    'name': cg_point.get('name', f"Point_{cg_point.get('pntRef', 'Unknown')}"),
+                    'point_id': cg_point.get('pntRef', 'Unknown'),
+                    'code': cg_point.get('code', ''),
+                    'desc': cg_point.get('desc', ''),
+                    'attributes': cg_point.attrib,
+                    'type': 'cogo_point'
+                }
+                
+                # Koordinat bilgilerini al
+                coords_text = cg_point.text
+                if coords_text and coords_text.strip():
+                    coords = coords_text.strip().split()
+                    if len(coords) >= 3:
+                        point_data['x'] = float(coords[1])  # Northing
+                        point_data['y'] = float(coords[0])  # Easting
+                        point_data['z'] = float(coords[2])  # Elevation
+                    elif len(coords) == 2:
+                        point_data['x'] = float(coords[1])  # Northing
+                        point_data['y'] = float(coords[0])  # Easting
+                        point_data['z'] = 0.0  # Default elevation
+                
+                # Tek başına point için bir grup oluştur
+                single_point_group = {
+                    'element': None,
+                    'name': 'Individual CogoPoints',
+                    'attributes': {},
+                    'type': 'cogo_points_group',
+                    'points': [point_data]
+                }
+                self.cogo_points.append(single_point_group)
             
     def get_tree_data(self):
         """
@@ -142,7 +233,8 @@ class LandXMLParser:
                 'application': self.application_info
             },
             'surfaces': self.surfaces,
-            'alignments': self.alignments
+            'alignments': self.alignments,
+            'cogo_points': self.cogo_points  # CogoPoints eklendi
         }
         return tree_data
         
@@ -222,6 +314,54 @@ class LandXMLParser:
                     
         except Exception as e:
             print(f"Alignment processing error: {e}")
+            
+        return False
+
+    def process_cogo_points(self, cogo_points_data):
+        """
+        Converts selected CogoPoints to FreeCAD objects.
+        
+        Args:
+            cogo_points_data (dict): Parsed CogoPoints data
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try:
+            points_created = 0
+            
+            for point_data in cogo_points_data['points']:
+                if 'x' in point_data and 'y' in point_data and 'z' in point_data:
+                    # FreeCAD'de point oluştur (mm cinsinden)
+                    x = point_data['x'] * 1000  # Convert to mm
+                    y = point_data['y'] * 1000  # Convert to mm  
+                    z = point_data['z'] * 1000  # Convert to mm
+                    
+                    # Point objesi oluştur
+                    point_obj = FreeCAD.ActiveDocument.addObject("Part::Vertex", f"CogoPoint_{point_data['point_id']}")
+                    point_obj.X = x
+                    point_obj.Y = y
+                    point_obj.Z = z
+                    
+                    # Ek özellikler ekle
+                    point_obj.Label = point_data['name']
+                    if hasattr(point_obj, 'addProperty'):
+                        point_obj.addProperty("App::PropertyString", "PointID", "CogoPoint", "Point ID")
+                        point_obj.addProperty("App::PropertyString", "Code", "CogoPoint", "Point Code")
+                        point_obj.addProperty("App::PropertyString", "Description", "CogoPoint", "Point Description")
+                        
+                        point_obj.PointID = point_data['point_id']
+                        point_obj.Code = point_data.get('code', '')
+                        point_obj.Description = point_data.get('desc', '')
+                    
+                    points_created += 1
+            
+            if points_created > 0:
+                FreeCAD.ActiveDocument.recompute()
+                return True
+                
+        except Exception as e:
+            print(f"CogoPoints processing error: {e}")
             
         return False
         
@@ -313,6 +453,7 @@ class LandXMLParser:
         results = {
             'surfaces_processed': 0,
             'alignments_processed': 0,
+            'cogo_points_processed': 0,  # CogoPoints sayacı eklendi
             'errors': []
         }
         
@@ -325,6 +466,10 @@ class LandXMLParser:
                 elif item_data['type'] == 'alignment':
                     if self.process_alignment(item_data):
                         results['alignments_processed'] += 1
+                        
+                elif item_data['type'] == 'cogo_points_group':  # CogoPoints grubu işleme
+                    if self.process_cogo_points(item_data):
+                        results['cogo_points_processed'] += len(item_data['points'])
                         
             except Exception as e:
                 results['errors'].append(f"{item_data['name']}: {str(e)}")
