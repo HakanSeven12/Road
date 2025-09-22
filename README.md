@@ -13,11 +13,11 @@ Road is the Transportation and Geomatics Engineering workbench for FreeCAD.
 * Structure ✔️
 * Superelevation ❌
 * Road 🔄
-* Regions ❌
+* Regions ✔️
 * Sections ❌
 * Volume ❌
 * GeoLine ❌
-* LandXML ❌
+* LandXML 🔄
 
 ## 📥 Installation
 ### 🔹 Option 1: Install via Addon Manager (Recommended)
