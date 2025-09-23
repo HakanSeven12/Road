@@ -131,14 +131,45 @@ class LandXMLParser:
             self.alignments.append(alignment_data)
 
     def _parse_cogo_points(self):
-        """Parses CogoPoints from the XML file."""
+        """Parses CogoPoints and CgPoints clusters from the XML file."""
         if self.xml_data is None:
             return
-            
+
         self.cogo_points = []
-        individual_points = []
-        
-        # Parse CgPoints groups
+        points_dict = {}
+
+        # 1. Collect all defined CgPoints with coordinates
+        for cg_point in self.xml_data.findall('.//{*}CgPoint'):
+            if cg_point.text and cg_point.text.strip():
+                coords = cg_point.text.strip().split()
+                point_id = cg_point.get('name') or cg_point.get('id') or cg_point.get('pntRef')
+                if not point_id:
+                    continue
+
+                point_data = {
+                    'element': cg_point,
+                    'name': cg_point.get('name', f"Point_{point_id}"),
+                    'point_id': point_id,
+                    'code': cg_point.get('code', ''),
+                    'desc': cg_point.get('desc', ''),
+                    'attributes': cg_point.attrib,
+                    'type': 'cogo_point'
+                }
+
+                # Extract coordinate values (Easting, Northing, Elevation)
+                if len(coords) >= 3:
+                    point_data['x'] = float(coords[1])  # Northing
+                    point_data['y'] = float(coords[0])  # Easting
+                    point_data['z'] = float(coords[2])  # Elevation
+                elif len(coords) == 2:
+                    point_data['x'] = float(coords[1])
+                    point_data['y'] = float(coords[0])
+                    point_data['z'] = 0.0  # Default elevation if missing
+
+                # Store in dictionary for later reference
+                points_dict[point_id] = point_data
+
+        # 2. Parse CgPoints clusters with point references
         for cg_points in self.xml_data.findall('.//{*}CgPoints'):
             cogo_point_group = {
                 'element': cg_points,
@@ -147,108 +178,29 @@ class LandXMLParser:
                 'type': 'cogo_points_group',
                 'points': []
             }
-            
-            # Parse each CogoPoint within the group
+
+            # Add referenced points to the group
             for cg_point in cg_points.findall('.//{*}CgPoint'):
-                point_data = {
-                    'element': cg_point,
-                    'name': cg_point.get('name', f"Point_{cg_point.get('pntRef', 'Unknown')}"),
-                    'point_id': cg_point.get('pntRef', 'Unknown'),
-                    'code': cg_point.get('code', ''),
-                    'desc': cg_point.get('desc', ''),
-                    'attributes': cg_point.attrib,
-                    'type': 'cogo_point'
-                }
-                
-                # Get coordinate information
-                coords_text = cg_point.text
-                if coords_text and coords_text.strip():
-                    coords = coords_text.strip().split()
-                    if len(coords) >= 3:
-                        point_data['x'] = float(coords[1])  # Northing
-                        point_data['y'] = float(coords[0])  # Easting  
-                        point_data['z'] = float(coords[2])  # Elevation
-                    elif len(coords) == 2:
-                        point_data['x'] = float(coords[1])  # Northing
-                        point_data['y'] = float(coords[0])  # Easting
-                        point_data['z'] = 0.0  # Default elevation
-                        
-                cogo_point_group['points'].append(point_data)
-            
-            if len(cogo_point_group['points']) > 0:
+                ref_id = cg_point.get('pntRef')
+                if ref_id and ref_id in points_dict:
+                    cogo_point_group['points'].append(points_dict[ref_id])
+
+            if cogo_point_group['points']:
                 self.cogo_points.append(cogo_point_group)
-        
-        # Check for individual CogoPoints (not grouped)
-        for cg_point in self.xml_data.findall('.//{*}CgPoint'):
-            # Check if this point is already in a group
-            already_grouped = False
-            for group in self.cogo_points:
-                if any(p['element'] == cg_point for p in group['points']):
-                    already_grouped = True
-                    break
-            
-            if not already_grouped:
-                point_data = {
-                    'element': cg_point,
-                    'name': cg_point.get('name', f"Point_{cg_point.get('pntRef', 'Unknown')}"),
-                    'point_id': cg_point.get('pntRef', 'Unknown'),
-                    'code': cg_point.get('code', ''),
-                    'desc': cg_point.get('desc', ''),
-                    'attributes': cg_point.attrib,
-                    'type': 'cogo_point'
-                }
-                
-                # Get coordinate information
-                coords_text = cg_point.text
-                if coords_text and coords_text.strip():
-                    coords = coords_text.strip().split()
-                    if len(coords) >= 3:
-                        point_data['x'] = float(coords[1])  # Northing
-                        point_data['y'] = float(coords[0])  # Easting
-                        point_data['z'] = float(coords[2])  # Elevation
-                    elif len(coords) == 2:
-                        point_data['x'] = float(coords[1])  # Northing
-                        point_data['y'] = float(coords[0])  # Easting
-                        point_data['z'] = 0.0  # Default elevation
-                
-                individual_points.append(point_data)
-        
-        # Create groups for individual points based on their code if available
-        if individual_points:
-            # Group individual points by code
-            code_groups = {}
-            no_code_points = []
-            
-            for point in individual_points:
-                code = point.get('code', '').strip()
-                if code:
-                    if code not in code_groups:
-                        code_groups[code] = []
-                    code_groups[code].append(point)
-                else:
-                    no_code_points.append(point)
-            
-            # Create clusters for each code group
-            for code, points in code_groups.items():
-                code_group = {
-                    'element': None,
-                    'name': f"Points with Code: {code}",
-                    'attributes': {},
-                    'type': 'cogo_points_group',
-                    'points': points
-                }
-                self.cogo_points.append(code_group)
-            
-            # Create cluster for points without code
-            if no_code_points:
-                no_code_group = {
-                    'element': None,
-                    'name': 'Individual CogoPoints (No Code)',
-                    'attributes': {},
-                    'type': 'cogo_points_group',
-                    'points': no_code_points
-                }
-                self.cogo_points.append(no_code_group)
+
+        # 3. Handle ungrouped points (not referenced in any cluster)
+        grouped_ids = {p['point_id'] for g in self.cogo_points for p in g['points']}
+        leftover_points = [p for pid, p in points_dict.items() if pid not in grouped_ids]
+
+        if leftover_points:
+            no_group = {
+                'element': None,
+                'name': 'Ungrouped CogoPoints',
+                'attributes': {},
+                'type': 'cogo_points_group',
+                'points': leftover_points
+            }
+            self.cogo_points.append(no_group)
 
     def get_tree_data(self):
         """
