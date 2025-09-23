@@ -396,8 +396,8 @@ class ViewProviderGeoPoint:
             obj = vobj.Object
 
             label_set = [
-                round(obj.getPropertyByName(prop).Value / 1000, 3) 
-                if hasattr(obj.getPropertyByName(prop), "Value")
+                round(obj.getPropertyByName(prop), 3) 
+                if isinstance(obj.getPropertyByName(prop), float)
                 else obj.getPropertyByName(prop) for prop in show]
 
             self.text.string.setValues(label_set)
