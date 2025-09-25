@@ -33,8 +33,8 @@ import Part
 # Clothoid Spiral class
 class ClothoidSpiral:
     def __init__(self, length, radius, direction, delta, num_points=100):
-        self.length = length
-        self.radius = radius
+        self.length = length if length > 0 else 0.01
+        self.radius = radius if radius > 0 else 0.01
         self.direction = direction
         self.delta = delta
         self.num_points = num_points

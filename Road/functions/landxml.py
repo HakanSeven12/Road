@@ -285,15 +285,12 @@ class LandXMLParser:
         try:
             alignment = alignment_data['element']
             parsed_alignment = self._parse_alignment_geometry(alignment)
+            print(parsed_alignment)
             
             if parsed_alignment:
-                # Create geometry (you should adapt this function from original code)
-                points, wire = get_geometry(parsed_alignment)
-                if wire:
-                    # Create alignment object
-                    alignment_obj = make_alignment.create(label=alignment_data['name'])
-                    Part.show(wire)
-                    return True
+                alignment_obj = make_alignment.create(label=alignment_data['name'])
+                alignment_obj.Model = parsed_alignment
+                return True
                     
         except Exception as e:
             print(f"Alignment processing error: {e}")
@@ -368,82 +365,336 @@ class LandXMLParser:
             print(f"CogoPoints processing error: {e}")
             
         return False
-
     def _parse_alignment_geometry(self, alignment):
         """
-        Parses alignment geometry.
+        Parses alignment geometry from LandXML format by grouping consecutive elements
+        and finding PI points for each transition group.
         
         Args:
             alignment: XML alignment element
             
         Returns:
-            dict: Parsed alignment geometry
+            dict: Parsed alignment geometry in the format expected by get_geometry()
         """
-        alignment_geom = {}
-        
         try:
-            # Find geometry elements in CoordGeom
             coord_geom = alignment.find('.//{*}CoordGeom')
             if coord_geom is None:
+                print("No CoordGeom found in alignment")
                 return None
                 
-            pi_index = 0
-            for element in coord_geom:
-                tag = element.tag.split('}')[-1]
+            # Get all geometry elements in order
+            geom_elements = []
+            for child in coord_geom:
+                if child.tag.split('}')[-1] in ['Line', 'Curve', 'Spiral']:
+                    geom_elements.append({
+                        'type': child.tag.split('}')[-1],
+                        'element': child
+                    })
+            
+            if not geom_elements:
+                print("No geometry elements found")
+                return None
                 
-                if tag == 'Line':
-                    # Get start and end points from Line element
-                    start = element.find('.//{*}Start')
-                    end = element.find('.//{*}End')
+            # Dictionary to store PI points
+            pi_data = {}
+            pi_index = 0
+            
+            # Add starting point as first PI
+            first_elem = geom_elements[0]['element']
+            start_coords = self._extract_coordinates(first_elem, 'Start')
+            if start_coords:
+                pi_data[f'PI{pi_index}'] = {
+                    'X': start_coords[0],
+                    'Y': start_coords[1],
+                    'Spiral Length In': 0.0,
+                    'Spiral Length Out': 0.0,
+                    'Radius': 0.0,
+                    'Curve Type': 'None'
+                }
+                pi_index += 1
+            
+            # Process elements by grouping them into transition sequences
+            i = 0
+            while i < len(geom_elements):
+                current_group = []
+                
+                # Identify the current transition group
+                if geom_elements[i]['type'] == 'Line':
+                    # Line segments don't create PI points, just continue
+                    i += 1
+                    continue
                     
-                    if start is not None:
-                        coords = start.text.strip().split()
-                        if len(coords) >= 2:
-                            alignment_geom[f'PI_{pi_index}'] = {
-                                'X': coords[1],  # Northing
-                                'Y': coords[0],  # Easting
-                                'Curve Type': 'None',
-                                'Spiral Length In': '0',
-                                'Spiral Length Out': '0',
-                                'Radius': '0'
-                            }
-                            pi_index += 1
-                            
-                elif tag == 'Curve':
-                    # Process Curve element
-                    radius = element.get('radius', '0')
-                    alignment_geom[f'PI_{pi_index}'] = {
-                        'X': element.get('centerN', '0'),
-                        'Y': element.get('centerE', '0'),
-                        'Curve Type': 'Curve',
-                        'Spiral Length In': '0',
-                        'Spiral Length Out': '0',
-                        'Radius': radius
-                    }
+                elif geom_elements[i]['type'] == 'Spiral':
+                    # Check if it's part of Spiral-Curve-Spiral sequence
+                    if (i + 2 < len(geom_elements) and 
+                        geom_elements[i + 1]['type'] == 'Curve' and 
+                        geom_elements[i + 2]['type'] == 'Spiral'):
+                        
+                        # Spiral-Curve-Spiral group
+                        current_group = [geom_elements[i], geom_elements[i + 1], geom_elements[i + 2]]
+                        pi_point = self._process_spiral_curve_spiral_group(current_group)
+                        i += 3
+                        
+                    else:
+                        # Single spiral (rare case)
+                        current_group = [geom_elements[i]]
+                        pi_point = self._process_single_spiral_group(current_group)
+                        i += 1
+                        
+                elif geom_elements[i]['type'] == 'Curve':
+                    # Simple curve
+                    current_group = [geom_elements[i]]
+                    pi_point = self._process_curve_group(current_group)
+                    i += 1
+                
+                # Add the calculated PI point
+                if 'pi_point' in locals() and pi_point:
+                    pi_data[f'PI{pi_index}'] = pi_point
                     pi_index += 1
-                    
-                elif tag == 'Spiral':
-                    # Process Spiral element
-                    length = element.get('length', '0')
-                    radius_start = element.get('radiusStart', 'INF')
-                    radius_end = element.get('radiusEnd', 'INF')
-                    
-                    alignment_geom[f'PI_{pi_index}'] = {
-                        'X': '0',  # Coordinates should be calculated from spiral
-                        'Y': '0',
-                        'Curve Type': 'Spiral-Curve-Spiral',
-                        'Spiral Length In': length,
-                        'Spiral Length Out': length,
-                        'Radius': radius_end if radius_end != 'INF' else radius_start
-                    }
-                    pi_index += 1
+                    del pi_point
+            
+            # Add ending point as final PI
+            last_elem = geom_elements[-1]['element']
+            end_coords = self._extract_coordinates(last_elem, 'End')
+            if end_coords:
+                pi_data[f'PI{pi_index}'] = {
+                    'X': end_coords[0],
+                    'Y': end_coords[1],
+                    'Spiral Length In': 0.0,
+                    'Spiral Length Out': 0.0,
+                    'Radius': 0.0,
+                    'Curve Type': 'None'
+                }
+            
+            return pi_data if pi_data else None
+            
+        except Exception as e:
+            print(f"Error parsing alignment geometry: {e}")
+            return None
+
+    def _process_spiral_curve_spiral_group(self, group):
+        """
+        Process Spiral-Curve-Spiral group and calculate PI point.
+        
+        Args:
+            group: List of [spiral_in, curve, spiral_out] elements
+            
+        Returns:
+            dict: PI point data
+        """
+        try:
+            spiral_in_elem = group[0]['element']
+            curve_elem = group[1]['element']
+            spiral_out_elem = group[2]['element']
+            
+            # Get curve PI coordinates (this is our main PI point)
+            pi_coords = self._extract_coordinates(curve_elem, 'PI')
+            if not pi_coords:
+                # If no PI in curve, try to calculate from curve center and geometry
+                center_coords = self._extract_coordinates(curve_elem, 'Center')
+                start_coords = self._extract_coordinates(curve_elem, 'Start')
+                end_coords = self._extract_coordinates(curve_elem, 'End')
+                
+                if center_coords and start_coords and end_coords:
+                    # Calculate PI from curve geometry
+                    pi_coords = self._calculate_curve_pi(center_coords, start_coords, end_coords)
+            
+            if not pi_coords:
+                print("Could not determine PI coordinates for spiral-curve-spiral group")
+                return None
+            
+            # Get parameters
+            spiral_in_length = float(spiral_in_elem.get('length', 0.0))
+            spiral_out_length = float(spiral_out_elem.get('length', 0.0))
+            radius = float(curve_elem.get('radius', 0.0))
+
+            return {
+                'X': pi_coords[0],
+                'Y': pi_coords[1],
+                'Spiral Length In': spiral_in_length,
+                'Spiral Length Out': spiral_out_length,
+                'Radius': radius,
+                'Curve Type': 'Spiral-Curve-Spiral'
+            }
+            
+        except Exception as e:
+            print(f"Error processing spiral-curve-spiral group: {e}")
+            return None
+
+    def _process_curve_group(self, group):
+        """
+        Process simple Curve group and calculate PI point.
+        
+        Args:
+            group: List with single curve element
+            
+        Returns:
+            dict: PI point data
+        """
+        try:
+            curve_elem = group[0]['element']
+            
+            # Get PI coordinates
+            pi_coords = self._extract_coordinates(curve_elem, 'PI')
+            if not pi_coords:
+                # If no PI in curve, try to calculate from curve center and geometry
+                center_coords = self._extract_coordinates(curve_elem, 'Center')
+                start_coords = self._extract_coordinates(curve_elem, 'Start')
+                end_coords = self._extract_coordinates(curve_elem, 'End')
+                
+                if center_coords and start_coords and end_coords:
+                    pi_coords = self._calculate_curve_pi(center_coords, start_coords, end_coords)
+            
+            if not pi_coords:
+                print("Could not determine PI coordinates for curve group")
+                return None
+            
+            radius = float(curve_elem.get('radius', 0.0))
+            
+            return {
+                'X': pi_coords[0],
+                'Y': pi_coords[1],
+                'Spiral Length In': 0.0,
+                'Spiral Length Out': 0.0,
+                'Radius': radius,
+                'Curve Type': 'Curve'
+            }
+            
+        except Exception as e:
+            print(f"Error processing curve group: {e}")
+            return None
+
+    def _process_single_spiral_group(self, group):
+        """
+        Process single Spiral group.
+        
+        Args:
+            group: List with single spiral element
+            
+        Returns:
+            dict: PI point data
+        """
+        try:
+            spiral_elem = group[0]['element']
+            
+            # Get PI coordinates
+            pi_coords = self._extract_coordinates(spiral_elem, 'PI')
+            if not pi_coords:
+                # For spirals without PI, use end point
+                pi_coords = self._extract_coordinates(spiral_elem, 'End')
+            
+            if not pi_coords:
+                print("Could not determine PI coordinates for spiral group")
+                return None
+            
+            spiral_length = float(spiral_elem.get('length', 0.0))
+            radius_end = spiral_elem.get('radiusEnd', 'INF')
+            radius_start = spiral_elem.get('radiusStart', 'INF')
+            
+            # Determine spiral type and parameters
+            if radius_start == 'INF' and radius_end != 'INF':
+                # Spiral in
+                spiral_in_length = spiral_length
+                spiral_out_length = 0.0
+                radius = float(radius_end)
+            elif radius_start != 'INF' and radius_end == 'INF':
+                # Spiral out
+                spiral_in_length = 0.0
+                spiral_out_length = spiral_length
+                radius = float(radius_start)
+            else:
+                spiral_in_length = spiral_length
+                spiral_out_length = 0.0
+                radius = 0.0
+            
+            return {
+                'X': pi_coords[0],
+                'Y': pi_coords[1],
+                'Spiral Length In': spiral_in_length,
+                'Spiral Length Out': spiral_out_length,
+                'Radius': radius,
+                'Curve Type': 'Spiral-Curve-Spiral' if radius > 0 else 'None'
+            }
+            
+        except Exception as e:
+            print(f"Error processing single spiral group: {e}")
+            return None
+
+    def _calculate_curve_pi(self, center_coords, start_coords, end_coords):
+        """
+        Calculate PI point from curve center and start/end points.
+        
+        Args:
+            center_coords: (x, y) of curve center
+            start_coords: (x, y) of curve start
+            end_coords: (x, y) of curve end
+            
+        Returns:
+            tuple: (x, y) coordinates of PI point
+        """
+        try:
+            import math
+            
+            # Calculate tangent lines from start and end points
+            # Vector from center to start
+            start_vec = (start_coords[0] - center_coords[0], start_coords[1] - center_coords[1])
+            # Vector from center to end  
+            end_vec = (end_coords[0] - center_coords[0], end_coords[1] - center_coords[1])
+            
+            # Tangent vectors (perpendicular to radial vectors)
+            start_tangent = (-start_vec[1], start_vec[0])
+            end_tangent = (-end_vec[1], end_vec[0])
+            
+            # Calculate intersection of tangent lines (this is the PI point)
+            # Line 1: start_coords + t * start_tangent
+            # Line 2: end_coords + s * end_tangent
+            # Solve for intersection
+            
+            det = start_tangent[0] * end_tangent[1] - start_tangent[1] * end_tangent[0]
+            if abs(det) < 1e-10:
+                return None  # Lines are parallel
+            
+            dx = end_coords[0] - start_coords[0]
+            dy = end_coords[1] - start_coords[1]
+            
+            t = (dx * end_tangent[1] - dy * end_tangent[0]) / det
+            
+            pi_x = start_coords[0] + t * start_tangent[0]
+            pi_y = start_coords[1] + t * start_tangent[1]
+            
+            return (pi_x, pi_y)
+            
+        except Exception as e:
+            print(f"Error calculating PI from curve geometry: {e}")
+            return None
+
+    def _extract_coordinates(self, element, coord_type):
+        """
+        Extracts coordinates from geometry element.
+        
+        Args:
+            element: XML geometry element
+            coord_type: Type of coordinates ('Start', 'End', 'PI', 'Center')
+            
+        Returns:
+            tuple: (x, y) coordinates or None if not found
+        """
+        try:
+            coord_elem = element.find(f'.//{coord_type}')
+            if coord_elem is None:
+                # Try with wildcard namespace
+                coord_elem = element.find(f'.//{{{element.nsmap[None] if hasattr(element, "nsmap") and element.nsmap else "*"}}}{coord_type}')
+                
+            if coord_elem is not None and coord_elem.text:
+                coords = coord_elem.text.strip().split()
+                if len(coords) >= 2:
+                    return (float(coords[0]), float(coords[1]))
                     
         except Exception as e:
-            print(f"Alignment geometry parsing error: {e}")
-            return None
+            print(f"Error extracting {coord_type} coordinates: {e}")
             
-        return alignment_geom
-    
+        return None
+
     def process_selected_items(self, selected_items):
         """
         Processes selected items in bulk.
