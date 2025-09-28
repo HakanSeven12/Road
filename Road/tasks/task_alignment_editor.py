@@ -53,9 +53,8 @@ class PiTreeViewWidget(QWidget):
         self.pi_data = {}
         self.alignment = alignment
 
-        if hasattr(alignment, 'Model'):
-            if alignment.Model:
-                self.pi_data = alignment.Model
+        # Load data from alignment if available
+        self._load_alignment_data()
 
         # Main layout
         main_layout = QVBoxLayout()
@@ -103,6 +102,40 @@ class PiTreeViewWidget(QWidget):
         # Load data (from pi_data)
         self.load_data()
 
+    def _load_alignment_data(self):
+        """Load alignment data and convert to expected format."""
+        if not self.alignment or not hasattr(self.alignment, 'Model'):
+            print("No alignment or Model attribute found")
+            return
+
+        model_data = self.alignment.Model
+        print(f"Debug: Raw alignment model data: {model_data}")
+
+        if not model_data:
+            print("No model data found")
+            return
+
+        # Convert the model data to the expected format
+        self.pi_data = {}
+
+        # Handle different data formats
+        if isinstance(model_data, dict):
+            for key, value in model_data.items():
+                if isinstance(value, dict):
+                    # LandXML format: PI0, PI1, etc. with nested dictionaries
+                    pi_data_entry = {
+                        'X': str(float(value.get('X', 0))),
+                        'Y': str(float(value.get('Y', 0))),
+                        'Curve Type': value.get('Curve Type', 'None'),
+                        'Spiral Length In': str(float(value.get('Spiral Length In', 0))),
+                        'Spiral Length Out': str(float(value.get('Spiral Length Out', 0))),
+                        'Radius': str(float(value.get('Radius', 0))) if float(value.get('Radius', 0)) > 0 else ''
+                    }
+                    self.pi_data[key] = pi_data_entry
+                    print(f"Debug: Converted {key}: {pi_data_entry}")
+
+        print(f"Debug: Final pi_data: {self.pi_data}")
+
     def load_csv(self):
         """Load data from a CSV file and populate the tree."""
         csv_file_path, _ = QFileDialog.getOpenFileName(self, "Open CSV File", "", "CSV Files (*.csv)")
@@ -114,6 +147,9 @@ class PiTreeViewWidget(QWidget):
             
             # Clear the tree before loading new data
             self.root_node.removeRows(0, self.root_node.rowCount())
+            
+            # Clear pi_data as well
+            self.pi_data.clear()
 
             for row_data in csv_reader:
                 self.add_item(row_data)
@@ -125,7 +161,7 @@ class PiTreeViewWidget(QWidget):
         pi_item.setEditable(False)
         self.root_node.appendRow(pi_item)
 
-        pi_name = row_data[0] if row_data else str(pi_item.index().row() + 1)
+        pi_name = row_data[0] if row_data else f"PI{pi_item.index().row()}"
         x = row_data[1] if row_data else ""
         y = row_data[2] if row_data else ""
         curve_type = row_data[3] if row_data and len(row_data) > 3 else "None"
@@ -140,17 +176,21 @@ class PiTreeViewWidget(QWidget):
         # Add additional attributes based on Curve Type
         self._update_curve_type(pi_item, curve_type, row_data)
 
+        # Expand the newly added item
+        index = self.model.indexFromItem(pi_item)
+        self.tree_view.expand(index)
+
     def _add_attribute_item(self, parent_item, attribute_name, value):
         """Helper method to add an attribute and its value to the tree under the given parent."""
         attribute_item = QStandardItem(attribute_name)
-        value_item = QStandardItem(value)
+        value_item = QStandardItem(str(value) if value is not None else "")
         value_item.setEditable(True)  # Allow editing the value
         parent_item.appendRow([attribute_item, value_item])
 
     def _add_curve_type_item(self, parent_item, attribute_name, value):
         """Helper method to add a Curve Type attribute with a ComboBox to the tree."""
         attribute_item = QStandardItem(attribute_name)
-        value_item = QStandardItem(value)
+        value_item = QStandardItem(str(value) if value is not None else "None")
         parent_item.appendRow([attribute_item, value_item])
         self.curve_type[id(parent_item)] = value
 
@@ -163,13 +203,19 @@ class PiTreeViewWidget(QWidget):
 
     def _handle_curve_type_change(self, parent_item):
         """Dynamically update the tree based on Curve Type selection."""
+        if parent_item.rowCount() < 3:
+            return  # Not enough rows
+            
         curve_type_item = parent_item.child(2, 1)  # Assuming Curve Type is the third attribute
+        if not curve_type_item:
+            return
+            
         curve_type = curve_type_item.text()
 
-        if self.curve_type[id(parent_item)] != curve_type:
+        if self.curve_type.get(id(parent_item)) != curve_type:
             self.curve_type[id(parent_item)] = curve_type
 
-            # Clear existing sub-items for Curve Type
+            # Clear existing sub-items for Curve Type (keep only X, Y, Curve Type)
             while parent_item.rowCount() > 3:
                 parent_item.removeRow(3)
 
@@ -200,7 +246,7 @@ class PiTreeViewWidget(QWidget):
                 self.root_node.removeRow(item.row())
 
     def save_data(self):
-        """Save entered data to the pi_data dictionary."""
+        """Save entered data to the pi_data dictionary and update alignment."""
         self.pi_data.clear()
 
         for row in range(self.root_node.rowCount()):
@@ -211,17 +257,42 @@ class PiTreeViewWidget(QWidget):
             for i in range(item.rowCount()):
                 attribute_item = item.child(i, 0)
                 value_item = item.child(i, 1)
-                data[attribute_item.text()] = value_item.text()
+                if attribute_item and value_item:
+                    data[attribute_item.text()] = value_item.text()
 
             self.pi_data[pi_name] = data
 
+        alignment_data = {}
+        for pi_name, data in self.pi_data.items():
+            alignment_entry = {
+                'X': float(data.get('X', 0)),
+                'Y': float(data.get('Y', 0)),
+                'Curve Type': data.get('Curve Type', 'None'),
+                'Spiral Length In': float(data.get('Spiral Length In', 0)),
+                'Spiral Length Out': float(data.get('Spiral Length Out', 0)),
+                'Radius': float(data.get('Radius', 0)) if data.get('Radius', '') else 0
+            }
+            alignment_data[pi_name] = alignment_entry
+
+        # Update alignment model
         if self.alignment:
-            self.alignment.Model = self.pi_data
+            self.alignment.Model = alignment_data
 
     def load_data(self):
         """Load data from the pi_data dictionary into the tree."""
-        for pi_name, data in self.pi_data.items():
-            self.add_item([
+        print(f"Debug: Loading data: {self.pi_data}")
+        
+        # Clear existing tree data
+        self.root_node.removeRows(0, self.root_node.rowCount())
+        
+        # Sort PI names properly (PI0, PI1, PI2, ...)
+        sorted_pi_names = sorted(self.pi_data.keys(), key=lambda x: int(x[2:]) if x.startswith('PI') and x[2:].isdigit() else float('inf'))
+        
+        for pi_name in sorted_pi_names:
+            data = self.pi_data[pi_name]
+            
+            # Create row data for add_item method
+            row_data = [
                 pi_name,
                 data.get("X", ""),
                 data.get("Y", ""),
@@ -229,7 +300,13 @@ class PiTreeViewWidget(QWidget):
                 data.get("Spiral Length In", ""),
                 data.get("Radius", ""),
                 data.get("Spiral Length Out", "")
-            ])
+            ]
+            
+            print(f"Debug: Adding PI {pi_name} with data: {row_data}")
+            self.add_item(row_data)
+
+        # Expand all items by default
+        self.tree_view.expandAll()
 
 def run(alignment=None):
     import FreeCADGui
