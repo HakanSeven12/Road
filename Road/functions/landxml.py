@@ -404,8 +404,8 @@ class LandXMLParser:
             start_coords = self._extract_coordinates(first_elem, 'Start')
             if start_coords:
                 pi_data[f'PI{pi_index}'] = {
-                    'X': start_coords[0],
-                    'Y': start_coords[1],
+                    'X': start_coords[1],
+                    'Y': start_coords[0],
                     'Spiral Length In': 0.0,
                     'Spiral Length Out': 0.0,
                     'Radius': 0.0,
@@ -458,8 +458,8 @@ class LandXMLParser:
             end_coords = self._extract_coordinates(last_elem, 'End')
             if end_coords:
                 pi_data[f'PI{pi_index}'] = {
-                    'X': end_coords[0],
-                    'Y': end_coords[1],
+                    'X': end_coords[1],
+                    'Y': end_coords[0],
                     'Spiral Length In': 0.0,
                     'Spiral Length Out': 0.0,
                     'Radius': 0.0,
@@ -509,8 +509,8 @@ class LandXMLParser:
             radius = float(curve_elem.get('radius', 0.0))
 
             return {
-                'X': pi_coords[0],
-                'Y': pi_coords[1],
+                'X': pi_coords[1],
+                'Y': pi_coords[0],
                 'Spiral Length In': spiral_in_length,
                 'Spiral Length Out': spiral_out_length,
                 'Radius': radius,
@@ -552,8 +552,8 @@ class LandXMLParser:
             radius = float(curve_elem.get('radius', 0.0))
             
             return {
-                'X': pi_coords[0],
-                'Y': pi_coords[1],
+                'X': pi_coords[1],
+                'Y': pi_coords[0],
                 'Spiral Length In': 0.0,
                 'Spiral Length Out': 0.0,
                 'Radius': radius,
@@ -608,8 +608,8 @@ class LandXMLParser:
                 radius = 0.0
             
             return {
-                'X': pi_coords[0],
-                'Y': pi_coords[1],
+                'X': pi_coords[1],
+                'Y': pi_coords[0],
                 'Spiral Length In': spiral_in_length,
                 'Spiral Length Out': spiral_out_length,
                 'Radius': radius,
