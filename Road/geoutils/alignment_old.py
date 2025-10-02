@@ -27,9 +27,9 @@ import Part
 
 import math
 
-from ..geoutils.tangent import makeTangent
-from ..geoutils.curve import makeCurve
-from ..geoutils.spiral import makeSpiral
+from .tangent import makeTangent
+from .curve import makeCurve
+from .spiral import makeSpiral
 
 import math
 import FreeCAD

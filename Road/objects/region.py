@@ -26,7 +26,7 @@ import FreeCAD
 import Part
 
 from ..functions.region import get_lines
-from ..functions.alignment import transformation
+from ..geoutils.alignment_old import transformation
 
 
 class Region:

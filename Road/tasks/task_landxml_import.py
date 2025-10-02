@@ -24,8 +24,11 @@
 
 import FreeCAD, FreeCADGui
 
+import Mesh
+
 from .task_panel import TaskPanel
-from ..functions.landxml import LandXMLParser
+from ..functions.xml.parser import Parser
+from ..make import make_terrain, make_alignment, make_geopoint, make_cluster
 
 from PySide.QtWidgets import (QWidget, QVBoxLayout, 
                              QHBoxLayout, QPushButton, QLabel, QTreeWidget, 
@@ -37,8 +40,9 @@ class TaskLandXMLImport(TaskPanel):
     def __init__(self):
         super().__init__()
         self.form = QWidget()
-        self.parser = LandXMLParser()
+        self.parser = Parser()
         self.selected_file = None
+        self.errors = []
         self.initUI()
         
     def initUI(self):
@@ -82,30 +86,30 @@ class TaskLandXMLImport(TaskPanel):
     def load_landxml(self, file_path):
         """Loads LandXML file and populates the tree."""
         try:
-            if not self.parser.load_file(file_path):
-                QMessageBox.critical(self.form, 'Error', 'File could not be loaded!')
+            self.xml = self.parser.load_file(file_path)
+            if self.parser.errors:
+                for error in self.parser.errors:
+                    print(error)
                 return
             
             self.tree.clear()
-            self._populate_tree()
+            self._populate_tree(self.xml)
             
         except Exception as e:
             QMessageBox.critical(self.form, 'Error', f'An error occurred while loading the file:\n{str(e)}')
             
-    def _populate_tree(self):
+    def _populate_tree(self, tree_data):
         """Populates tree with data from parser."""
-        tree_data = self.parser.get_tree_data()
-        
         root_item = QTreeWidgetItem(self.tree)
         root_item.setText(0, 'LandXML')
         root_item.setExpanded(True)
         root_item.setCheckState(0, Qt.Unchecked)
         root_item.setFlags(root_item.flags() | Qt.ItemIsUserCheckable)
         
-        self._add_metadata_items(root_item, tree_data['metadata'])
-        self._add_surfaces_items(root_item, tree_data['surfaces'])
-        self._add_alignments_items(root_item, tree_data['alignments'])
-        self._add_cogo_points_items(root_item, tree_data['cogo_points'])
+        #self._add_metadata_items(root_item, tree_data['metadata'])
+        self._add_cogo_points_items(root_item, tree_data['CgPoints'])
+        self._add_surfaces_items(root_item, tree_data['Surfaces'])
+        self._add_alignments_items(root_item, tree_data['Alignments'])
         
     def _add_metadata_items(self, root_item, metadata):
         """Adds metadata items to the tree."""
@@ -133,6 +137,24 @@ class TaskLandXMLImport(TaskPanel):
             app_item.setExpanded(False)
             app_item.setFlags(app_item.flags() & ~Qt.ItemIsSelectable)
             
+    def _add_cogo_points_items(self, root_item, cogo_points):
+        """Adds CogoPoints items to the tree."""
+        if not cogo_points:
+            return
+            
+        cogo_points_item = QTreeWidgetItem(root_item)
+        cogo_points_item.setText(0, 'CogoPoints')
+        cogo_points_item.setExpanded(False)
+        cogo_points_item.setCheckState(0, Qt.Unchecked)
+        cogo_points_item.setFlags(cogo_points_item.flags() | Qt.ItemIsUserCheckable)
+        
+        for group in cogo_points["Groups"].keys():
+            group_item = QTreeWidgetItem(cogo_points_item)
+            group_item.setText(0, group)
+            group_item.setData(0, Qt.UserRole, group)
+            group_item.setCheckState(0, Qt.Unchecked)
+            group_item.setFlags(group_item.flags() | Qt.ItemIsUserCheckable)
+            
     def _add_surfaces_items(self, root_item, surfaces):
         """Adds surface items to the tree."""
         if not surfaces:
@@ -144,9 +166,9 @@ class TaskLandXMLImport(TaskPanel):
         surfaces_item.setCheckState(0, Qt.Unchecked)
         surfaces_item.setFlags(surfaces_item.flags() | Qt.ItemIsUserCheckable)
         
-        for surface in surfaces:
+        for surface in surfaces.keys():
             surf_item = QTreeWidgetItem(surfaces_item)
-            surf_item.setText(0, surface['name'])
+            surf_item.setText(0, surface)
             surf_item.setData(0, Qt.UserRole, surface)
             surf_item.setCheckState(0, Qt.Unchecked)
             surf_item.setFlags(surf_item.flags() | Qt.ItemIsUserCheckable)
@@ -162,37 +184,13 @@ class TaskLandXMLImport(TaskPanel):
         alignments_item.setCheckState(0, Qt.Unchecked)
         alignments_item.setFlags(alignments_item.flags() | Qt.ItemIsUserCheckable)
         
-        for alignment in alignments:
+        for alignment in alignments.keys():
             align_item = QTreeWidgetItem(alignments_item)
-            align_item.setText(0, alignment['name'])
+            align_item.setText(0, alignment)
             align_item.setData(0, Qt.UserRole, alignment)
             align_item.setCheckState(0, Qt.Unchecked)
             align_item.setFlags(align_item.flags() | Qt.ItemIsUserCheckable)
 
-    def _add_cogo_points_items(self, root_item, cogo_points):
-        """Adds CogoPoints items to the tree."""
-        if not cogo_points:
-            return
-            
-        cogo_points_item = QTreeWidgetItem(root_item)
-        cogo_points_item.setText(0, 'CogoPoints')
-        cogo_points_item.setExpanded(False)
-        cogo_points_item.setCheckState(0, Qt.Unchecked)
-        cogo_points_item.setFlags(cogo_points_item.flags() | Qt.ItemIsUserCheckable)
-        
-        for cogo_group in cogo_points:
-            group_item = QTreeWidgetItem(cogo_points_item)
-            group_item.setText(0, f"{cogo_group['name']} ({len(cogo_group['points'])} points)")
-            group_item.setData(0, Qt.UserRole, cogo_group)
-            group_item.setExpanded(False)
-            group_item.setCheckState(0, Qt.Unchecked)
-            group_item.setFlags(group_item.flags() | Qt.ItemIsUserCheckable)
-            
-            for point in cogo_group['points']:
-                point_item = QTreeWidgetItem(group_item)
-                point_item.setText(0, point['name'])
-                point_item.setFlags(point_item.flags() & ~Qt.ItemIsSelectable)  
-            
     def on_item_changed(self, item, column):
         """Handles checkbox state changes."""
         if column != 0:
@@ -251,20 +249,6 @@ class TaskLandXMLImport(TaskPanel):
         
         self._update_parent_checkbox(parent)
         
-    def process_selected(self):
-        """Processes the checked items."""
-        print("Processing checked items...")
-        
-        items_to_process = []
-        self._collect_checked_items(self.tree.invisibleRootItem(), items_to_process)
-        
-        if not items_to_process:
-            QMessageBox.warning(self.form, 'Warning', 'Please check at least one item!')
-            return
-            
-        results = self.parser.process_selected_items(items_to_process)
-        self._show_results(results)
-        
     def _collect_checked_items(self, parent_item, items_list):
         """Recursively collects checked items."""
         for i in range(parent_item.childCount()):
@@ -273,36 +257,65 @@ class TaskLandXMLImport(TaskPanel):
                 child.data(0, Qt.UserRole) is not None):
                 items_list.append(child.data(0, Qt.UserRole))
             self._collect_checked_items(child, items_list)
-        
-    def _show_results(self, results):
-        """Shows the processing results to the user."""
-        surfaces_count = results['surfaces_processed']
-        alignments_count = results['alignments_processed']
-        cogo_points_count = results['cogo_points_processed']
-        errors = results['errors']
-        
-        message_parts = []
-        if surfaces_count > 0:
-            message_parts.append(f'{surfaces_count} surface(s)')
-        if alignments_count > 0:
-            message_parts.append(f'{alignments_count} alignment(s)')
-        if cogo_points_count > 0:
-            message_parts.append(f'{cogo_points_count} CogoPoint(s)')
-            
-        if message_parts:
-            message = ', '.join(message_parts) + ' have been imported into FreeCAD!'
-        else:
-            message = 'No items were processed.'
-        
-        if errors:
-            message += f'\n\nErrors:\n' + '\n'.join(errors)
-            QMessageBox.warning(self.form, 'Warning', message)
-        else:
-            QMessageBox.information(self.form, 'Success', message)
-    
+
     def accept(self):
-        """Accept and process the selected files for import."""
-        self.process_selected()
+        """
+        Accept the task parameters
+        """
+        if self.errors:
+
+            print('Errors encountered during import:\n')
+            for err in self.errors:
+                print(err)
+
+        if not self.xml: return
+
+        selected_items = []
+        self._collect_checked_items(self.tree.invisibleRootItem(), selected_items)
+        
+        if not selected_items:
+            QMessageBox.warning(self.form, 'Warning', 'Please check at least one item!')
+            return
+            
+        for name, ref in self.xml['CgPoints'].get("Groups").items():
+            if name not in selected_items: continue
+            cluster = make_cluster.create(label=name)
+
+            for name in ref:
+                if name in self.xml['CgPoints'].get("All_Points").keys():
+                    point = self.xml['CgPoints']['All_Points'][name]
+                    geopoint = make_geopoint.create(
+                        name = name,
+                        easting = point.get("Easting", 0.0),
+                        northing = point.get("Northing", 0.0),
+                        elevation = point.get("Elevation", 0.0),
+                        description = point.get("Description", ""))
+                    cluster.addObject(geopoint)
+
+        for name, data in self.xml['Surfaces'].items():
+            if name not in selected_items: continue
+
+            points = data['Points']
+            mesh_obj = Mesh.Mesh()
+
+            for face in data['Faces']:
+                c1 = points[face[0]]
+                c2 = points[face[1]]
+                c3 = points[face[2]]
+                mesh_obj.addFacet(c1, c2, c3)
+
+            if mesh_obj.CountFacets > 0:
+                terrain = make_terrain.create(label=name)
+                terrain.Mesh = mesh_obj
+
+        for name, data in self.xml['Alignments'].items():
+            if name not in selected_items: continue
+            alignment = make_alignment.create(name)
+            
+            alignment.Meta = data['meta'] or {}
+            alignment.Station = data['station'] or {}
+            alignment.Geometry = data['geometry'] or {}
+
         FreeCADGui.Control.closeDialog()
         FreeCAD.ActiveDocument.recompute()
 

@@ -1,0 +1,193 @@
+# ***************************************************************************
+# *                                                                         *
+# *   Copyright (c) 2025 Hakan Seven <hakanseven12@gmail.com>               *
+# *                                                                         *
+# *   This program is free software; you can redistribute it and/or modify  *
+# *   it under the terms of the GNU Lesser General Public License (LGPL)    *
+# *   as published by the Free Software Foundation; either version 2 of     *
+# *   the License, or (at your option) any later version.                   *
+# *   for detail see the LICENCE text file.                                 *
+# *                                                                         *
+# *   This program is distributed in the hope that it will be useful,       *
+# *   but WITHOUT ANY WARRANTY; without even the implied warranty of        *
+# *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         *
+# *   GNU Library General Public License for more details.                  *
+# *                                                                         *
+# *   You should have received a copy of the GNU Library General Public     *
+# *   License along with this program; if not, write to the Free Software   *
+# *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  *
+# *   USA                                                                   *
+# *                                                                         *
+# ***************************************************************************
+
+"""
+Exporter for objects in LandXML files
+"""
+
+import datetime
+import math
+
+from xml.etree import ElementTree as etree
+
+import FreeCAD as App
+
+from ...utils.support import units
+from . import functions
+from .key_maps import KeyMaps as Maps
+
+class Writer(object):
+    """
+    LandXML exporting class
+    """
+
+    def __init__(self):
+
+        self.errors = []
+
+    def write_meta_data(self, data, node):
+        """
+        Write the project and application data to the file
+        """
+
+        self._write_tree_data(
+            data, functions.get_child(node, 'Project'),
+            Maps.XML_ATTRIBS['Project']
+            )
+
+        node = functions.get_child(node, 'Application')
+
+        node.set('version', ''.join(App.Version()[0:3]))
+        node.set('timeStamp', datetime.timezone.utc().isoformat())
+
+    def _write_tree_data(self, data, node, attribs):
+        """
+        Write data to the tree using the passed parameters
+        """
+
+        for _tag in attribs[0] + attribs[1]:
+
+            #find the xml tag for the current dictionary key
+            _key = Maps.XML_MAP.get(_tag)
+
+            #skip keys with no XML tag equivalent
+            if not _key:
+                continue
+
+            value = data.get(_key)
+
+            #assign default if no value in the dictionary
+            if value is None:
+                value = functions.get_tag_default(_tag)
+
+            if _tag in Maps.XML_TAGS['angle']:
+                value = math.degrees(value)
+
+            elif _tag in Maps.XML_TAGS['length']:
+                value /= units.scale_factor()
+
+            elif _tag == 'rot':
+
+                if value < 0.0:
+                    value = 'ccw'
+
+                elif value > 0.0:
+                    value = 'cw'
+
+                else:
+                    value = ''
+
+            functions.set_attribute(node, _tag, value)
+
+    def write_station_data(self, data, parent):
+        """
+        Write station equation information for alignment
+        """
+
+        for sta_eq in data:
+            self._write_tree_data(
+                sta_eq, parent, Maps.XML_ATTRIBS['StaEquation']
+            )
+
+    def _write_coordinates(self, data, parent):
+        """
+        Write coordinate children to parent geometry
+        """
+
+        _sf = 1.0 / units.scale_factor()
+
+        for _key in Maps.XML_TAGS['coordinate']:
+
+            if data.get(_key) is None:
+                continue
+
+            #scale the coordinates to the document units
+            _vec = App.Vector(data[_key])
+            _vec.multiply(_sf)
+
+            _child = functions.add_child(parent, _key)
+
+            _vec_string = functions.get_vector_string(_vec)
+
+            functions.set_text(_child, _vec_string)
+
+    def _write_alignment_data(self, data, parent):
+        """
+        Write individual alignment to XML
+        """
+
+        _align_node = functions.add_child(parent, 'Alignment')
+
+        #write the alignment attributes
+        self._write_tree_data(
+            data.get('meta'), _align_node, Maps.XML_ATTRIBS['Alignment']
+        )
+
+        _coord_geo_node = functions.add_child(_align_node, 'CoordGeom')
+
+        #write the geo coordinate attributes
+        self._write_tree_data(
+            data.get('meta'), _coord_geo_node, Maps.XML_ATTRIBS['CoordGeom']
+        )
+
+        #write the station equation data
+        self.write_station_data(data.get('station'), _align_node)
+
+        #write the alignment geometry data
+        for _geo in data.get('geometry'):
+
+            _node = None
+
+
+
+            if _geo.get('Type') == 'Line':
+
+                _node = functions.add_child(_coord_geo_node, 'Line')
+                self._write_tree_data(_geo, _node, Maps.XML_ATTRIBS['Line'])
+
+            elif _geo.get('Type') == 'Curve':
+
+                _node = functions.add_child(_coord_geo_node, 'Curve')
+                self._write_tree_data(_geo, _node, Maps.XML_ATTRIBS['Curve'])
+
+            elif _geo.get('Type') == 'Spiral':
+
+                _node = functions.add_child(_coord_geo_node, 'Spiral')
+                self._write_tree_data(_geo, _node, Maps.XML_ATTRIBS['Spiral'])
+
+            if _node is not None:
+                self._write_coordinates(_geo, _node)
+
+    def write(self, data, source_path, target_path):
+        """
+        Write the alignment data to a land xml file in the target location
+        """
+
+        root = etree.parse(source_path).getroot()
+
+        _parent = functions.add_child(root, 'Alignments')
+
+        for _align in data:
+            print('\n\tWriting', _align)
+            self._write_alignment_data(_align, _parent)
+
+        functions.write_to_file(root, target_path)

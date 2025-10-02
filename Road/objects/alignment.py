@@ -27,7 +27,7 @@ import Part
 
 import copy
 
-from ..functions import alignment
+from ..functions.alignment.alignment_model import AlignmentModel
 from ..functions.offset import offsetWire
 
 
@@ -46,6 +46,10 @@ class Alignment:
         obj.addProperty(
             "Part::PropertyPartShape", "Shape", "Base",
             "Alignment Shape").Shape = Part.Shape()
+
+        obj.addProperty(
+            "App::PropertyEnumeration", "Status", "Base", "Alignment status"
+        ).Status = ["existing", "proposed", "abandoned", "destroyed"]
 
         obj.addProperty(
             "App::PropertyString", "Description", "Base",
@@ -68,8 +72,16 @@ class Alignment:
             "Points of Intersection (PIs) as a list of vectors").PIs = []
 
         obj.addProperty(
-            "App::PropertyPythonObject", "Model", "Geometry",
-            "Alignment horizontal geometry model").Model = {}
+            "App::PropertyPythonObject", "Meta", "Geometry",
+            "Alignment horizontal geometry model").Meta = {}
+
+        obj.addProperty(
+            "App::PropertyPythonObject", "Station", "Geometry",
+            "Alignment horizontal geometry model").Station = {}
+
+        obj.addProperty(
+            "App::PropertyPythonObject", "Geometry", "Geometry",
+            "Alignment horizontal geometry model").Geometry = {}
 
         obj.addProperty(
             "App::PropertyLink", "OffsetAlignment", "Offset",
@@ -79,21 +91,59 @@ class Alignment:
             "App::PropertyFloat", "OffsetLength", "Offset",
             "Offset length").OffsetLength = 0
 
+        subdivision_desc = """
+            Method of Curve Subdivision\n\n
+            Tolerance - ensure error between segments and curve is (n)\n
+            Interval - Subdivide curve into segments of fixed length\n
+            Segment - Subdivide curve into equal-length segments
+            """
+
+        obj.addProperty(
+            'App::PropertyEnumeration', 'Method', 'Segment', subdivision_desc
+        ).Method = ['Tolerance', 'Interval', 'Segment']
+
+        obj.addProperty(
+            "App::PropertyFloat", "Seg_Value", "Segment",
+            "Set the curve segments to control accuracy").Seg_Value = 10
+
         obj.Proxy = self
+
+    def execute(self, obj):
+        '''
+        Update Object when doing a recomputation. 
+        '''
+        meta = obj.getPropertyByName("Meta")
+        station = obj.getPropertyByName("Station")
+        geometry = obj.getPropertyByName("Geometry")
+
+        model = AlignmentModel(meta, station, geometry, zero_reference=False)
+
+        if model.errors:
+            for _err in model.errors:
+                print('Error in alignment {0}: {1}'.format(obj.Label, _err))
+            model.errors.clear()
+        else:
+            obj.Shape = model.get_shape()
+
 
     def onChanged(self, obj, prop):
         """Update Object when a property changed."""
-        if prop == "Model":
-            model = obj.getPropertyByName(prop)
-            obj.PIs, obj.Shape = alignment.get_geometry(model)
-            obj.EndStation = sum([sub.Length for sub in obj.Shape.SubShapes])
-            obj.Length = sum([sub.Length for sub in obj.Shape.SubShapes])
+        if prop == "Meta":
+            meta = obj.getPropertyByName(prop)
 
-        elif prop == "PIs":
-            pis = obj.getPropertyByName(prop)
-            placement = FreeCAD.Placement()
-            placement.move(pis[0])
-            obj.Placement = placement
+            start = meta.get("Start")
+            if start:
+                vec = FreeCAD.Vector(start)
+                placement = FreeCAD.Placement()
+                placement.move(vec)
+                obj.Placement = placement
+
+            obj.StartStation = meta.get("StartStation", 0)
+            obj.Length = meta.get("Length", 0)
+            obj.EndStation = obj.StartStation + obj.Length
+
+            obj.Description = meta.get("Description") if meta.get("Description") else ""
+            obj.Status = meta.get("Status") if meta.get("Status") else "existing"
 
         elif prop == "OffsetLength":
             if obj.getPropertyByName(prop): self.onChanged(obj, "OffsetAlignment")
