@@ -48,10 +48,10 @@ class AlignmentModel:
         self.meta["Start"] = None
         for geo in self.geometry:
             if self.meta.get("Start") is None:
-                self.meta["Start"] = Vector(geo.get('Start'))
+                self.meta["Start"] = Vector(geo.get('Start')).multiply(support.scale_factor())
                 
             for key in ['Start', 'End', 'Center', 'PI']:
-                if geo[key]: geo[key] = Vector(geo.get(key))
+                if geo[key]: geo[key] = Vector(geo.get(key)).multiply(support.scale_factor())
 
         if geometry:
             if not self.construct_geometry(zero_reference):

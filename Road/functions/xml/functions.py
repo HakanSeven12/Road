@@ -165,7 +165,7 @@ def get_child(node, node_name):
 
     return child
 
-def get_child_as_vector(node, node_name, delimiter=' '):
+def get_child_coordinate(node, node_name, delimiter=' '):
     """
     Return the first child matching node_name in node as App.Vector
     """
@@ -175,25 +175,23 @@ def get_child_as_vector(node, node_name, delimiter=' '):
     if result is None:
         return None
 
-    vec_list = result.text.strip().split(delimiter)
+    coord_text = result.text.strip().split(delimiter)
 
     #validate values as floating point
     try:
-        vec_list = [float(_v) for _v in vec_list]
+        values = [float(v) for v in coord_text]
 
     except ValueError:
         return None
 
-    _len = len(vec_list)
-
-    #pad the vector if it's too short
-    if _len < 3:
-        vec_list = vec_list + [0.0]*(3-_len)
+    #pad the coordinate if it's too short
+    if len(values) < 3:
+        coord = values + [0.0]*(3-len(values))
 
     #Northing / Easting reverse for X/Ycd Project
-    vec_list[0], vec_list[1] = vec_list[1], vec_list[0]
+    coord[0], coord[1] = coord[1], coord[0]
 
-    return App.Vector(vec_list)
+    return coord
 
 def get_children(node, node_name):
     """

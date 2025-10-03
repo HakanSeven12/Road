@@ -37,7 +37,7 @@ class Constants:
     HALF_PI = math.pi / 2.0         # 1/2 * pi in radians
     ONE_RADIAN = 180 / math.pi      # one radian in degrees
     TOLERANCE = 0.0001              # tolerance for differences in measurements
-    UP = App.Vector(0.0, 1.0, 0.0)  # Up vector
+    UP = 0.0, 1.0, 0.0              # Up vector
     Z_DEPTH = [0.0, 0.05, 0.1]      # Z values to provide rendering layers
 
 C = Constants
@@ -168,17 +168,11 @@ def get_rotation(in_vector, out_vector=None):
 
     if in_vector is an instance, out_vector is ignored.
     """
-    _in = in_vector
-    _out = out_vector
+    _in = App.Vector(in_vector)
+    _out = App.Vector(out_vector)
 
-    if isinstance(_in, list):
-        if not all(_in):
-            return 0
 
-        _out = in_vector[1]
-        _in = in_vector[0]
-
-    if not all([_out, _in]):
+    if not all([_in, _out]):
         return 0
 
     if not (_in.Length and _out.Length):
@@ -224,16 +218,11 @@ def get_bearing(vector, reference=C.UP):
     Vector is a list of coordinates or an App.Vector
     """
 
-    result = vector
+    vector = App.Vector(vector)
+    reference = App.Vector(reference)
 
-    if isinstance(vector, list):
-        result = App.Vector(vector)
-
-    if not isinstance(vector, App.Vector):
-        return None
-
-    rot = get_rotation(reference, result)
-    angle = rot * reference.getAngle(result)
+    rot = get_rotation(reference, vector)
+    angle = rot * reference.getAngle(vector)
 
     if angle < 0.0:
         angle += C.TWO_PI

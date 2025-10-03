@@ -32,6 +32,7 @@ from PySide import QtGui
 
 from . import functions
 from .. import support
+from...utils.tuple_math import TupleMath
 from .key_maps import KeyMaps as maps
 
 C = support.Constants
@@ -199,12 +200,7 @@ class Parser(object):
             align_name, maps.XML_ATTRIBS['Alignment'], alignment.attrib
             )
 
-        _start = functions.get_child_as_vector(alignment, 'Start')
-
-        if _start:
-            _start.multiply(support.scale_factor())
-
-        result['Start'] = [_start.x, _start.y, _start.z] if _start else None
+        result['Start'] = functions.get_child_coordinate(alignment, 'Start')
 
         return result
 
@@ -255,13 +251,8 @@ class Parser(object):
 
             for _tag in ['Start', 'End', 'Center', 'PI']:
 
-                _pt = functions.get_child_as_vector(geo_node, _tag)
-
-                points.append(None)
-
-                if _pt:
-                    points[-1] = (_pt.multiply(support.scale_factor()))
-                    continue
+                point = functions.get_child_coordinate(geo_node, _tag)
+                points.append(point)
 
                 if not (node_tag == 'Line' and _tag in ['Center', 'PI']):
                     continue
@@ -278,10 +269,10 @@ class Parser(object):
             coords = {
                 'Hash': hash_value,
                 'Type': node_tag,
-                'Start': [points[0].x, points[0].y, points[0].z] if points[0] else None,
-                'End': [points[1].x, points[1].y, points[1].z] if points[1] else None,
-                'Center': [points[2].x, points[2].y, points[2].z] if points[2] else None,
-                'PI': [points[3].x, points[3].y, points[3].z] if points[3] else None
+                'Start': points[0] if points[0] else None,
+                'End': points[1] if points[1] else None,
+                'Center': points[2] if points[2] else None,
+                'PI': points[3] if points[3] else None
                 }
 
             result.append({
@@ -319,16 +310,16 @@ class Parser(object):
         """
 
         #if the start point isn't a vector, default to true for N-CW
-        if not isinstance(start_pt, FreeCAD.Vector):
+        if not isinstance(start_pt, list):
             return [True] + [False]*7
 
         #calculate the vector from the PI where possible, otherwise
         #use the end point.  If both fail, default to N-CW
         if not isinstance(pi, float):
-            _vec = pi.sub(start_pt)
+            _vec = TupleMath.subtract(pi, start_pt)
 
-        elif isinstance(end_pt, FreeCAD.Vector):
-            _vec = end_pt.sub(start_pt)
+        elif isinstance(end_pt, list):
+            _vec = TupleMath.subtract(end_pt, start_pt)
 
         else:
             return [True] + [False]*7
@@ -339,9 +330,9 @@ class Parser(object):
         #CW CALCS
         _b = [
             support.get_bearing(_vec),
-            support.get_bearing(_vec, FreeCAD.Vector(1.0, 0.0, 0.0)),
-            support.get_bearing(_vec, FreeCAD.Vector(0.0, -1.0, 0.0)),
-            support.get_bearing(_vec, FreeCAD.Vector(-1.0, 0.0, 0.0))
+            support.get_bearing(_vec, [1.0, 0.0, 0.0]),
+            support.get_bearing(_vec, [0.0, -1.0, 0.0]),
+            support.get_bearing(_vec, [-1.0, 0.0, 0.0])
         ]
 
         #CCW CALCS

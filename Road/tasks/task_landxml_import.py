@@ -85,18 +85,14 @@ class TaskLandXMLImport(TaskPanel):
             
     def load_landxml(self, file_path):
         """Loads LandXML file and populates the tree."""
-        try:
-            self.xml = self.parser.load_file(file_path)
-            if self.parser.errors:
-                for error in self.parser.errors:
-                    print(error)
-                return
-            
-            self.tree.clear()
-            self._populate_tree(self.xml)
-            
-        except Exception as e:
-            QMessageBox.critical(self.form, 'Error', f'An error occurred while loading the file:\n{str(e)}')
+        self.xml = self.parser.load_file(file_path)
+        if self.parser.errors:
+            for error in self.parser.errors:
+                print(error)
+            return
+        
+        self.tree.clear()
+        self._populate_tree(self.xml)
             
     def _populate_tree(self, tree_data):
         """Populates tree with data from parser."""
