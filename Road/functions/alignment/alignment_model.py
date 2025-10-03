@@ -883,8 +883,10 @@ class AlignmentModel:
                     bspline.interpolate(_pts)
                     shapes.append(bspline.toShape())
                 
-                except:
-                    Part.show(Part.makePolygon(_pts))
+                except: 
+                    continue
+                    shp = Part.makePolygon(_pts)
+                    shp.Placement.move(Vector(_pts[0]).negative())
 
             else:
                 start = Vector(curve.get('Start'))

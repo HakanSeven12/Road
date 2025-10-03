@@ -204,7 +204,7 @@ class Parser(object):
         if _start:
             _start.multiply(support.scale_factor())
 
-        result['Start'] = [_start.x, _start.y, _start.z] if _start else [0,0,0]
+        result['Start'] = [_start.x, _start.y, _start.z] if _start else None
 
         return result
 
@@ -428,7 +428,7 @@ class Parser(object):
         result = {}
         result['Project'] = {}
         result['Project'][maps.XML_MAP['name']] = project_name
-        result['CgPoints'] = {}
+        result['CgPoints'] = {"All_Points": {}, "Groups": {}}
         result['Surfaces'] = {}
         result['Alignments'] = {}
 

@@ -295,18 +295,9 @@ class TaskLandXMLImport(TaskPanel):
         for name, data in self.xml['Surfaces'].items():
             if name not in selected_items: continue
 
-            points = data['Points']
-            mesh_obj = Mesh.Mesh()
-
-            for face in data['Faces']:
-                c1 = points[face[0]]
-                c2 = points[face[1]]
-                c3 = points[face[2]]
-                mesh_obj.addFacet(c1, c2, c3)
-
-            if mesh_obj.CountFacets > 0:
-                terrain = make_terrain.create(label=name)
-                terrain.Mesh = mesh_obj
+            terrain = make_terrain.create(label=name)
+            terrain.Points = data['Points']
+            terrain.Faces = data['Faces']
 
         for name, data in self.xml['Alignments'].items():
             if name not in selected_items: continue

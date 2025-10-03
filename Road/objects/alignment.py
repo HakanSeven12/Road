@@ -128,15 +128,17 @@ class Alignment:
 
     def onChanged(self, obj, prop):
         """Update Object when a property changed."""
-        if prop == "Meta":
-            meta = obj.getPropertyByName(prop)
-
-            start = meta.get("Start")
+        if prop == "Geometry":
+            geometry = obj.getPropertyByName(prop)
+            start = geometry[0].get('Start')
             if start:
                 vec = FreeCAD.Vector(start)
                 placement = FreeCAD.Placement()
                 placement.move(vec)
                 obj.Placement = placement
+
+        if prop == "Meta":
+            meta = obj.getPropertyByName(prop)
 
             obj.StartStation = meta.get("StartStation", 0)
             obj.Length = meta.get("Length", 0)

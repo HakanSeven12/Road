@@ -46,12 +46,16 @@ class Terrain:
             "Placement").Placement = FreeCAD.Placement()
 
         obj.addProperty(
-            "App::PropertyVectorList", "Points", "Triangulation",
-            "Clusters added to the Delaunay triangulation", attr=16).Points = []
+            "App::PropertyLinkList", "Clusters", "Base",
+            "Clusters added to the Delaunay triangulation").Clusters = []
 
         obj.addProperty(
-            "App::PropertyLinkList", "Clusters", "Triangulation",
-            "Clusters added to the Delaunay triangulation").Clusters = []
+            "App::PropertyPythonObject", "Points", "Triangulation",
+            "Points of triangulation").Points = {}
+
+        obj.addProperty(
+            "App::PropertyPythonObject", "Faces", "Triangulation",
+            "Faces of triangulation").Faces = []
 
         obj.addProperty(
             "App::PropertyPythonObject", "Operations", "Triangulation",
@@ -62,11 +66,11 @@ class Terrain:
             "Mesh object of triangulation").Mesh = Mesh.Mesh()
 
         obj.addProperty(
-            "App::PropertyLength", "MaxLength", "Triangulation",
+            "App::PropertyLength", "MaxLength", "Constraint",
             "Maximum length of triangle edge").MaxLength = 500000
 
         obj.addProperty(
-            "App::PropertyAngle","MaxAngle","Triangulation",
+            "App::PropertyAngle","MaxAngle","Constraint",
             "Maximum angle of triangle edge").MaxAngle = 180
 
         obj.addProperty("Part::PropertyPartShape", "Boundary", "Triangulation",
@@ -97,17 +101,29 @@ class Terrain:
 
     def execute(self, obj):
         """Do something when doing a recomputation."""
-        points = []
-        for cluster in obj.Clusters:
-            for geopoint in cluster.Group:
-                points.append(geopoint.Placement.Base)
-
-        if obj.Points == points: return
-        obj.Points = points
+        pass
 
     def onChanged(self, obj, prop):
         """Do something when a data property has changed."""
-        if prop in ["Points", "Operations"]:
+        if prop == "Points" or prop == "Faces":
+            mesh_obj = Mesh.Mesh()
+            origin = None
+
+            for face in obj.Faces:
+                if origin is None:
+                    origin = FreeCAD.Vector(obj.Points[face[0]])
+                    origin.z = 0
+                c1 = obj.Points[face[0]].sub(origin)
+                c2 = obj.Points[face[1]].sub(origin)
+                c3 = obj.Points[face[2]].sub(origin)
+                mesh_obj.addFacet(c1, c2, c3)
+
+
+            if mesh_obj.CountFacets > 0:
+                obj.Placement.Base = origin
+                obj.Mesh = mesh_obj
+
+        if prop in ["Operations"]:
             points = obj.Points
 
             if len(points) < 3:
