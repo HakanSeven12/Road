@@ -41,17 +41,11 @@ class AlignmentModel:
         Default Constructor
         """
         self.errors = []
-        self.meta = deepcopy(meta)
-        self.station = deepcopy(station)
-        self.geometry = deepcopy(geometry)
+        self.meta = meta
+        self.station = station
+        self.geometry = geometry
 
-        self.meta["Start"] = None
-        for geo in self.geometry:
-            if self.meta.get("Start") is None:
-                self.meta["Start"] = Vector(geo.get('Start')).multiply(support.scale_factor())
-                
-            for key in ['Start', 'End', 'Center', 'PI']:
-                if geo[key]: geo[key] = Vector(geo.get(key)).multiply(support.scale_factor())
+        meta["Start"] = geometry[0].get('Start')
 
         if geometry:
             if not self.construct_geometry(zero_reference):

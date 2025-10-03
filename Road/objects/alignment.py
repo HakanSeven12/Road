@@ -132,7 +132,7 @@ class Alignment:
             geometry = obj.getPropertyByName(prop)
             start = geometry[0].get('Start')
             if start:
-                vec = FreeCAD.Vector(start).multiply(1000)
+                vec = FreeCAD.Vector(start)
                 placement = FreeCAD.Placement()
                 placement.move(vec)
                 obj.Placement = placement

@@ -189,7 +189,7 @@ def get_child_coordinate(node, node_name, delimiter=' '):
         coord = values + [0.0]*(3-len(values))
 
     #Northing / Easting reverse for X/Ycd Project
-    coord[0], coord[1] = coord[1], coord[0]
+    coord[0], coord[1] = coord[1]*1000, coord[0]*1000
 
     return coord
 

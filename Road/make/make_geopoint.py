@@ -35,7 +35,7 @@ def create(name="GeoPoint", easting=0, northing=0, elevation=0, description=""):
 
     obj.Label = name
     obj.Number = int(obj.Name[8:]) + 1 if obj.Name != "GeoPoint" else 1
-    obj.Placement.Base = FreeCAD.Vector(easting, northing, elevation).multiply(1000)
+    obj.Placement.Base = FreeCAD.Vector(easting, northing, elevation)
     obj.Description = description
 
     return obj

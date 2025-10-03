@@ -111,11 +111,11 @@ class Terrain:
 
             for face in obj.Faces["Visible"]:
                 if origin is None:
-                    origin = FreeCAD.Vector(obj.Points[face[0]]).multiply(1000)
+                    origin = FreeCAD.Vector(obj.Points[face[0]])
                     origin.z = 0
-                c1 = FreeCAD.Vector(obj.Points[face[0]]).multiply(1000).sub(origin)
-                c2 = FreeCAD.Vector(obj.Points[face[1]]).multiply(1000).sub(origin)
-                c3 = FreeCAD.Vector(obj.Points[face[2]]).multiply(1000).sub(origin)
+                c1 = FreeCAD.Vector(obj.Points[face[0]]).sub(origin)
+                c2 = FreeCAD.Vector(obj.Points[face[1]]).sub(origin)
+                c3 = FreeCAD.Vector(obj.Points[face[2]]).sub(origin)
                 mesh_obj.addFacet(c1, c2, c3)
 
             if mesh_obj.CountFacets > 0:

@@ -26,6 +26,7 @@ Useful math functions and constants
 import math
 import FreeCAD as App
 from collections.abc import Iterable
+from ..utils.tuple_math import TupleMath
 
 
 class Constants:
@@ -141,9 +142,9 @@ def safe_sub(lhs, rhs, return_none=False):
         if return_none:
             return None
 
-        return App.Vector()
+        return [0, 0, 0]
 
-    return lhs.sub(rhs)
+    return TupleMath.subtract(lhs,rhs)
 
 def get_rotation(in_vector, out_vector=None):
     """
@@ -278,4 +279,4 @@ def vector_from_angle(angle):
     if not _angle:
         return None
 
-    return App.Vector(math.sin(_angle), math.cos(_angle), 0.0)
+    return [math.sin(_angle), math.cos(_angle), 0.0]

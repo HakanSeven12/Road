@@ -30,6 +30,7 @@ import numpy
 from FreeCAD import Vector, Console
 
 from ... import support
+from ....utils.tuple_math import TupleMath
 
 C = support.Constants
 
@@ -623,33 +624,33 @@ def get_coordinates(arc, points):
     _center = points[2]
     _pi = points[3]
 
-    _vr = vectors.get('Radius')[0].multiply(arc.get('Radius'))
-    _vt0 = vectors.get('Tangent')[0].multiply(arc.get('Tangent'))
-    _vt1 = vectors.get('Tangent')[1].multiply(arc.get('Tangent'))
-    _vc = vectors.get('Internal')[1].multiply(arc.get('Chord'))
+    _vr = TupleMath.scale(vectors.get('Radius')[0],arc.get('Radius'))
+    _vt0 = TupleMath.scale(vectors.get('Tangent')[0],arc.get('Tangent'))
+    _vt1 = TupleMath.scale(vectors.get('Tangent')[1],arc.get('Tangent'))
+    _vc = TupleMath.scale(vectors.get('Internal')[1],arc.get('Chord'))
 
     if not _start:
 
         if _pi:
-            _start = _pi.sub(_vt0)
+            _start = TupleMath.subtract(_pi,_vt0)
 
         elif _center:
-            _start = _center.add(_vr)
+            _start = TupleMath.add(_center,_vr)
 
         elif _end:
-            _start = _end.sub(_vc)
+            _start = TupleMath.subtract(_end,_vc)
 
     if not _start:
         return None
 
     if not _pi:
-        _pi = _start.add(_vt0)
+        _pi = TupleMath.add(_start,_vt0)
 
     if not _center:
-        _center = _start.sub(_vr)
+        _center = TupleMath.subtract(_start,_vr)
 
     if not _end:
-        _end = _pi.add(_vt1)
+        _end = TupleMath.add(_pi,_vt1)
 
     return {'Start': _start, 'Center': _center, 'End': _end, 'PI': _pi}
 
@@ -663,14 +664,12 @@ def get_parameters(source_arc, as_dict=True):
     #Vector order:
     #Radius in / out, Tangent in / out, Middle, and Chord
 
-    _v = [_result.start, _result.end, _result.center, _result.pi]
-
-    points = [Vector(_w) if _w else None for _w in _v]
+    points = [_result.start, _result.end, _result.center, _result.pi]
     point_count = len([_v for _v in points if _v])
 
     #define the curve start at the origin if none is provided
     if point_count == 0:
-        points[0] = Vector()
+        points[0] = [0, 0, 0]
 
     _vecs = [
         support.safe_sub(points[0], points[2], True),

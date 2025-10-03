@@ -244,16 +244,14 @@ class Parser:
 
     def parse_points(self, all_points):
         points = {}
-        for point in all_points:
-            if point.text:
-                name = point.get("name")
-                text = point.text.strip().split(' ')
-                northing = float(text[0])
-                easting = float(text[1])
-                elevation = float(text[2]) if len(text) > 2 else 0.0
-                description = point.get("code") if point.get("code") else ""
+        for p in all_points:
+            if p.text:
+                pt = p.text.strip().split(' ')
+                northing, easting, elevation = [float(v)*1000 for v in pt]
+                description = p.get("code") if p.get("code") else ""
 
-                points[name] = {"Northing": northing, "Easting": easting, "Elevation": elevation, "Description": description}
+                points[p.get("name")] = {"Northing": northing, "Easting": easting,
+                                        "Elevation": elevation, "Description": description}
 
         return points
 
@@ -266,7 +264,7 @@ class Parser:
         for p in pts:
             id = int(p.get("id"))
             pt = p.text.strip().split(' ')
-            pt = [float(v) for v in pt]
+            pt = [float(v)*1000 for v in pt]
             points[id] = [pt[1], pt[0], pt[2]]
 
         faces_visible = []

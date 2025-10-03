@@ -30,6 +30,7 @@ import numpy
 from FreeCAD import Vector
 
 from ... import support
+from ....utils.tuple_math import TupleMath
 
 C = support.Constants
 
@@ -109,10 +110,12 @@ def _solve_by_absolute(spiral):
         return None
 
     #build matrix
+    
+    
     _vecs = [
-        list(spiral['PI'].sub(spiral['Start'])),
-        list(spiral['End'].sub(spiral['PI'])),
-        list(C.UP)
+        TupleMath.subtract(spiral['PI'],spiral['Start']),
+        TupleMath.subtract(spiral['End'],spiral['PI']),
+        [0.0, 1.0, 0.0]
     ]
 
     _mat = numpy.matrix(_vecs)
@@ -124,10 +127,6 @@ def _solve_by_absolute(spiral):
 
     #calculate the tangent magnitudes
     _tangents = [math.sqrt(_result.A[0][0]), math.sqrt(_result.A[1][1])]
-
-    if spiral['TanShort'] > spiral['TanLong']:
-        spiral['TanShort'], spiral['TanLong'] = \
-            spiral['TanLong'], spiral['TanShort']
 
     #set bearings
     _b = [
@@ -152,18 +151,18 @@ def _solve_by_absolute(spiral):
         support.get_rotation(_b_vec[0], _b_vec[1])
 
     #calc the Xc / Yc vectors pointing away from the finite radius point
-    _ortho = support.vector_ortho(_b_vec[0])
+    _ortho = TupleMath.ortho(_b_vec[0])
 
     #flip the orthogonal for clockwise curves
     if spiral['Direction'] > 0:
-        _ortho.multiply(-1.0)
+        TupleMath.scale(_ortho, -1)
 
     _vecs = [
-        Vector(_b_vec[0]).multiply(spiral['TotalX']),
-        Vector(_ortho).multiply(spiral['TotalY'])
+        TupleMath.scale(_b_vec[0],spiral['TotalX']),
+        TupleMath.scale(_ortho,spiral['TotalY'])
     ]
 
-    spiral['vTotal'] = _vecs[0].add(_vecs[1])
+    spiral['vTotal'] = TupleMath.add(_vecs[0],_vecs[1])
 
     if spiral.get('Type') is None:
         spiral['Type'] = 'Spiral'
@@ -332,7 +331,7 @@ def get_parameters(spiral_dict):
     print('Unable to solve spiral')
     return None
 
-def get_segments(spiral, deltas, _dtype=Vector):
+def get_segments(spiral, deltas):
     """
     Calculate the coordinates of the curve segments
     bearing - beginning bearing
@@ -360,8 +359,8 @@ def get_segments(spiral, deltas, _dtype=Vector):
     if _reverse:
         _draw_start, _draw_end = _draw_end, _draw_start
         _direction *= -1
-
-    _vec = spiral['PI'].sub(_draw_start).normalize()
+    
+    _vec = TupleMath.unit(TupleMath.subtract(spiral['PI'],(_draw_start)))
 
     _points = []
 
@@ -381,22 +380,22 @@ def get_segments(spiral, deltas, _dtype=Vector):
         _y = _seg_len - ((_seg_len**5) / _forty_rad2_len2)
 
         #calculate vector coordinates
-        _dy = Vector(_vec).multiply(_y)
-        _dx = Vector(_vec.y, -_vec.x, 0.0).multiply(_direction).multiply(_x)
+        _dy = TupleMath.scale(_vec, _y)
+        _dx = TupleMath.scale(TupleMath.scale([_vec[1], -_vec[0], 0.0],_direction),_x)
 
-        _points.append(_dtype(_dy.add(_dx)))
 
-    _delta = _draw_end.sub(_points[-1])
+        _points.append(TupleMath.add(_dy,_dx))
+
 
     if _reverse:
         _points = _points[::-1]
 
-    _points = [_v.add(_draw_start) for _v in _points]
+    _points = [TupleMath.add(_v,_draw_start) for _v in _points]
 
     return _points
 
 def get_points(
-        spiral, size=10.0, method='Segment', interval=None, _dtype=Vector):
+        spiral, size=10.0, method='Segment', interval=None):
     """
     Discretize a spiral into the specified segments. Resulting list of
     coordinates omits provided starting point and concludes with end point
@@ -466,7 +465,7 @@ def get_points(
     if segment_deltas[-1] < angle:
         segment_deltas.append(angle)
 
-    return get_segments(spiral, segment_deltas, _dtype)
+    return get_segments(spiral, segment_deltas)
 
 def get_ordered_tangents(curve):
     """
