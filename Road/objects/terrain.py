@@ -55,7 +55,7 @@ class Terrain:
 
         obj.addProperty(
             "App::PropertyPythonObject", "Faces", "Triangulation",
-            "Faces of triangulation").Faces = []
+            "Faces of triangulation").Faces = {"Visible":[], "Invisible":[]}
 
         obj.addProperty(
             "App::PropertyPythonObject", "Operations", "Triangulation",
@@ -109,7 +109,7 @@ class Terrain:
             mesh_obj = Mesh.Mesh()
             origin = None
 
-            for face in obj.Faces:
+            for face in obj.Faces["Visible"]:
                 if origin is None:
                     origin = FreeCAD.Vector(obj.Points[face[0]]).multiply(1000)
                     origin.z = 0

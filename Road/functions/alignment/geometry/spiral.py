@@ -73,27 +73,6 @@ def _calc_total_y(theta):
 
     return _v * theta
 
-def _test_tolerance(lhs, rhs, tol=None):
-    """
-    Perform tolerance test, handling None conditions
-    """
-
-    _truth = [lhs is not None, rhs is not None]
-
-    if not any(_truth):
-        return 0
-
-    if not _truth[0]:
-        return rhs
-
-    if not _truth[1]:
-        return lhs
-
-    if support.within_tolerance(lhs, rhs, tol):
-        return lhs
-
-    return rhs
-
 def _calc_rlt(radius, length, theta):
     """
     Given two of the three parameters, return the third
@@ -146,10 +125,6 @@ def _solve_by_absolute(spiral):
     #calculate the tangent magnitudes
     _tangents = [math.sqrt(_result.A[0][0]), math.sqrt(_result.A[1][1])]
 
-    #validate tangent lengths
-    spiral['TanShort'] = _test_tolerance(spiral.get('TanShort'), _tangents[0])
-    spiral['TanLong'] = _test_tolerance(spiral.get('TanLong'), _tangents[1])
-
     if spiral['TanShort'] > spiral['TanLong']:
         spiral['TanShort'], spiral['TanLong'] = \
             spiral['TanLong'], spiral['TanShort']
@@ -175,21 +150,6 @@ def _solve_by_absolute(spiral):
     #set direction
     spiral['Direction'] = \
         support.get_rotation(_b_vec[0], _b_vec[1])
-
-    #calc theta as dot product of bearing vectors
-    _theta = math.acos(_result.A[1][0] / (_tangents[0] * _tangents[1]))
-    spiral['Theta'] = _test_tolerance(spiral.get('Theta'), _theta)
-
-    #calc length
-    _len = spiral['Radius'] * spiral['Theta'] * 2.0
-    spiral['Length'] = _test_tolerance(spiral.get('Length'), _len)
-
-    #calc TotalX / TotalY
-    _ty = _calc_total_y(spiral['Theta']) * spiral['Length']
-    spiral['TotalY'] = _test_tolerance(spiral.get('TotalY'), _ty)
-
-    _tx = _calc_total_x(spiral['Theta']) * spiral['Length']
-    spiral['TotalX'] = _test_tolerance(spiral.get('TotalX'), _tx)
 
     #calc the Xc / Yc vectors pointing away from the finite radius point
     _ortho = support.vector_ortho(_b_vec[0])

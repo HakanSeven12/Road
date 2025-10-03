@@ -40,8 +40,6 @@ class Constants:
     UP = 0.0, 1.0, 0.0              # Up vector
     Z_DEPTH = [0.0, 0.05, 0.1]      # Z values to provide rendering layers
 
-C = Constants
-
 def get_doc_units():
     """
     Return the units (feet / meters) of active document
@@ -147,20 +145,6 @@ def safe_sub(lhs, rhs, return_none=False):
 
     return lhs.sub(rhs)
 
-def safe_radians(value):
-    """
-    Convert a floating point value from degrees to radians,
-    handle None / invalid type conditions
-    """
-
-    if value is None:
-        return 0.0
-
-    if not isinstance(value, float):
-        return 0.0
-
-    return math.radians(value)
-
 def get_rotation(in_vector, out_vector=None):
     """
     Returns the rotation as a signed integer:
@@ -168,6 +152,8 @@ def get_rotation(in_vector, out_vector=None):
 
     if in_vector is an instance, out_vector is ignored.
     """
+    if not all([in_vector, out_vector]):return 0
+
     _in = App.Vector(in_vector)
     _out = App.Vector(out_vector)
 
@@ -179,21 +165,6 @@ def get_rotation(in_vector, out_vector=None):
         return 0
 
     return -1 * math.copysign(1, _in.cross(_out).z)
-
-def get_ortho(vector, rot):
-    """
-    Calculate the normalized orthogonal of the passed vector
-    """
-
-    result = vector
-
-    if isinstance(vector, list):
-        result = App.Vector(vector)
-
-    if not isinstance(result, App.Vector):
-        return None
-
-    return App.Vector(result.y, -result.x, 0.0).normalize().multiply(rot)
 
 def get_quadrant(vector):
     """
@@ -211,25 +182,7 @@ def get_quadrant(vector):
 
     return [[0, 1], [3, 2]][_h][_v]
 
-def get_bearing(vector, reference=C.UP):
-    """
-    Returns the absolute bearing of the passed vector.
-    Bearing is measured clockwise from +y 'north' (0,1,0)
-    Vector is a list of coordinates or an App.Vector
-    """
-
-    vector = App.Vector(vector)
-    reference = App.Vector(reference)
-
-    rot = get_rotation(reference, vector)
-    angle = rot * reference.getAngle(vector)
-
-    if angle < 0.0:
-        angle += C.TWO_PI
-
-    return angle
-
-def within_tolerance(lhs, rhs=None, tolerance=None):
+def within_tolerance(lhs, rhs=None, tolerance=0.0001):
     """
     Determine if two values are within a pre-defined tolerance
 
@@ -240,9 +193,6 @@ def within_tolerance(lhs, rhs=None, tolerance=None):
     List comparisons check every value against every other
     and errors if any checks fail
     """
-
-    if tolerance is None:
-        tolerance = C.TOLERANCE
 
     if not isinstance(lhs, Iterable):
         lhs = [lhs]
@@ -329,37 +279,3 @@ def vector_from_angle(angle):
         return None
 
     return App.Vector(math.sin(_angle), math.cos(_angle), 0.0)
-
-def validate_bearing(bearing, reference):
-    """
-    Ensure the bearing is converted to CW-NORTH reference
-    """
-
-    if not reference:
-        return bearing
-
-    _two_pi = math.pi * 2.0
-
-    #normalize to [0, 2*pi]
-    _b = abs(bearing - int(bearing / _two_pi) * _two_pi)
-    _sign = 1.0
-
-    if reference in [4, 5, 6, 7]:
-        _sign = -1.0
-
-    #translate bearing to North reference
-    if reference in [1, 5]:
-        _b += _sign * 0.5 * math.pi
-
-    elif reference in [2, 6]:
-        _b += _sign * math.pi
-
-    elif reference in [3, 7]:
-        _b += _sign * 0.75 * math.pi
-
-    #convert CCW to CW
-    if reference in [4, 5, 6, 7]:
-        _b = _two_pi - _b
-
-    #normalize to [0, 2*pi]
-    return abs(_b - int(_b / _two_pi) * _two_pi)

@@ -27,17 +27,14 @@ import FreeCAD
 
 import math
 from xml.etree import ElementTree as etree
-
 from PySide import QtGui
 
+from .key_maps import KeyMaps as maps
 from . import functions
 from .. import support
-from...utils.tuple_math import TupleMath
-from .key_maps import KeyMaps as maps
 
-C = support.Constants
 
-class Parser(object):
+class Parser:
     """
     landxml parsing class
     """
@@ -121,7 +118,7 @@ class Parser(object):
 
         return obj_name
 
-    def _parse_data(self, align_name, tags, attrib, bearing_ref=0):
+    def _parse_data(self, align_name, tags, attrib):
         """
         Build dictionary keyed to the internal attribute names from XML
         """
@@ -161,12 +158,6 @@ class Parser(object):
                 if attr_val:
                     attr_val = math.radians(attr_val)
 
-                    if _tag in ['dir', 'dirStart', 'dirEnd']:
-
-                        attr_val = support.validate_bearing(
-                            attr_val, bearing_ref
-                        )
-
             #test for lengths to convert to mm
             elif _tag in maps.XML_TAGS['length']:
                 attr_val = support.to_float(attrib.get(_tag))
@@ -200,8 +191,6 @@ class Parser(object):
             align_name, maps.XML_ATTRIBS['Alignment'], alignment.attrib
             )
 
-        result['Start'] = functions.get_child_coordinate(alignment, 'Start')
-
         return result
 
     def _parse_station_data(self, align_name, alignment):
@@ -226,7 +215,7 @@ class Parser(object):
 
         return result
 
-    def _parse_coord_geo_data(self, align_name, alignment, bearing_ref=0):
+    def _parse_coord_geo_data(self, align_name, alignment):
         """
         Parse the alignment coordinate geometry data to get curve
         information and return as a dictionary
@@ -241,110 +230,17 @@ class Parser(object):
         result = []
 
         for geo_node in coord_geo:
-
             node_tag = geo_node.tag.split('}')[1]
+            if not node_tag in ['Curve', 'Spiral', 'Line']: continue
 
-            if not node_tag in ['Curve', 'Spiral', 'Line']:
-                continue
-
-            points = []
-
+            coords = {'Type': node_tag}
             for _tag in ['Start', 'End', 'Center', 'PI']:
+                coords[_tag] = functions.get_child_coordinate(geo_node, _tag)
 
-                point = functions.get_child_coordinate(geo_node, _tag)
-                points.append(point)
-
-                if not (node_tag == 'Line' and _tag in ['Center', 'PI']):
-                    continue
-                    self.errors.append(
-                        'Missing %s %s coordinate in alignment %s'
-                        % (node_tag, _tag, align_name)
-                    )
-
-            hash_value = None
-
-            if len(points) >= 2 and all(points):
-                hash_value = hash(tuple(points[0]) + tuple(points[1]))
-
-            coords = {
-                'Hash': hash_value,
-                'Type': node_tag,
-                'Start': points[0] if points[0] else None,
-                'End': points[1] if points[1] else None,
-                'Center': points[2] if points[2] else None,
-                'PI': points[3] if points[3] else None
-                }
-
-            result.append({
-                **coords,
-                **self._parse_data(
-                    align_name, maps.XML_ATTRIBS[node_tag], geo_node.attrib, bearing_ref
-                )
-            })
+            result.append({**coords, **self._parse_data(
+                    align_name, maps.XML_ATTRIBS[node_tag], geo_node.attrib)})
 
         return result
-
-    def _update_alignment(self, geometry):
-        _truth = [True]*8
-
-        for curve in geometry:
-            bearing_in = curve.get('BearingIn') if curve.get('BearingIn') else 0.0
-            start = curve.get('Start') if curve.get('Start') else 0.0
-            end = curve.get('End') if curve.get('End') else 0.0
-            pi = curve.get('PI') if curve.get('PI') else 0.0
-
-            #test bearing if a bearing is found
-            if bearing_in: self.test_bearing(bearing_in, start, end, pi, _truth)
-
-        bearing_ref = [_i for _i, _v in enumerate(_truth) if _v]
-
-        if not bearing_ref:
-            self.errors.append('Inconsistent angle directions - unable to determine bearing reference')
-            return
-
-        return bearing_ref[0]
-
-    def test_bearing(self, bearing, start_pt, end_pt, pi, truth):
-        """
-        Test the bearing direction to verify it's definition
-        """
-
-        #if the start point isn't a vector, default to true for N-CW
-        if not isinstance(start_pt, list):
-            return [True] + [False]*7
-
-        #calculate the vector from the PI where possible, otherwise
-        #use the end point.  If both fail, default to N-CW
-        if not isinstance(pi, float):
-            _vec = TupleMath.subtract(pi, start_pt)
-
-        elif isinstance(end_pt, list):
-            _vec = TupleMath.subtract(end_pt, start_pt)
-
-        else:
-            return [True] + [False]*7
-
-        #calculate the bearings of the vector against each axis
-        #direction, both clockwise and counter-clockwise
-
-        #CW CALCS
-        _b = [
-            support.get_bearing(_vec),
-            support.get_bearing(_vec, [1.0, 0.0, 0.0]),
-            support.get_bearing(_vec, [0.0, -1.0, 0.0]),
-            support.get_bearing(_vec, [-1.0, 0.0, 0.0])
-        ]
-
-        #CCW CALCS
-        _b += [C.TWO_PI - _v for _v in _b]
-
-        #compare each calculation against the original bearing, storing
-        #whether or not it's within tolerance for the axis / direction
-        _b = [support.within_tolerance(_v, bearing, 0.01) for _v in _b]
-
-        #Update truth table, invalidating bearings that don't compare
-        for _i, _v in enumerate(_b):
-            truth[_i] = truth[_i] and _v
 
     def parse_points(self, all_points):
         points = {}
@@ -371,16 +267,17 @@ class Parser(object):
             id = int(p.get("id"))
             pt = p.text.strip().split(' ')
             pt = [float(v) for v in pt]
-            vec = FreeCAD.Vector(pt[1], pt[0], pt[2])
-            points[id] = vec.multiply(1000)
+            points[id] = [pt[1], pt[0], pt[2]]
 
-        faces = []
+        faces_visible = []
+        faces_invisible = []
         for f in fcs:
+            invisible = bool(int(f.get("i",0)))
             fc = f.text.strip().split(' ')
             fc = [int(v) for v in fc]
-            faces.append(fc)
+            faces_invisible.append(fc) if invisible else faces_visible.append(fc)
 
-        return points, faces
+        return points, {"Visible":faces_visible, "Invisible":faces_invisible}
 
     def load_file(self, filepath):
         """
@@ -449,8 +346,6 @@ class Parser(object):
                 result['Alignments'][name] = align_dict
                 align_dict['meta'] = self._parse_meta_data(name, alignment)
                 align_dict['station'] = self._parse_station_data(name, alignment)
-                geometry = self._parse_coord_geo_data(name, alignment)
-                bearing_referance = self._update_alignment(geometry)
-                align_dict['geometry'] = self._parse_coord_geo_data(name, alignment, bearing_referance)
+                align_dict['geometry'] = self._parse_coord_geo_data(name, alignment)
 
         return result
