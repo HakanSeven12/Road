@@ -23,7 +23,6 @@
 """
 Class for managing 2D Horizontal Alignment data
 """
-from copy import deepcopy
 
 from FreeCAD import Vector
 import Part
@@ -77,26 +76,12 @@ class AlignmentModel:
         Assign geometry to the alignment object
         """
         _geometry = []
-        for _i, _geo in enumerate(self.geometry):
-            if _geo.get('Type') == 'Curve':
+        for _geo in self.geometry:
+            if _geo.get('Type') == 'Line':
+                _geo = line.get_parameters(_geo)
+
+            elif _geo.get('Type') == 'Curve':
                 _geo = arc.get_parameters(_geo)
-
-            #skip serialized lines unless it begins the alignment.
-            #In that case, set the tangent's start coordinate as
-            #alignment datum before continuing
-            elif _geo.get('Type') == 'Line':
-
-                if _i == 0:
-
-                    if not self.meta.get('Start'):
-                        self.meta['Start'] = _geo.get('Start')
-
-                    #if only one line is defined, make sure it gets added to
-                    #the geometry model
-                    if len(self.geometry) == 1:
-                        _geometry.append(_geo)
-
-                continue
 
             elif _geo.get('Type') == 'Spiral':
                 _geo = spiral.get_parameters(_geo)
@@ -110,16 +95,7 @@ class AlignmentModel:
         self.geometry = _geometry
         self.validate_datum()
         self.validate_stationing()
-
-        #if not self.validate_bearings(): return False
-
         self.validate_coordinates(zero_reference)
-
-        if not self.validate_alignment():
-            return False
-
-        #call once more to catch geometry added by validate_alignment()
-        self.validate_stationing()
 
         if zero_reference:
             self.zero_reference_coordinates()
@@ -148,109 +124,6 @@ class AlignmentModel:
         if self.meta.get('End'):
             self.meta['End'] = \
                 TupleMath.subtract(self.meta.get('End'), datum)
-
-    def validate_alignment(self):
-        """
-        Ensure the alignment geometry is continuous.
-        Any discontinuities (gaps between end / start coordinates)
-        must be filled by a completely defined line
-        """
-
-        _prev_sta = 0.0
-        _prev_coord = self.meta.get('Start')
-        _geo_list = []
-
-        #iterate through all geometry, looking for coordinate gaps
-        #and filling them with line segments.
-        for _geo in self.geometry:
-
-            if not _geo:
-                continue
-
-            _coord = _geo.get('Start')
-
-            _d = abs(TupleMath.length(TupleMath.subtract(
-                tuple(_coord), tuple(_prev_coord))))
-
-            #test for gap at start of geometry and end of previous geometry
-            if not support.within_tolerance(_d, tolerance=0.01):
-
-                #build the line using the provided parameters and add it
-                _geo_list.append(
-                    line.get_parameters({
-                        'Start': Vector(_prev_coord),
-                        'End': Vector(_coord),
-                        'StartStation': self.get_alignment_station(_prev_sta),
-                        'Bearing': _geo.get('BearingIn'),
-                    }).to_dict()
-                )
-
-            _geo_list.append(_geo)
-            _prev_coord = _geo.get('End')
-            _prev_sta = _geo.get('InternalStation')[1]
-
-        _length = 0.0
-
-        #fill in the alignment length.  If the end of the alignment falls short
-        #of the calculated length, append a line to complete it.
-        if not self.meta.get('Length'):
-
-            _end = self.meta.get('End')
-
-            #abort - no overall length or end coordinate specified
-            if not _end:
-                return False
-
-            _prev = _geo_list[-1]
-
-            if TupleMath.length(
-                TupleMath.subtract(_end, _prev.get('End'))) > 0.0:
-
-                _geo_list.append(
-                    line.get_parameters({
-                        'Start': _prev.get('End'),
-                        'End': _end,
-                        'StartStation': self.get_alignment_station(
-                            _prev['InternalStation'][0]),
-                        'Bearing': _prev.get('BearingOut')
-                    }).to_dict()
-                )
-
-            self.meta['Length'] = 0.0
-
-        #accumulate length across individual geometry and test against
-        #total alignment length
-        for _geo in _geo_list:
-            _length += _geo.get('Length')
-
-        align_length = self.meta.get('Length')
-
-        if not support.within_tolerance(_length, align_length):
-
-            if  _length > align_length:
-                self.meta['Length'] = align_length
-
-            else:
-                _start = _geo_list[-1].get('End')
-                bearing = _geo_list[-1].get('BearingOut')
-
-                _end = line.get_coordinate(
-                    _start, bearing, align_length - _length
-                    )
-
-                _geo_list.append(
-                    line.get_parameters({
-                        'Start': _start,
-                        'End': _end,
-                        'StartStation': self.get_alignment_station(
-                            _geo['InternalStation'][1]),
-                        'BearingOut': bearing
-                    }).to_dict()
-                )
-
-        self.geometry = _geo_list
-
-        return True
 
     def validate_datum(self):
         """
@@ -430,56 +303,6 @@ class AlignmentModel:
 
             _prev_geo = _geo
 
-    def validate_bearings(self):
-        """
-        Validate the bearings between geometry, ensuring they are equal
-        """
-
-        geo_data = self.geometry
-
-        if len(geo_data) < 2:
-            return True
-
-        if geo_data[0] is None:
-            self.errors.append('Undefined geometry in bearing validation')
-            return False
-
-        prev_bearing = geo_data[0].get('BearingOut')
-
-        for _geo in geo_data[1:]:
-
-            if not _geo:
-                continue
-
-            #don't validate bearings on a zero-radius arc
-            if _geo.get('Type') == 'Curve' and not _geo.get('Radius'):
-                continue
-
-            _b = _geo.get('BearingIn')
-
-            #if bearings are missing or not within tolerance of the
-            #previous geometry bearings, reduce to zero-radius arc
-            _err = [_b is None, not support.within_tolerance(_b, prev_bearing)]
-
-            _err_msg = '({0:.4f}, {1:.4f}) at curve {2}'\
-                .format(prev_bearing, _b, _geo)
-
-            if any(_err):
-
-                if _geo.get('Type') == 'Curve':
-                    _geo['Radius'] = 0.0
-
-                if _err[0]:
-                    _err_msg = 'Invalid bearings ' + _err_msg
-                else:
-                    _err_msg = 'Bearing mismatch ' + _err_msg
-
-                self.errors.append(_err_msg)
-
-            prev_bearing = _geo.get('BearingOut')
-
-        return True
-
     def validate_stationing(self):
         """
         Iterate the geometry, calculating the internal start station
@@ -528,6 +351,9 @@ class AlignmentModel:
             int_sta = self.get_internal_station(geo_station)
 
             _geo['InternalStation'] = (int_sta, int_sta + _geo.get('Length'))
+
+        last_curve_stations = self.geometry[-1].get('InternalStation')
+        self.meta["EndStation"] = last_curve_stations[1] / 1000
 
     def get_internal_station(self, station):
         """

@@ -37,7 +37,7 @@ class Line():
     """
     _keys = [
         'ID', 'Type', 'Start', 'End', 'Bearing', 'Length', 'StartStation',
-        'InternalStation'
+        'InternalStation', 'PI', 'Center', 'Description', 'Status', 'ObjectID', 'Note'
     ]
 
     def __init__(self, line_dict=None):
@@ -53,6 +53,12 @@ class Line():
         self.length = 0.0
         self.start_station = 0.0
         self.internal_station = 0.0
+        self.pi = None
+        self.center = None
+        self.description = ''
+        self.status = ''
+        self.object_id = ''
+        self.note = ''
 
         #build a list of key pairs fir string-based lookup
         self._key_pairs = {}
@@ -64,6 +70,7 @@ class Line():
 
             self._key_pairs['BearingIn'] = 'bearing'
             self._key_pairs['BearingOut'] = 'bearing'
+
 
         if line_dict:
             for _k, _v in line_dict.items():
@@ -107,14 +114,17 @@ class Line():
         Generic getter for class attributes
         """
 
-        if not key in self._key_pairs:
+        if not key in self.__dict__:
 
-            Console.PrintError('\nLine.get(): Bad key: ' + key)
-            return None
+            assert (key in self._key_pairs), """
+                \nArc.get(): Bad key: ' + key + '\n')
+                """
+
+            key = self._key_pairs[key]
 
         _value = getattr(self, key)
 
-        if _value and key.lower() in ('start', 'end', 'pi', 'center'):
+        if _value and key in ('start', 'end', 'pi', 'center'):
             _value = tuple(_value)
 
         return _value
@@ -139,7 +149,7 @@ class Line():
     bearing_in = property(get_bearing, set_bearing)
     bearing_out = property(get_bearing, set_bearing)
 
-def get_parameters(line):
+def get_parameters(line, as_dict=True):
     """
     Return a fully-defined line
     """
@@ -189,6 +199,9 @@ def get_parameters(line):
 
     #if _case_one or _case_two:
     #    result = {**{'Type': 'Line'}, **line}
+
+    if as_dict:
+        return _result.to_dict()
 
     return _result
 

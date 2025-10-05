@@ -140,9 +140,9 @@ class Alignment:
         if prop == "Meta":
             meta = obj.getPropertyByName(prop)
 
-            obj.StartStation = meta.get("StartStation", 0)
+            obj.StartStation = meta.get("StartStation", 0) * 1000
             obj.Length = meta.get("Length", 0)
-            obj.EndStation = obj.StartStation + obj.Length
+            obj.EndStation = meta.get("EndStation", 0) * 1000
 
             obj.Description = meta.get("Description") if meta.get("Description") else ""
             obj.Status = meta.get("Status") if meta.get("Status") else "existing"
