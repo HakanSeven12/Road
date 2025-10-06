@@ -35,7 +35,7 @@ class AlignmentModel:
     """
     Alignment model for the alignment FeaturePython class
     """
-    def __init__(self, meta, station, geometry, zero_reference=False):
+    def __init__(self, meta, station, geometry):
         """
         Default Constructor
         """
@@ -46,9 +46,7 @@ class AlignmentModel:
 
         meta["Start"] = geometry[0].get('Start')
 
-        if geometry:
-            if not self.construct_geometry(zero_reference):
-                print('Errors encountered generating alignment model')
+        if geometry: self.construct_geometry()
 
     def get_datum(self):
         """
@@ -71,7 +69,7 @@ class AlignmentModel:
 
         return result
 
-    def construct_geometry(self, zero_reference=True):
+    def construct_geometry(self):
         """
         Assign geometry to the alignment object
         """
@@ -95,35 +93,6 @@ class AlignmentModel:
         self.geometry = _geometry
         self.validate_datum()
         self.validate_stationing()
-        self.validate_coordinates(zero_reference)
-
-        if zero_reference:
-            self.zero_reference_coordinates()
-
-        #run discretization to force coordinate transformation updates
-
-        return True
-
-    def zero_reference_coordinates(self):
-        """
-        Reference the coordinates to the start point
-        by adjustuing by the datum
-        """
-
-        datum = self.get_datum()
-
-        for _geo in self.geometry:
-
-            for _key in ['Start', 'End', 'Center', 'PI']:
-
-                if _geo.get(_key) is None:
-                    continue
-
-                _geo[_key] = TupleMath.subtract(_geo[_key], datum)
-
-        if self.meta.get('End'):
-            self.meta['End'] = \
-                TupleMath.subtract(self.meta.get('End'), datum)
 
     def validate_datum(self):
         """
@@ -227,81 +196,6 @@ class AlignmentModel:
             ) / support.scale_factor()
 
             _datum['StartStation'] -= delta
-
-    def validate_coordinates(self, zero_reference):
-        """
-        Iterate the geometry, testing for incomplete / incorrect station /
-        coordinate values. Fix them where possible, error otherwise
-        """
-
-        #calculate distance between curve start and end using
-        #internal station and coordinate vectors
-
-        _datum = self.meta
-        _geo_data = self.geometry
-
-        _prev_geo = {'End': _datum.get('Start'), 'InternalStation': (0.0, 0.0),
-                     'StartStation': _datum.get('StartStation'), 'Length': 0.0
-                    }
-
-        if zero_reference:
-            _prev_geo['End'] = Vector()
-
-        for _geo in _geo_data:
-
-            if not _geo:
-                continue
-
-            #get the vector between the two geometries
-            #and the station distance
-            _vector = TupleMath.subtract(
-                tuple(_geo.get('Start')), tuple(_prev_geo.get('End')))
-
-            _sta_len = abs(
-                _geo.get('InternalStation')[0] \
-                    - _prev_geo.get('InternalStation')[1]
-            )
-
-            #calculate the difference between the vector length
-            #and station distance in document units
-            _delta = \
-                (TupleMath.length(_vector) - _sta_len) / support.scale_factor()
-
-            #if the stationing / coordinates are out of tolerance,
-            #the error is with the coordinate vector or station
-            if not support.within_tolerance(_delta):
-                bearing_angle = TupleMath.bearing(_vector)
-
-                #fix station if coordinate vector bearings match
-                if support.within_tolerance(
-                        bearing_angle, _geo.get('BearingIn')):
-
-
-                    _int_sta = (
-                        _prev_geo.get('InternalStation')[1] \
-                            + TupleMath.length(_vector),
-                        _geo.get('InternalStation')[0]
-                        )
-
-                    _start_sta = _prev_geo.get('StartStation') + \
-                                    _prev_geo.get('Length') / \
-                                        support.scale_factor() + \
-                                           TupleMath.length(_vector) / \
-                                               support.scale_factor()
-
-                    _geo['InternalStation'] = _int_sta
-                    _geo['StartStation'] = _start_sta
-
-                #otherwise, fix the coordinate
-                else:
-                    _bearing_vector = TupleMath.multiply(
-                        TupleMath.bearing_vector(_geo.get('BearingIn')),
-                        _sta_len)
-
-                    _start_pt = TupleMath.add(tuple(_prev_geo.get('End')),tuple(_bearing_vector))
-                    _geo['Start'] = _start_pt
-
-            _prev_geo = _geo
 
     def validate_stationing(self):
         """

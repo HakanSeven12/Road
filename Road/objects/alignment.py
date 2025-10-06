@@ -116,7 +116,7 @@ class Alignment:
         station = obj.getPropertyByName("Station")
         geometry = obj.getPropertyByName("Geometry")
 
-        model = AlignmentModel(meta, station, geometry, zero_reference=False)
+        model = AlignmentModel(meta, station, geometry)
 
         if model.errors:
             for _err in model.errors:
