@@ -44,8 +44,6 @@ class AlignmentModel:
         self.station = station
         self.geometry = geometry
 
-        meta["Start"] = geometry[0].get('Start')
-
         if geometry: self.construct_geometry()
 
     def get_datum(self):

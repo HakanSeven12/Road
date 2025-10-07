@@ -24,8 +24,6 @@
 
 import FreeCAD, FreeCADGui
 
-import Mesh
-
 from .task_panel import TaskPanel
 from ..functions.xml.parser import Parser
 from ..make import make_terrain, make_alignment, make_geopoint, make_cluster
@@ -302,6 +300,8 @@ class TaskLandXMLImport(TaskPanel):
             alignment.Meta = data['meta'] or {}
             alignment.Station = data['station'] or {}
             alignment.Geometry = data['geometry'] or {}
+
+            alignment.Proxy.set_geometry(data['meta'], data['station'], data['geometry'])
 
         FreeCADGui.Control.closeDialog()
         FreeCAD.ActiveDocument.recompute()

@@ -107,24 +107,13 @@ class Alignment:
             "Set the curve segments to control accuracy").Seg_Value = 10
 
         obj.Proxy = self
+        self.Object = obj
+        self.model = None
 
     def execute(self, obj):
-        '''
-        Update Object when doing a recomputation. 
-        '''
-        meta = obj.getPropertyByName("Meta")
-        station = obj.getPropertyByName("Station")
-        geometry = obj.getPropertyByName("Geometry")
-
-        model = AlignmentModel(meta, station, geometry)
-
-        if model.errors:
-            for _err in model.errors:
-                print('Error in alignment {0}: {1}'.format(obj.Label, _err))
-            model.errors.clear()
-        else:
-            obj.Shape = model.get_shape()
-
+        """Update Object when doing a recomputation."""
+        if hasattr(self, "model"):
+            if self.model: obj.Shape = self.model.get_shape()
 
     def onChanged(self, obj, prop):
         """Update Object when a property changed."""
@@ -179,3 +168,46 @@ class Alignment:
                             if 'Spiral Length Out' in values: values['Spiral Length Out'] = float(values['Spiral Length Out']) * ( 1 + factor * ((abs(offset) / 1000) / (2 * R)))
 
                 obj.Model = model
+
+    def onDocumentRestored(self, obj):
+        """Restore Object references on reload."""
+        self.Object = obj
+        self.set_geometry(obj.Meta, obj.Geometry, obj.Station)
+
+    def set_geometry(self, meta, station, geometry):
+        """Assign geometry to the alignment object"""
+        self.model = AlignmentModel(meta, station, geometry)
+
+        if self.model.errors:
+            for _err in self.model.errors:
+                print('Error in alignment {0}: {1}'.format(obj.Label, _err))
+            self.model.errors.clear()
+        self.assign_meta_data()
+
+    def assign_meta_data(self):
+        """
+        Extract the meta data for the alignment from the data set
+        Check it for errors
+        Assign properties
+        """
+        obj = self.Object
+        meta = self.model.meta
+
+        if meta.get('Description'):
+            obj.Description = meta.get('Description')
+
+        if meta.get('Length'):
+            obj.Length = meta.get('Length')
+
+        if meta.get('Status'):
+            obj.Status = meta.get('Status')
+
+        if meta.get('StartStation'):
+            obj.StartStation = str(meta.get('StartStation'))
+
+        if meta.get('EndStation'):
+            obj.EndStation = str(meta.get('EndStation'))
+
+    def dumps(self):
+        """Called during document saving."""
+        self.model = None
