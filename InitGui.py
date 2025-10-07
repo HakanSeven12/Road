@@ -90,15 +90,9 @@ class RoadWorkbench(FreeCADGui.Workbench):
     def Activated(self):
         """When entering the workbench."""
         FreeCAD.Console.PrintLog("Road workbench activated.\n")
-        FreeCADGui.runCommand("Std_ViewTop")
-
-        from Road.guitools.widgets import GeoWidget
-        self.widget = GeoWidget()
-        self.widget.show()
 
     def Deactivated(self):
         """When quitting the workbench."""
-        self.widget.hide()
         FreeCAD.Console.PrintLog("Road workbench deactivated.\n")
 
     def ContextMenu(self, recipient):

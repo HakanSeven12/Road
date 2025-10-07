@@ -24,14 +24,23 @@ import FreeCAD, FreeCADGui
 from pivy import coin
 
 class ViewTracker:
-    def __init__(self, eventid="Event", key=None, state="Up", function=None, cancelable=True, selection=False):
-        self.view = FreeCADGui.ActiveDocument.ActiveView
+    def __init__(self, view=None, eventid="Event", key=None, state="Up", function=None, cancelable=True, selection=False):
+        # Store view reference or get current active view
+        self.view = view if view else (FreeCADGui.ActiveDocument.ActiveView if FreeCADGui.ActiveDocument else None)
+        
+        if not self.view:
+            raise ValueError("No valid view available for ViewTracker")
+        
         self.eventid = eventid
         self.key = key
         self.state = state
         self.function = function
         self.cancelable = cancelable
         self.selection = selection
+        self.callback = None
+        self.cancel = None
+        self.root = None
+        self.is_active = False
 
         self.eventids = {
             "Event": coin.SoEvent.getClassTypeId(),
@@ -171,44 +180,123 @@ class ViewTracker:
             "Bracketright": coin.SoKeyboardEvent.BRACKETRIGHT,
             "Grave": coin.SoKeyboardEvent.GRAVE}
 
+    def _is_view_valid(self):
+        """Check if view is still valid and accessible"""
+        try:
+            if not self.view:
+                return False
+            # Try to access a view property to check if it's still valid
+            _ = self.view.getSceneGraph()
+            return True
+        except (RuntimeError, AttributeError):
+            return False
+
     def start(self):
-        if not self.selection:
-            self.root=self.view.getSceneGraph()
-            self.root.getField("selectionRole").setValue(0)
+        """Start tracking events"""
+        if self.is_active:
+            return
+        
+        if not self._is_view_valid():
+            raise RuntimeError("View is not valid, cannot start tracker")
+        
+        try:
+            if not self.selection:
+                self.root = self.view.getSceneGraph()
+                self.root.getField("selectionRole").setValue(0)
 
-        self.callback = self.view.addEventCallbackPivy(
-            self.eventids[self.eventid], self.tracker)
+            self.callback = self.view.addEventCallbackPivy(
+                self.eventids[self.eventid], self.tracker)
 
-        self.cancel = self.view.addEventCallbackPivy(
-            self.eventids["Keyboard"], self.tracker)
+            self.cancel = self.view.addEventCallbackPivy(
+                self.eventids["Keyboard"], self.tracker)
+            
+            self.is_active = True
+            
+        except Exception as e:
+            print(f"Error starting ViewTracker: {e}")
+            self.is_active = False
+            raise
 
     def tracker(self, callback):
-        event = callback.getEvent()
+        """Handle tracked events"""
+        try:
+            event = callback.getEvent()
 
-        if event.getTypeId().isDerivedFrom(self.eventids["Location"]):
-            if self.eventid == "Location" and self.function: self.function(callback)
-    
-        elif event.getTypeId().isDerivedFrom(self.eventids["Keyboard"]):
-            if event.getKey() == self.keys.get("Escape") and event.getState() == self.states.get("Down"):
-                if self.cancelable: self.stop(True)
+            if event.getTypeId().isDerivedFrom(self.eventids["Location"]):
+                if self.eventid == "Location" and self.function: 
+                    self.function(callback)
+        
+            elif event.getTypeId().isDerivedFrom(self.eventids["Keyboard"]):
+                if event.getKey() == self.keys.get("Escape") and event.getState() == self.states.get("Down"):
+                    if self.cancelable: 
+                        self.stop(True)
 
-            elif event.getKey() == self.keys.get(self.key) and event.getState() == self.states.get(self.state):
-                print(f"Key '{self.key}' pressed with state '{self.state}'")
-                if self.eventid == "Keyboard" and self.function: self.function(callback)
+                elif event.getKey() == self.keys.get(self.key) and event.getState() == self.states.get(self.state):
+                    print(f"Key '{self.key}' pressed with state '{self.state}'")
+                    if self.eventid == "Keyboard" and self.function: 
+                        self.function(callback)
 
-        elif event.getTypeId().isDerivedFrom(self.eventids["Mouse"]):
-            if event.getButton() == self.buttons.get(self.key) and event.getState() == self.states.get(self.state):
-                print(f"Mouse button '{self.key}' clicked with state '{self.state}'")
-                if self.eventid == "Mouse" and self.function: self.function(callback)
+            elif event.getTypeId().isDerivedFrom(self.eventids["Mouse"]):
+                if event.getButton() == self.buttons.get(self.key) and event.getState() == self.states.get(self.state):
+                    print(f"Mouse button '{self.key}' clicked with state '{self.state}'")
+                    if self.eventid == "Mouse" and self.function: 
+                        self.function(callback)
+        except Exception as e:
+            print(f"Error in tracker callback: {e}")
 
     def stop(self, canceled=False):
-        if not self.selection:
-            self.root.getField("selectionRole").setValue(1)
+        """Stop tracking events"""
+        if not self.is_active:
+            return
+        
+        self.is_active = False
+        
+        # Check if view is still valid before trying to remove callbacks
+        if not self._is_view_valid():
+            # View is already deleted, just cleanup references
+            self.callback = None
+            self.cancel = None
+            self.root = None
+            self.view = None
+            return
+        
+        try:
+            # Restore selection role
+            if not self.selection and self.root:
+                try:
+                    self.root.getField("selectionRole").setValue(1)
+                except:
+                    pass
 
-        self.view.removeEventCallbackPivy(
-            self.eventids[self.eventid], self.callback)
+            # Remove event callbacks
+            if self.callback:
+                try:
+                    self.view.removeEventCallbackPivy(
+                        self.eventids[self.eventid], self.callback)
+                except Exception as e:
+                    print(f"Warning: Could not remove event callback: {e}")
 
-        self.view.removeEventCallbackPivy(
-            self.eventids["Keyboard"], self.cancel)
+            if self.cancel:
+                try:
+                    self.view.removeEventCallbackPivy(
+                        self.eventids["Keyboard"], self.cancel)
+                except Exception as e:
+                    print(f"Warning: Could not remove keyboard callback: {e}")
 
-        if canceled: FreeCAD.Console.PrintWarning("Canceled")
+            if canceled: 
+                FreeCAD.Console.PrintWarning("Canceled\n")
+                
+        except Exception as e:
+            print(f"Error in stop(): {e}")
+        finally:
+            # Always cleanup references
+            self.callback = None
+            self.cancel = None
+            self.root = None
+    
+    def __del__(self):
+        """Cleanup on deletion"""
+        try:
+            self.stop()
+        except:
+            pass

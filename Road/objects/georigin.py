@@ -22,8 +22,10 @@
 
 """Provides the object code for Geo Origin objects."""
 
+import FreeCADGui
 from ..variables import zone_list
 from ..objects.group import Group
+from ..guitools.widgets import GeoWidget
 
 
 
@@ -43,3 +45,17 @@ class GeoOrigin(Group):
             "Base point.").Base
 
 
+    def execute(self, obj):
+        '''
+        Update Object when doing a recomputation. 
+        '''
+        mw = FreeCADGui.getMainWindow()
+        statusbar = mw.statusBar()
+        
+        # Check all widgets in statusbar
+        for widget in statusbar.children():
+            if isinstance(widget, GeoWidget):
+                widget.show()
+                return
+        
+        GeoWidget()
