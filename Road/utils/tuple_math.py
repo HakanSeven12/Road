@@ -326,7 +326,7 @@ class TupleMath:
 
         _angle = float(angle)
 
-        return (math.sin(_angle), math.cos(_angle), 0.0)
+        return (math.cos(_angle), math.sin(_angle), 0.0)
 
     @staticmethod
     def _angle_from_dot(vector, ref):

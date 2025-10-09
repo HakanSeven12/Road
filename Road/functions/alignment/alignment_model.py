@@ -26,8 +26,10 @@ Class for managing 2D Horizontal Alignment data
 
 from FreeCAD import Vector
 import Part
-from .. import support
 
+import math
+
+from .. import support
 from .geometry import arc, line, spiral
 from ...utils.tuple_math import TupleMath
 
@@ -375,7 +377,7 @@ class AlignmentModel:
 
         return prev_geo
 
-    def get_orthogonal(self, station, side,verbose=False):
+    def get_orthogonal(self, station, side, verbose=False):
         """
         Return the orthogonal vector to a station along the alignment
         """
@@ -406,6 +408,26 @@ class AlignmentModel:
                 curve, distance, side)
 
         return None
+
+    def get_stations(self, increment, terminal):
+        last = None
+        stations = []
+        inc = {"Line": increment[0]*1000, "Curve": increment[1]*1000, "Spiral": increment[2]*1000}
+        for geo in self.geometry:
+            # Get starting and ending stations based on alignment
+            geo_start = geo.get('StartStation')*1000
+            length = geo.get('Length')
+            geo_end = geo_start + length
+            last = geo_end
+
+            if terminal: stations.append(geo_start)
+            incre = int(inc[geo.get('Type')])
+            stations.extend(range(int(math.ceil(geo_start / incre) * incre), int(geo_end + 1), incre))
+
+        # Add the end station
+        if terminal: stations.append(last)
+
+        return stations
 
     def get_tangent(self, station):
         """

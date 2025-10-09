@@ -150,7 +150,7 @@ class ViewProviderRegion:
             tangent = vobj.Object.IncrementAlongTangents
             curve = vobj.Object.IncrementAlongCurves
             spiral = vobj.Object.IncrementAlongSpirals
-            horizontal = vobj.Object.AtHorizontalAlignmentPoints
+            horizontal = vobj.Object.AtHorizontalGeometry
 
             stations = transformation(alignment, tangent, curve, spiral, horizontal)
             for station, transform in stations.items():

@@ -171,28 +171,13 @@ class Alignment:
 
     def onDocumentRestored(self, obj):
         """Restore Object references on reload."""
-        self.Object = obj
-        self.set_geometry(obj.Meta, obj.Geometry, obj.Station)
-
-    def set_geometry(self, meta, station, geometry):
-        """Assign geometry to the alignment object"""
-        self.model = AlignmentModel(meta, station, geometry)
-
+        self.model = AlignmentModel(obj.Meta, obj.Station, obj.Geometry)
         if self.model.errors:
             for _err in self.model.errors:
                 print('Error in alignment {0}: {1}'.format(obj.Label, _err))
             self.model.errors.clear()
-        self.assign_meta_data()
 
-    def assign_meta_data(self):
-        """
-        Extract the meta data for the alignment from the data set
-        Check it for errors
-        Assign properties
-        """
-        obj = self.Object
         meta = self.model.meta
-
         if meta.get('Description'):
             obj.Description = meta.get('Description')
 

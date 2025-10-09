@@ -847,7 +847,7 @@ def get_segments(bearing, deltas, direction, start, radius, _dtype=Vector):
     radius - arc radius
     """
 
-    _forward = Vector(math.sin(bearing), math.cos(bearing), 0.0)
+    _forward = Vector(math.cos(bearing), math.sin(bearing), 0.0)
     _right = Vector(_forward.y, -_forward.x, 0.0)
 
     _points = [_dtype(start)]

@@ -490,10 +490,10 @@ def get_ortho_vector(spiral, distance, side):
         _x = 1.0
 
     _coord, _vec = get_tangent_vector(spiral, distance)
-    _vec.x, _vec.y = -_vec.y, _vec.x
-    _vec.multiply(_x).normalize()
+    _vec[0], _vec[1] = -_vec[1], _vec[0]
+    vector = TupleMath.unit(TupleMath.scale(_vec,_x))
 
-    return _coord, _vec
+    return _coord, vector
 
 def get_tangent_vector(spiral, distance):
     """

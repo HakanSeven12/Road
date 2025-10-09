@@ -27,6 +27,7 @@ import FreeCAD, FreeCADGui
 from .task_panel import TaskPanel
 from ..functions.xml.parser import Parser
 from ..make import make_terrain, make_alignment, make_geopoint, make_cluster
+from ..functions.alignment.alignment_model import AlignmentModel
 
 from PySide.QtWidgets import (QWidget, QVBoxLayout, 
                              QHBoxLayout, QPushButton, QLabel, QTreeWidget, 
@@ -301,7 +302,7 @@ class TaskLandXMLImport(TaskPanel):
             alignment.Station = data['station'] or {}
             alignment.Geometry = data['geometry'] or {}
 
-            alignment.Proxy.set_geometry(data['meta'], data['station'], data['geometry'])
+            alignment.Proxy.onDocumentRestored(alignment)
 
         FreeCADGui.Control.closeDialog()
         FreeCAD.ActiveDocument.recompute()

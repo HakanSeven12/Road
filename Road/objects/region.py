@@ -25,8 +25,7 @@ import FreeCAD
 
 import Part
 
-from ..functions.region import get_lines
-from ..geoutils.alignment_old import transformation
+import copy
 
 
 class Region:
@@ -45,8 +44,8 @@ class Region:
             "Object shape").Shape = Part.Shape()
 
         obj.addProperty(
-            "App::PropertyBool", "AtHorizontalAlignmentPoints", "Base",
-            "Show/hide labels").AtHorizontalAlignmentPoints = True
+            "App::PropertyBool", "AtHorizontalGeometry", "Base",
+            "Show/hide labels").AtHorizontalGeometry = True
 
         obj.addProperty(
             "App::PropertyPythonObject", "Stations", "Base",
@@ -109,17 +108,30 @@ class Region:
         regions = obj.getParentGroup()
         alignment = regions.getParentGroup()
 
-        tangent = obj.getPropertyByName("IncrementAlongTangents")
-        curve = obj.getPropertyByName("IncrementAlongCurves")
-        spiral = obj.getPropertyByName("IncrementAlongSpirals")
-        horizontal = obj.getPropertyByName("AtHorizontalAlignmentPoints")
+        print(hasattr(alignment.Proxy, "model"))
+        if not hasattr(alignment.Proxy, "model"): return
 
-        stations = transformation(alignment, tangent, curve, spiral, horizontal)
+        tangent = obj.IncrementAlongTangents
+        curve = obj.IncrementAlongCurves
+        spiral = obj.IncrementAlongSpirals
+        terminal = obj.AtHorizontalGeometry
 
-        offset_left = obj.getPropertyByName("LeftOffset")*1000
-        offset_right = obj.getPropertyByName("RightOffset")*1000
+        model = alignment.Proxy.model
+        stations = model.get_stations([tangent, curve, spiral], terminal)
 
-        obj.Shape = get_lines(stations, offset_left, offset_right)
+        lines = []
+        # Computing coordinates and orthoginals for guidelines
+        for sta in stations:
+            tuple_coord, tuple_vec = model.get_orthogonal( sta/1000, "Left")
+            coord = FreeCAD.Vector(tuple_coord)
+            vec = FreeCAD.Vector(tuple_vec)
+            left_vec = copy.deepcopy(vec)
+            right_vec = copy.deepcopy(vec)
+            left_side = coord.add(left_vec.multiply(obj.LeftOffset*1000))
+            right_side = coord.add(right_vec.negative().multiply(obj.RightOffset*1000))
+            # Generate guide line object and add to cluster
+            lines.append(Part.makePolygon([left_side, coord, right_side]))
+        obj.Shape = Part.makeCompound(lines)
 
     def onChanged(self, obj, prop):
         """
@@ -129,7 +141,7 @@ class Region:
         if not regions: return
         alignment = regions.getParentGroup()
 
-        if prop == "Stations":
+        if prop == "Group":
             obj.Placement = alignment.Placement if alignment else FreeCAD.Placement()
 
         if prop == "FromAlignmentStart":
