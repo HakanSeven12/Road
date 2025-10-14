@@ -76,7 +76,8 @@ class ProfileFrameCreate:
                 break
 
         FreeCAD.Console.PrintWarning("Select Profile Frame position on screen")
-        self.tracker = ViewTracker("Mouse", key="Left", function=self.set_placement)
+        view = FreeCADGui.ActiveDocument.ActiveView
+        self.tracker = ViewTracker(view, "Mouse", key="Left", function=self.set_placement)
         self.tracker.start()
 
         FreeCADGui.Control.closeDialog()

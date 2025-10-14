@@ -66,7 +66,8 @@ class GeoPointCreate:
         FreeCADGui.Control.closeDialog()
 
         FreeCAD.Console.PrintWarning("Select GeoPoint location on screen")
-        tracker = ViewTracker("Mouse", key="Left", function=self.set_placement)
+        view = FreeCADGui.ActiveDocument.ActiveView
+        tracker = ViewTracker(view, "Mouse", key="Left", function=self.set_placement)
         tracker.start()
 
     def set_placement(self, callback):

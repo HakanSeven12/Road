@@ -55,7 +55,8 @@ class StructureCreate:
         structures.addObject(self.structure)
 
         FreeCAD.Console.PrintWarning("Select Structure position on screen")
-        self.tracker = ViewTracker("Mouse", key="Left", function=self.set_placement)
+        view = FreeCADGui.ActiveDocument.ActiveView
+        self.tracker = ViewTracker(view, "Mouse", key="Left", function=self.set_placement)
         self.tracker.start()
 
     def set_placement(self, callback):

@@ -43,7 +43,8 @@ class TerrainAddPoint:
     def Activated(self):
         """Command activation method"""
         self.terrain = FreeCADGui.Selection.getSelection()[-1]
-        tracker = ViewTracker("Mouse", key="Left", function=self.add_point)
+        view = FreeCADGui.ActiveDocument.ActiveView
+        tracker = ViewTracker(view, "Mouse", key="Left", function=self.add_point)
         tracker.start()
 
     def add_point(self, callback):
@@ -79,7 +80,8 @@ class TerrainDeleteTriangle:
     def Activated(self):
         """Command activation method"""
         self.terrain = FreeCADGui.Selection.getSelection()[-1]
-        tracker = ViewTracker("Mouse", key="Left", function=self.delete_triangle)
+        view = FreeCADGui.ActiveDocument.ActiveView
+        tracker = ViewTracker(view, "Mouse", key="Left", function=self.delete_triangle)
         tracker.start()
 
     def delete_triangle(self, callback):
@@ -110,7 +112,8 @@ class TerrainSwapEdge:
     def Activated(self):
         """Command activation method"""
         self.terrain = FreeCADGui.Selection.getSelection()[-1]
-        tracker = ViewTracker("Mouse", key="Left", function=self.swap_edge)
+        view = FreeCADGui.ActiveDocument.ActiveView
+        tracker = ViewTracker(view, "Mouse", key="Left", function=self.swap_edge)
         tracker.start()
 
     def swap_edge(self, callback):

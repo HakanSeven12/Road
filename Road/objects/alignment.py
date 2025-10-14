@@ -116,7 +116,7 @@ class Alignment:
             if self.model: 
                 obj.Shape = self.model.get_shape()
                 pis = self.model.get_pi_coords()
-                obj.PIs = [FreeCAD.Vector(pi) for pi in pis]
+                obj.PIs = [FreeCAD.Vector(pi) for pi in pis if pi]
 
     def onChanged(self, obj, prop):
         """Update Object when a property changed."""
