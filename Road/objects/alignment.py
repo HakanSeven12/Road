@@ -113,7 +113,10 @@ class Alignment:
     def execute(self, obj):
         """Update Object when doing a recomputation."""
         if hasattr(self, "model"):
-            if self.model: obj.Shape = self.model.get_shape()
+            if self.model: 
+                obj.Shape = self.model.get_shape()
+                pis = self.model.get_pi_coords()
+                obj.PIs = [FreeCAD.Vector(pi) for pi in pis]
 
     def onChanged(self, obj, prop):
         """Update Object when a property changed."""
@@ -196,3 +199,8 @@ class Alignment:
     def dumps(self):
         """Called during document saving."""
         self.model = None
+        return self.Type
+    
+    def loads(self, state):
+        """Called during document restore."""
+        self.Type = state

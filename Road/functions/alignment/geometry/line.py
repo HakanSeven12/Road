@@ -52,7 +52,7 @@ class Line():
         self.bearing = math.nan
         self.length = 0.0
         self.start_station = 0.0
-        self.internal_station = 0.0
+        self.internal_station = [0.0, 0.0]
         self.pi = None
         self.center = None
         self.description = ''

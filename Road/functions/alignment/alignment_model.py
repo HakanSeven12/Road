@@ -44,7 +44,7 @@ class AlignmentModel:
         self.errors = []
         self.meta = meta
         self.station = station
-        self.geometry = geometry
+        self.geometry = {i+1: v for i, v in enumerate(geometry)}
 
         if geometry: self.construct_geometry()
 
@@ -61,11 +61,13 @@ class AlignmentModel:
         as a list of vectors
         """
 
-        result = [Vector()]
+        result = [self.get_datum()]
         result += [
-            _v.get('PI') for _v in self.geometry if _v.get('PI')]
+            _v.get('PI') for _v in self.geometry.values() if _v.get('PI')]
 
         result.append(self.meta.get('End'))
+
+        if len(result) < 3: return []
 
         return result
 
@@ -73,24 +75,30 @@ class AlignmentModel:
         """
         Assign geometry to the alignment object
         """
-        _geometry = []
-        for _geo in self.geometry:
+        for no, _geo in self.geometry.items():
             if _geo.get('Type') == 'Line':
-                _geo = line.get_parameters(_geo)
+                self.geometry[no] = line.get_parameters(_geo)
 
             elif _geo.get('Type') == 'Curve':
-                _geo = arc.get_parameters(_geo)
+                self.geometry[no] = arc.get_parameters(_geo)
 
             elif _geo.get('Type') == 'Spiral':
-                _geo = spiral.get_parameters(_geo)
+                self.geometry[no] = spiral.get_parameters(_geo)
 
             else:
                 self.errors.append('Undefined geometry: ' + str(_geo))
                 continue
 
-            _geometry.append(_geo)
+        """
+        last = len(self.geometry)
+        self.meta["Start"] = self.geometry[1].get("Start")
+        self.meta["End"] = self.geometry[last].get("End")
+        try: self.meta["StartStation"] = self.geometry[1].get('InternalStation')[0] / 1000; 
+        except: self.meta["StartStation"] = 0
+        try: self.meta["EndStation"] = self.geometry[last].get('InternalStation')[1] / 1000; 
+        except: self.meta["EndStation"] = 0
+        """
 
-        self.geometry = _geometry
         self.validate_datum()
         self.validate_stationing()
 
@@ -101,7 +109,7 @@ class AlignmentModel:
         cannot be inferred fromt the starting geometry
         """
         _datum = self.meta
-        _geo = self.geometry[0]
+        _geo = self.geometry[1]
 
         if not _geo or not _datum:
             return
@@ -211,7 +219,7 @@ class AlignmentModel:
         if (prev_coord is None) or (prev_station is None):
             return
 
-        for _geo in self.geometry:
+        for _geo in self.geometry.values():
 
             if not _geo:
                 continue
@@ -245,9 +253,6 @@ class AlignmentModel:
             int_sta = self.get_internal_station(geo_station)
 
             _geo['InternalStation'] = (int_sta, int_sta + _geo.get('Length'))
-
-        last_curve_stations = self.geometry[-1].get('InternalStation')
-        self.meta["EndStation"] = last_curve_stations[1] / 1000
 
     def get_internal_station(self, station):
         """
@@ -595,7 +600,7 @@ class AlignmentModel:
         Get the shape of the alignment geometry
         """
         shapes = []
-        for curve in self.geometry:
+        for curve in self.geometry.values():
             if not curve: continue
 
             if curve.get('Type') == 'Curve':

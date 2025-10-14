@@ -22,48 +22,35 @@
 
 """Provides the task panel code for the Alignment Editor tool."""
 
-from PySide.QtWidgets import QVBoxLayout, QPushButton, QTreeView, QWidget, QHBoxLayout, QFileDialog, QComboBox, QStyledItemDelegate
+import FreeCAD
+
+from PySide.QtWidgets import QVBoxLayout, QPushButton, QTreeView, QWidget, QHBoxLayout
 from PySide.QtGui import QStandardItem, QStandardItemModel
-from PySide.QtCore import Qt
-import csv
 
-class ComboBoxDelegate(QStyledItemDelegate):
-    def __init__(self, items, parent=None):
-        super().__init__(parent)
-        self.items = items
-
-    def createEditor(self, parent, option, index):
-        combo_box = QComboBox(parent)
-        combo_box.addItems(self.items)
-        return combo_box
-
-    def setEditorData(self, editor, index):
-        value = index.data(Qt.EditRole)
-        if value:
-            editor.setCurrentText(value)
-
-    def setModelData(self, editor, model, index):
-        model.setData(index, editor.currentText(), Qt.EditRole)
-
-class PiTreeViewWidget(QWidget):
+class AlignmentEditor(QWidget):
     def __init__(self, parent=None, alignment=None):
         super().__init__()
-
-        # Initialize the PI dictionary (to store data)
-        self.pi_data = {}
         self.alignment = alignment
+        if not alignment or not hasattr(alignment.Proxy, 'model'):
+            print("No alignment or Model attribute found")
+            return
 
-        # Load data from alignment if available
-        self._load_alignment_data()
+        self.geometry = alignment.Proxy.model.geometry
+        if not self.geometry:
+            print("No model data found")
+            return
+        
+        self.initui()
 
+    def initui(self):
         # Main layout
         main_layout = QVBoxLayout()
 
         # Button layout (top buttons)
         top_button_layout = QHBoxLayout()
-        self.add_button = QPushButton("New PI")
+        self.add_button = QPushButton("New Geometry")
         self.add_button.clicked.connect(self.add_item)
-        self.delete_button = QPushButton("Delete PI")
+        self.delete_button = QPushButton("Delete Geometry")
         self.delete_button.clicked.connect(self.delete_item)
 
         top_button_layout.addWidget(self.add_button)
@@ -77,162 +64,55 @@ class PiTreeViewWidget(QWidget):
         self.model.setHorizontalHeaderLabels(["Attribute", "Value"])
         self.tree_view.setModel(self.model)
 
-        # Set delegate for "Curve Type"
-        self.curve_type_delegate = ComboBoxDelegate(["None", "Curve", "Spiral-Curve-Spiral"])
-        self.curve_type = {}
-
         # Add top-level root item
         self.root_node = self.model.invisibleRootItem()
-
         main_layout.addWidget(self.tree_view)
 
         # Button layout (bottom buttons)
         bottom_button_layout = QHBoxLayout()
-        self.load_csv_button = QPushButton("Load CSV")
-        self.load_csv_button.clicked.connect(self.load_csv)
-        self.apply_button = QPushButton("Apply")  # Changed from "Save" to "Apply"
+        self.apply_button = QPushButton("Apply")
         self.apply_button.clicked.connect(self.save_data)
-
-        bottom_button_layout.addWidget(self.load_csv_button)
         bottom_button_layout.addWidget(self.apply_button)
 
         main_layout.addLayout(bottom_button_layout)
         self.setLayout(main_layout)
 
-        # Load data (from pi_data)
+        # Load data (from geometry)
         self.load_data()
 
-    def _load_alignment_data(self):
-        """Load alignment data and convert to expected format."""
-        if not self.alignment or not hasattr(self.alignment, 'Model'):
-            print("No alignment or Model attribute found")
-            return
-
-        model_data = self.alignment.Model
-        print(f"Debug: Raw alignment model data: {model_data}")
-
-        if not model_data:
-            print("No model data found")
-            return
-
-        # Convert the model data to the expected format
-        self.pi_data = {}
-
-        # Handle different data formats
-        if isinstance(model_data, dict):
-            for key, value in model_data.items():
-                if isinstance(value, dict):
-                    # LandXML format: PI0, PI1, etc. with nested dictionaries
-                    pi_data_entry = {
-                        'X': str(float(value.get('X', 0))),
-                        'Y': str(float(value.get('Y', 0))),
-                        'Curve Type': value.get('Curve Type', 'None'),
-                        'Spiral Length In': str(float(value.get('Spiral Length In', 0))),
-                        'Spiral Length Out': str(float(value.get('Spiral Length Out', 0))),
-                        'Radius': str(float(value.get('Radius', 0))) if float(value.get('Radius', 0)) > 0 else ''
-                    }
-                    self.pi_data[key] = pi_data_entry
-                    print(f"Debug: Converted {key}: {pi_data_entry}")
-
-        print(f"Debug: Final pi_data: {self.pi_data}")
-
-    def load_csv(self):
-        """Load data from a CSV file and populate the tree."""
-        csv_file_path, _ = QFileDialog.getOpenFileName(self, "Open CSV File", "", "CSV Files (*.csv)")
-        if not csv_file_path:
-            return  # No file selected
-
-        with open(csv_file_path, "r", newline='', encoding="utf-8") as csv_file:
-            csv_reader = csv.reader(csv_file, delimiter=";")
-            
-            # Clear the tree before loading new data
-            self.root_node.removeRows(0, self.root_node.rowCount())
-            
-            # Clear pi_data as well
-            self.pi_data.clear()
-
-            for row_data in csv_reader:
-                self.add_item(row_data)
-
-    def add_item(self, row_data=None):
+    def add_item(self, no, geo):
         """Add a new PI entry to the tree."""
         # Create root item for each PI entry
-        pi_item = QStandardItem()
-        pi_item.setEditable(False)
-        self.root_node.appendRow(pi_item)
+        geo_item = QStandardItem()
+        geo_item.setEditable(False)
+        self.root_node.appendRow(geo_item)
 
-        pi_name = row_data[0] if row_data else f"PI{pi_item.index().row()}"
-        x = row_data[1] if row_data else ""
-        y = row_data[2] if row_data else ""
-        curve_type = row_data[3] if row_data and len(row_data) > 3 else "None"
-
-        pi_item.setText(pi_name)
-
-        # Create sub-items for each attribute and value
-        self._add_attribute_item(pi_item, "X", x)
-        self._add_attribute_item(pi_item, "Y", y)
-        self._add_curve_type_item(pi_item, "Curve Type", curve_type)
-
-        # Add additional attributes based on Curve Type
-        self._update_curve_type(pi_item, curve_type, row_data)
+        geo_no = str(no)
+        geo_item.setText(geo_no)
+        #["Type", "Constraint", "Locked", "Parameter", "Length", "Radius", "Direction", "InternalStation", "Delta", "Chord", "Curvature"]:
+        for sub in geo:
+            val = geo.get(sub)
+            if not val: continue
+            """
+            if sub in ["Length", "Radius", "Chord"]:
+                val = round(float(val) / 1000, 3)
+            if sub in ["BearingIn", "Delta"]:
+                val = round(float(val), 3)
+            elif sub == "InternalStation":
+                val = [round(float(x) / 1000, 3) for x in val]
+            """
+            self._add_attribute_item(geo_item, sub, str(val))
 
         # Expand the newly added item
-        index = self.model.indexFromItem(pi_item)
+        index = self.model.indexFromItem(geo_item)
         self.tree_view.expand(index)
 
     def _add_attribute_item(self, parent_item, attribute_name, value):
         """Helper method to add an attribute and its value to the tree under the given parent."""
         attribute_item = QStandardItem(attribute_name)
-        value_item = QStandardItem(str(value) if value is not None else "")
+        value_item = QStandardItem(value)
         value_item.setEditable(True)  # Allow editing the value
         parent_item.appendRow([attribute_item, value_item])
-
-    def _add_curve_type_item(self, parent_item, attribute_name, value):
-        """Helper method to add a Curve Type attribute with a ComboBox to the tree."""
-        attribute_item = QStandardItem(attribute_name)
-        value_item = QStandardItem(str(value) if value is not None else "None")
-        parent_item.appendRow([attribute_item, value_item])
-        self.curve_type[id(parent_item)] = value
-
-        # Set the delegate only for Curve Type rows
-        index = self.model.indexFromItem(value_item)
-        self.tree_view.setItemDelegateForRow(index.row(), self.curve_type_delegate)
-
-        # Connect changes to dynamic update
-        self.tree_view.model().itemChanged.connect(lambda item: self._handle_curve_type_change(parent_item))
-
-    def _handle_curve_type_change(self, parent_item):
-        """Dynamically update the tree based on Curve Type selection."""
-        if parent_item.rowCount() < 3:
-            return  # Not enough rows
-            
-        curve_type_item = parent_item.child(2, 1)  # Assuming Curve Type is the third attribute
-        if not curve_type_item:
-            return
-            
-        curve_type = curve_type_item.text()
-
-        if self.curve_type.get(id(parent_item)) != curve_type:
-            self.curve_type[id(parent_item)] = curve_type
-
-            # Clear existing sub-items for Curve Type (keep only X, Y, Curve Type)
-            while parent_item.rowCount() > 3:
-                parent_item.removeRow(3)
-
-            self._update_curve_type(parent_item, curve_type)
-
-    def _update_curve_type(self, parent_item, curve_type, row_data=None):
-        """Add or remove attributes dynamically based on the Curve Type."""
-        if curve_type == "Curve":
-            radius = row_data[5] if row_data and len(row_data) > 5 else ""
-            self._add_attribute_item(parent_item, "Radius", radius)
-        elif curve_type == "Spiral-Curve-Spiral":
-            spiral_in = row_data[4] if row_data and len(row_data) > 4 else ""
-            radius = row_data[5] if row_data and len(row_data) > 5 else ""
-            spiral_out = row_data[6] if row_data and len(row_data) > 6 else ""
-            self._add_attribute_item(parent_item, "Spiral Length In", spiral_in)
-            self._add_attribute_item(parent_item, "Radius", radius)
-            self._add_attribute_item(parent_item, "Spiral Length Out", spiral_out)
 
     def delete_item(self):
         """Delete the selected item from the tree."""
@@ -246,64 +126,40 @@ class PiTreeViewWidget(QWidget):
                 self.root_node.removeRow(item.row())
 
     def save_data(self):
-        """Save entered data to the pi_data dictionary and update alignment."""
-        self.pi_data.clear()
+        """Save entered data to the geometry dictionary and update alignment."""
+        self.geometry.clear()
 
         for row in range(self.root_node.rowCount()):
             item = self.root_node.child(row)
-            pi_name = item.text()
 
-            data = {}
+            attr = {}
             for i in range(item.rowCount()):
                 attribute_item = item.child(i, 0)
                 value_item = item.child(i, 1)
                 if attribute_item and value_item:
-                    data[attribute_item.text()] = value_item.text()
+                    try: val = float(value_item.text())
+                    except: 
+                        try: val = eval(value_item.text())
+                        except: val = value_item.text()
+                    attr[attribute_item.text()] = val
 
-            self.pi_data[pi_name] = data
+            self.geometry[row+1] = attr
+            print(self.geometry)
 
-        alignment_data = {}
-        for pi_name, data in self.pi_data.items():
-            alignment_entry = {
-                'X': float(data.get('X', 0)),
-                'Y': float(data.get('Y', 0)),
-                'Curve Type': data.get('Curve Type', 'None'),
-                'Spiral Length In': float(data.get('Spiral Length In', 0)),
-                'Spiral Length Out': float(data.get('Spiral Length Out', 0)),
-                'Radius': float(data.get('Radius', 0)) if data.get('Radius', '') else 0
-            }
-            alignment_data[pi_name] = alignment_entry
-
-        # Update alignment model
-        if self.alignment:
-            self.alignment.Model = alignment_data
+            model = self.alignment.Proxy.model
+            model.geometry = self.geometry
+            model.construct_geometry()
+            self.alignment.Shape = model.get_shape()
+            pis = model.get_pi_coords()
+            self.alignment.PIs = [FreeCAD.Vector(pi) for pi in pis]
 
     def load_data(self):
-        """Load data from the pi_data dictionary into the tree."""
-        print(f"Debug: Loading data: {self.pi_data}")
-        
+        """Load data from the geometry dictionary into the tree."""
         # Clear existing tree data
         self.root_node.removeRows(0, self.root_node.rowCount())
         
-        # Sort PI names properly (PI0, PI1, PI2, ...)
-        sorted_pi_names = sorted(self.pi_data.keys(), key=lambda x: int(x[2:]) if x.startswith('PI') and x[2:].isdigit() else float('inf'))
-        
-        for pi_name in sorted_pi_names:
-            data = self.pi_data[pi_name]
-            
-            # Create row data for add_item method
-            row_data = [
-                pi_name,
-                data.get("X", ""),
-                data.get("Y", ""),
-                data.get("Curve Type", "None"),
-                data.get("Spiral Length In", ""),
-                data.get("Radius", ""),
-                data.get("Spiral Length Out", "")
-            ]
-            
-            print(f"Debug: Adding PI {pi_name} with data: {row_data}")
-            self.add_item(row_data)
+        for no, geo in self.geometry.items():
+            self.add_item(no, geo)
 
         # Expand all items by default
         self.tree_view.expandAll()
@@ -312,5 +168,5 @@ def run(alignment=None):
     import FreeCADGui
     from .task_panel import TaskPanel
     main_window = FreeCADGui.getMainWindow()
-    panel = TaskPanel(PiTreeViewWidget(main_window, alignment))
+    panel = TaskPanel(AlignmentEditor(main_window, alignment))
     return panel
