@@ -57,8 +57,7 @@ class AlignmentOffset:
         FreeCADGui.Control.showDialog(self)
 
     def accept(self):
-        parent_label = self.parent_selector.combo_box.currentText()
-        parent = self.parent_selector.objects[parent_label]
+        parent = self.parent_selector.selected_object
 
         alignment = make_alignment.create()
         alignment.OffsetLength = 5000

@@ -62,9 +62,7 @@ class ProfileAdd:
 
     def accept(self):
         """Panel 'OK' button clicked"""
-        terrain_labels = self.terrain_selector.list_widget.selectedItems()
-        self.terrains = [self.terrain_selector.objects[sel.text()] for sel in terrain_labels]
-
+        self.terrains = self.terrain_selector.selected_objects
         FreeCADGui.Control.closeDialog()
 
         for i in self.terrains:

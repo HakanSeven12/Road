@@ -62,12 +62,8 @@ class ProfileFrameCreate:
 
     def accept(self):
         """Panel 'OK' button clicked"""
-        alignment_label = self.alignment_selector.combo_box.currentText()
-        alignment = self.alignment_selector.objects[alignment_label]
-
-        terrain_labels = self.terrain_selector.list_widget.selectedItems()
-        self.terrains = [self.terrain_selector.objects[sel.text()] for sel in terrain_labels]
-
+        alignment = self.alignment_selector.selected_object
+        self.terrains = self.terrain_selector.selected_objects
         self.profile_frame = make_profile_frame.create()
 
         for item in alignment.Group:

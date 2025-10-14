@@ -58,14 +58,11 @@ class TerrainCreate:
 
     def accept(self):
         """Panel 'OK' button clicked"""
-        cluster_labels = self.cluster_selector.list_widget.selectedItems()
-        clusters = [self.cluster_selector.objects[sel.text()] for sel in cluster_labels]
-
-        FreeCADGui.Control.closeDialog()
-
+        clusters = self.cluster_selector.selected_objects
         terrain = make_terrain.create()
         terrain.Clusters = clusters
 
+        FreeCADGui.Control.closeDialog()
         FreeCAD.ActiveDocument.recompute()
 
 FreeCADGui.addCommand("Create Terrain", TerrainCreate())

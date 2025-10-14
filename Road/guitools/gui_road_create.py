@@ -68,30 +68,21 @@ class RoadCreate:
         FreeCADGui.Control.showDialog(self)
 
     def frame_update(self):
-        alignment_label = self.alignment_selector.combo_box.currentText()
-        alignment = self.alignment_selector.objects[alignment_label]
+        alignment = self.alignment_selector.selected_object
 
         for item in alignment.Group:
             if item.Proxy.Type == "Road::Profiles":
                 self.frame_selector.update_items(item)
 
     def profile_update(self):
-        frame_label = self.frame_selector.combo_box.currentText()
-        profile_frame = self.frame_selector.objects[frame_label]
+        profile_frame = self.frame_selector.selected_object
         self.profile_selector.update_items(profile_frame)
 
     def accept(self):
         """Panel 'OK' button clicked"""
-        alignment_label = self.alignment_selector.combo_box.currentText()
-        alignment = self.alignment_selector.objects[alignment_label]
-
-        profile_label = self.profile_selector.combo_box.currentText()
-        profile = self.profile_selector.objects[profile_label]
-
-        structure_label = self.structure_selector.combo_box.currentText()
-        structure = self.structure_selector.objects[structure_label]
-
-        FreeCADGui.Control.closeDialog()
+        alignment = self.alignment_selector.selected_object
+        profile = self.profile_selector.selected_object
+        structure = self.structure_selector.selected_object
 
         road = make_road.create()
         road.Alignment = alignment
@@ -102,6 +93,7 @@ class RoadCreate:
         roads.addObject(road)
 
         FreeCAD.ActiveDocument.recompute()
+        FreeCADGui.Control.closeDialog()
 
 
 FreeCADGui.addCommand("Road Create", RoadCreate())

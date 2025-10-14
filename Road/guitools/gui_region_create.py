@@ -58,11 +58,10 @@ class RegionCreate:
 
     def accept(self):
         """Panel 'OK' button clicked"""
-        alignment_label = self.alignment_selector.combo_box.currentText()
-        alignment = self.alignment_selector.objects[alignment_label]
-
-        FreeCADGui.Control.closeDialog()
+        alignment = self.alignment_selector.selected_object
         make_region.create(alignment)
+        
+        FreeCADGui.Control.closeDialog()
         FreeCAD.ActiveDocument.recompute()
 
 

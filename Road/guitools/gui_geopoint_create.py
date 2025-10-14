@@ -60,9 +60,7 @@ class GeoPointCreate:
 
     def accept(self):
         """Panel 'OK' button clicked"""
-        cluster_label = self.cluster_selector.combo_box.currentText()
-        self.cluster = self.cluster_selector.objects[cluster_label]
-
+        self.cluster = self.cluster_selector.selected_object
         FreeCADGui.Control.closeDialog()
 
         FreeCAD.Console.PrintWarning("Select GeoPoint location on screen")
