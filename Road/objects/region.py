@@ -108,7 +108,6 @@ class Region:
         regions = obj.getParentGroup()
         alignment = regions.getParentGroup()
 
-        print(hasattr(alignment.Proxy, "model"))
         if not hasattr(alignment.Proxy, "model"): return
 
         tangent = obj.IncrementAlongTangents
@@ -129,7 +128,7 @@ class Region:
             right_vec = copy.deepcopy(vec)
             left_side = coord.add(left_vec.multiply(obj.LeftOffset*1000))
             right_side = coord.add(right_vec.negative().multiply(obj.RightOffset*1000))
-            # Generate guide line object and add to cluster
+            
             lines.append(Part.makePolygon([left_side, coord, right_side]))
         obj.Shape = Part.makeCompound(lines)
 

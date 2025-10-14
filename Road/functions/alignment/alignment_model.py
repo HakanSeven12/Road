@@ -89,15 +89,14 @@ class AlignmentModel:
                 self.errors.append('Undefined geometry: ' + str(_geo))
                 continue
 
-        """
         last = len(self.geometry)
+        if not last: return
         self.meta["Start"] = self.geometry[1].get("Start")
         self.meta["End"] = self.geometry[last].get("End")
         try: self.meta["StartStation"] = self.geometry[1].get('InternalStation')[0] / 1000; 
         except: self.meta["StartStation"] = 0
         try: self.meta["EndStation"] = self.geometry[last].get('InternalStation')[1] / 1000; 
         except: self.meta["EndStation"] = 0
-        """
 
         self.validate_datum()
         self.validate_stationing()
@@ -373,7 +372,7 @@ class AlignmentModel:
 
         prev_geo = None
 
-        for _geo in self.geometry:
+        for _geo in self.geometry.values():
 
             if _geo.get('InternalStation')[0] > int_station:
                 break
@@ -418,7 +417,7 @@ class AlignmentModel:
         last = None
         stations = []
         inc = {"Line": increment[0]*1000, "Curve": increment[1]*1000, "Spiral": increment[2]*1000}
-        for geo in self.geometry:
+        for geo in self.geometry.values():
             # Get starting and ending stations based on alignment
             geo_start = geo.get('StartStation')*1000
             length = geo.get('Length')
