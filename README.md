@@ -17,7 +17,8 @@ Road is the Transportation and Geomatics Engineering workbench for FreeCAD.
 * Sections ❌
 * Volume ❌
 * GeoLine ❌
-* LandXML 🔄
+* LandXML Importer ✔️
+* LandXML Exporter 🔄
 
 ## 📥 Installation
 ### 🔹 Option 1: Install via Addon Manager (Recommended)
