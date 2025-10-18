@@ -105,7 +105,6 @@ class Terrain:
 
     def onChanged(self, obj, prop):
         """Do something when a data property has changed."""
-        print(prop)
         if prop == "Points" or prop == "Faces":
             mesh_obj = Mesh.Mesh()
             origin = None

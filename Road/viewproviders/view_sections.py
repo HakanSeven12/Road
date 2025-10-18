@@ -74,6 +74,7 @@ class ViewProviderSections:
         '''
         Update Object visuals when a data property changed.
         '''
+        return
         if prop == "Position" or prop == "Group":
             self.gl_labels.removeAllChildren()
             if not obj.Group: return

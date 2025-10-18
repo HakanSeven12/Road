@@ -24,7 +24,6 @@
 
 import FreeCAD
 
-from ..variables import icons_path
 from ..objects.profile_frame import ProfileFrame
 from ..viewproviders.view_profile_frame import ViewProviderProfileFrame
 

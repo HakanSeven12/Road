@@ -62,7 +62,7 @@ def get_road_commands():
 def get_section_commands():
     """Return the section commands list."""
     return ["Region Create",
-            "Create Sections",
+            "Section Create",
             "Compute Areas",
             "Create Table"]
 

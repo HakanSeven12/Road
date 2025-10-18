@@ -33,7 +33,7 @@ class Sections:
         '''
         Set data properties.
         '''
-        self.Type = 'Trails::Sections'
+        self.Type = 'Road::Sections'
 
         obj.addProperty(
             'App::PropertyVector', "Position", "Base",
