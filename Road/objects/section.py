@@ -3,7 +3,6 @@
 """Provides the object code for Section objects."""
 
 import FreeCAD, Part, MeshPart
-from ..utils.get_group import georigin
 
 
 class Section:
@@ -18,6 +17,10 @@ class Section:
             "App::PropertyPlacement", "Placement", "Base",
             "Placement").Placement = FreeCAD.Placement()
 
+        obj.addProperty(
+            "App::PropertyPythonObject", "Stations", "Base",
+            "List of stations").Stations = {}
+        
         obj.addProperty(
             'App::PropertyLinkList', "Terrains", "Base",
             "Projection terrains").Terrains = []
@@ -51,6 +54,7 @@ class Section:
         region = sections.getParentGroup()
         regions = region.getParentGroup()
         alignment = regions.getParentGroup()
+        if not hasattr(alignment.Proxy, "model"): return
 
         for terrain in obj.Terrains:
             shape = region.Shape.copy()
@@ -69,13 +73,13 @@ class Section:
                 points_3d = MeshPart.projectPointsOnMesh(
                     points_2d, terrain.Mesh, FreeCAD.Vector(0, 0, 1))
                 
-                verts = []
                 for point in points_3d:
-                    verts.append(Part.Vertex(point))
                     point = point.add(terrain.Placement.Base)
-                    sta = alignment.Proxy.model.get_alignment_station(coordinate=[*point])
+                    station, position, offset, index = alignment.Proxy.model.get_station_offset([*point])
+                    obj.Stations[station] = {'Offset': offset, 'Elevation': point.z}
+
+        print(obj.Stations)
                 
-                Part.show(Part.makeCompound(verts))
 
     def onChanged(self, obj, prop):
         """Do something when a data property has changed."""

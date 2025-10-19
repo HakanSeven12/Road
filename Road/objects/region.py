@@ -29,7 +29,7 @@ class Region:
 
         obj.addProperty(
             "App::PropertyPythonObject", "Stations", "Base",
-            "List of stations").Stations = {}
+            "List of stations").Stations = []
 
         obj.addProperty(
             "App::PropertyBool", "FromAlignmentStart", "Region",
@@ -79,28 +79,25 @@ class Region:
         """
         Do something when doing a recomputation.
         """
-
-        """
-        start = obj.getPropertyByName("StartStation")
-        end = obj.getPropertyByName("EndStation")
-        """
-
         regions = obj.getParentGroup()
         alignment = regions.getParentGroup()
-
         if not hasattr(alignment.Proxy, "model"): return
+        model = alignment.Proxy.model
 
+        start = obj.StartStation * 1000
+        end = obj.EndStation * 1000
         tangent = obj.IncrementAlongTangents
         curve = obj.IncrementAlongCurves
         spiral = obj.IncrementAlongSpirals
         terminal = obj.AtHorizontalGeometry
 
-        model = alignment.Proxy.model
         stations = model.get_stations([tangent, curve, spiral], terminal)
+        obj.Stations = stations
+        #obj.Stations = [x for x in stations if start <= x <= end]
 
         lines = []
         # Computing coordinates and orthoginals for guidelines
-        for sta in stations:
+        for sta in obj.Stations:
             tuple_coord, tuple_vec = model.get_orthogonal( sta/1000, "Left")
             coord = FreeCAD.Vector(tuple_coord)
             vec = FreeCAD.Vector(tuple_vec)

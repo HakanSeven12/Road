@@ -270,15 +270,11 @@ class AlignmentModel:
 
         return position * support.scale_factor()
 
-    def get_alignment_station(self, internal_station=None, coordinate=None):
+    def get_alignment_station(self, internal_station=None):
         """
         Return the alignment station given an internal station or coordinate
         Coordinate overrides internal station
         """
-
-        if coordinate is not None:
-            internal_station = self.get_station_offset(coordinate)[0]
-
         if internal_station is None:
             return None
 
@@ -314,32 +310,33 @@ class AlignmentModel:
 
         _matches = []
         _classes = {'Line': line, 'Curve': arc, 'Spiral': spiral}
+        coord = [coordinate[0], coordinate[1], 0.0]
 
         #iterate the geometry, creating a list of potential matches
-        for i, geo in self.geometry.items():
+        for index, geo in self.geometry.items():
             _class = _classes[geo.get('Type')]
-            sta, _pos, _dist, _b = _class.get_position_offset(geo, [*coordinate])
-            print(_pos, _dist, _b)
+            internal_station, position, offset, boundary = _class.get_position_offset(geo, coord)
 
             #if position is before geometry, quit
-            if _b < 0:
+            if boundary < 0:
                 break
 
             #if position is after geometry, skip to next
-            if _b > 0:
+            if boundary > 0:
                 continue
 
             #save result
-            _matches.append((sta, _pos, _dist, i))
+            station = self.get_alignment_station(internal_station)
+            _matches.append((station, position, offset, index))
 
         if not _matches:
-            return None, None
+            return None, None, None, None
 
         #get the distances
-        _dists = [_v[1] for _v in _matches]
+        offsets = [_v[2] for _v in _matches]
 
         #return the closest match
-        return _matches[_dists.index(min(_dists))]
+        return _matches[offsets.index(min(offsets))]
 
     def locate_curve(self, station):
         """
