@@ -177,7 +177,7 @@
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
         <dc:creator>
           <cc:Agent>
-            <dc:title>[bitacovir]</dc:title>
+            <dc:title>bitacovir</dc:title>
           </cc:Agent>
         </dc:creator>
         <dc:title>RoadWorkbech_GeoPoint</dc:title>
