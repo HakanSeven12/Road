@@ -25,12 +25,12 @@
 import FreeCAD, FreeCADGui
 
 from ..variables import icons_path
-from ..make import make_section_frame_group, make_section
+from ..make import make_section
 from ..tasks.task_selection import SingleSelection, MultipleSelection
 from ..utils.trackers import ViewTracker
 
 
-class CreateSections:
+class SectionCreate:
 
     def __init__(self):
         """Constructor"""
@@ -72,26 +72,20 @@ class CreateSections:
 
     def accept(self):
         """Panel 'OK' button clicked"""
-        region = self.region_selector.selected_object
-        print(region.Label)
-        self.terrains = self.terrain_selector.selected_objects
-        self.section_frame_group = make_section_frame_group.create()
-
-        for item in region.Group:
-            print(item.Proxy.Type )
-            if item.Proxy.Type == "Road::Sections":
-                item.addObject(self.section_frame_group)
-                break
-
         FreeCAD.Console.PrintWarning("Select Section Frame Group position on screen")
         view = FreeCADGui.ActiveDocument.ActiveView
         self.tracker = ViewTracker(view, "Mouse", key="Left", function=self.set_placement)
         self.tracker.start()
 
-        FreeCADGui.Control.closeDialog()
-
     def set_placement(self, callback):
-        print(callback)
+        section = make_section.create()
+
+        region = self.region_selector.selected_object
+        for item in region.Group:
+            if item.Proxy.Type == "Road::Sections":
+                item.addObject(section)
+                break
+
         event = callback.getEvent()
         position = event.getPosition() #Window position
         view = FreeCADGui.ActiveDocument.ActiveView
@@ -102,16 +96,12 @@ class CreateSections:
         if origin:
             coordinate = coordinate.add(origin.Base)
 
-        self.section_frame_group.Placement.Base = coordinate
-        print("test")
+        section.Placement.Base = coordinate
+        section.Terrains = self.terrain_selector.selected_objects
+
         self.tracker.stop()
 
-        for i in self.terrains:
-            section = make_section.create()
-            self.section_frame_group.addObject(section)
-            section.ViewObject.DisplayMode = "Terrain"
-            section.Terrain = i
-
         FreeCAD.ActiveDocument.recompute()
+        FreeCADGui.Control.closeDialog()
 
-FreeCADGui.addCommand("Section Frame Group Create", CreateSections())
+FreeCADGui.addCommand("Section Create", SectionCreate())

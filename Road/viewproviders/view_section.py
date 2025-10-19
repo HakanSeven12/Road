@@ -94,6 +94,7 @@ class ViewProviderSection:
         '''
         Update Object visuals when a data property changed.
         '''
+        return
         if prop == "Shape":
             self.gl_labels.removeAllChildren()
             shape = obj.getPropertyByName("Shape")

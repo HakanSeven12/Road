@@ -27,7 +27,7 @@ Arc generation tools
 import math
 import numpy
 
-from FreeCAD import Vector, Console
+from FreeCAD import Console
 
 from ... import support
 from ....utils.tuple_math import TupleMath
@@ -85,7 +85,7 @@ class Arc():
             self._key_pairs = source_arc._key_pairs.copy()
             return
 
-        #build a list of key pairs for string-based lookup
+        # Build a list of key pairs for string-based lookup
         self._key_pairs = {}
 
         _keys = list(self.__dict__.keys())
@@ -170,14 +170,14 @@ def _create_geo_func():
 
     _fn = []
 
-    #create a square matrix of empty lambdas
+    # Create a square matrix of empty lambdas
     for _i in range(0, 6):
         _fn.append([lambda _x: 0.0]*7)
 
     _fn.append([lambda _x: _x]*7)
 
-    #Vector order: Radius Start, Radius End, Tangent Start, Tangent End,
-    #Middle, Chord, UP
+    # Vector order: Radius Start, Radius End, Tangent Start, Tangent End,
+    # Middle, Chord, UP
 
     _fn[1][0] = lambda _x: _x
     _fn[3][2] = _fn[1][0]
@@ -196,15 +196,15 @@ def _create_geo_func():
     _fn[5][2] = _fn[4][0]
     _fn[5][3] = _fn[4][0]
 
-    #-------------------------------------------------------------------
-    #   bearing lambdas for the curve's vector dot products:
-    #       0 - Radius Start    (START - CENTER)
-    #       1 - Radius End      (END - CENTER)
-    #       2 - Tangent Start   (PI - START)
-    #       3 - Tangent End     (END - PI)
-    #       4 - Middle Ordinate (PI - CENTER)
-    #       5 - Chord           (END - START)
-    #-------------------------------------------------------------------
+    # -------------------------------------------------------------------
+    # Bearing lambdas for the curve's vector dot products:
+    #   0 - Radius Start    (START - CENTER)
+    #   1 - Radius End      (END - CENTER)
+    #   2 - Tangent Start   (PI - START)
+    #   3 - Tangent End     (END - PI)
+    #   4 - Middle Ordinate (PI - CENTER)
+    #   5 - Chord           (END - START)
+    # -------------------------------------------------------------------
     _fn[6][0] = lambda _x, _delta, _rot: _x + _rot*C.HALF_PI
     _fn[6][1] = lambda _x, _delta, _rot: _x + _rot*(-_delta+C.HALF_PI)
     _fn[6][2] = lambda _x, _delta, _rot: _x
@@ -221,7 +221,7 @@ class _GEO:
     '''
     FUNC = _create_geo_func()
 
-    #list of vector pairs to calculate rotations
+    # List of vector pairs to calculate rotations
     ROT_PAIRS = [
         [1, 2, 4, 5],
         [3, 5],
@@ -237,8 +237,8 @@ def get_scalar_matrix(vecs):
     for the provided vectors
     """
 
-    #-------------------------------
-    #matrix format:
+    # -------------------------------
+    # Matrix format:
     #
     #   |  RST
     #   |        REND
@@ -247,14 +247,13 @@ def get_scalar_matrix(vecs):
     #   |                                MORD
     #   |                                       CHORD
     #   |                                                UP
-    #--------------------------------
+    # --------------------------------
 
-    #ensure list is a list of lists (not vectors)
-    #and create the matrix
+    # Ensure list is a list of lists (not vectors) and create the matrix
     mat_list = [list(_v) if _v else [0, 0, 0] for _v in vecs]
     rot_list = [0.0]*7
 
-    #get rotation direction for vector bearings
+    # Get rotation direction for vector bearings
     for _i in range(0, 6):
         rot_list[_i] = support.get_rotation(C.UP, vecs[_i])
 
@@ -263,16 +262,16 @@ def get_scalar_matrix(vecs):
     mat = numpy.matrix(mat_list)
     _result = mat * mat.T
 
-    #abort for non-square matrices
+    # Abort for non-square matrices
     if (_result.shape[0] != _result.shape[1]) or (_result.shape[0] != 7):
         return None
 
-    #calculate the magnitudes first (minus the UP vector)
+    # Calculate the magnitudes first (minus the UP vector)
     for _i in range(0, 6):
         _result.A[_i][_i] = math.sqrt(_result.A[_i][_i])
 
-    #calculate the delta for the lower left side
-    #This is a dot-product calculation to determine the angle between vectors
+    # Calculate the delta for the lower left side
+    # This is a dot-product calculation to determine the angle between vectors
     for _i in range(0, 7):
         _d1 = _result.A[_i][_i]
 
@@ -293,7 +292,7 @@ def get_scalar_matrix(vecs):
 
                 _angle = math.acos(_ratio)
 
-            #compute the arc central angle for all but the last row
+            # Compute the arc central angle for all but the last row
             if _angle:
                 if _i < 6:
                     _angle = _GEO.FUNC[_i][_j](_angle)
@@ -305,7 +304,7 @@ def get_scalar_matrix(vecs):
 
             _result.A[_i][_j] = _angle
 
-    #lower left half contains angles, diagonal contains scalars
+    # Lower left half contains angles, diagonal contains scalars
     return _result
 
 def get_bearings(arc, mat, delta, rot):
@@ -322,13 +321,13 @@ def get_bearings(arc, mat, delta, rot):
 
     if not any([math.isnan(_v) for _v in bearings]):
 
-        #calculate the delta angle from the radius and tangent bearings
-        #as a cross check
+        # Calculate the delta angle from the radius and tangent bearings
+        # as a cross check
         _deltas = [
             abs(bearings[0] - bearings[1]), abs(bearings[2] - bearings[3])
         ]
 
-        #if delta exceeds PI, the wrong direction was calculated.  Reverse.
+        # If delta exceeds PI, the wrong direction was calculated. Reverse.
         for _i, _v in enumerate(_deltas):
             if _v > math.pi:
                 _deltas[_i] = math.pi*2 - _v
@@ -338,11 +337,11 @@ def get_bearings(arc, mat, delta, rot):
             Radius bearing/delta tolerance fail: {str(_deltas[0])} != {str(_deltas[1])}
         """
 
-    #a negative rotation could push out bearing under pi
-    #a positive rotation could push out bearing over 2pi
+    # A negative rotation could push out bearing under pi
+    # A positive rotation could push out bearing over 2pi
     _b_out = bearing_out
 
-    #restrict start bearing to [0, PI]
+    # Restrict start bearing to [0, PI]
     _b_in = abs(bearing_in - int(bearing_in / math.pi) * math.pi)
 
     if not _b_out:
@@ -401,7 +400,7 @@ def get_lengths(arc, mat):
     from the user-defined arc or the calculated vector matrix
     """
 
-    #[0,1] = Radius; [2, 3] = Tangent, [4] = Middle, [5] = Chord
+    # [0,1] = Radius; [2, 3] = Tangent, [4] = Middle, [5] = Chord
     lengths = mat.diagonal().A[0]
 
     params = [arc.get('Radius'), arc.get('Tangent'), arc.get('Middle'),
@@ -409,18 +408,18 @@ def get_lengths(arc, mat):
 
     for _i in range(0, 2):
 
-        #get two consecutive elements, saving only if they're valid
+        # Get two consecutive elements, saving only if they're valid
         _s = [_v for _v in lengths[_i*2:(_i+1)*2] if _v]
 
-        #skip the rest if not defined, we'll use the user values
+        # Skip the rest if not defined, we'll use the user values
         if not any(_s):
             continue
 
-        #duplicate the only calculated length
+        # Duplicate the only calculated length
         if len(_s) == 1:
             _s.append(_s[0])
 
-        #if both were calculated and they aren't the same, quit
+        # If both were calculated and they aren't the same, quit
         if all(_s) and not support.within_tolerance(_s[0], _s[1]):
 
             _attribs = ['radius', 'Start-Center-End']
@@ -437,8 +436,8 @@ def get_lengths(arc, mat):
             if not support.within_tolerance(_s[0], params[_i]):
                 params[_i] = _s[0]
 
-    #test middle and chord.
-    #If no user-defined value or out-of-tolerance, use calculated
+    # Test middle and chord.
+    # If no user-defined value or out-of-tolerance, use calculated
     for _i in range(4, 6):
 
         if lengths[_i]:
@@ -456,15 +455,15 @@ def get_delta(arc, mat):
     Default to the user-provided parameter if no calculated
     or values within tolerance
     """
-    #get the delta from the arc data as a default
+    # Get the delta from the arc data as a default
     delta = arc.get('Delta')
 
-    #calculate the delta from the provided bearings, if they exist
+    # Calculate the delta from the provided bearings, if they exist
     if not delta:
         if arc.get('BearingIn') and arc.get('BearingOut'):
             delta = abs(arc.get('BearingOut') - arc.get('BearingIn'))
 
-    #find the first occurrence of the delta value in the matrix
+    # Find the first occurrence of the delta value in the matrix
     if not delta:
         for _i in range(1, 6):
             for _j in range(0, _i):
@@ -472,7 +471,7 @@ def get_delta(arc, mat):
                     delta = mat.A[_i][_j]
                     break
 
-    #if delta exceeds PI radians, swap it for lesser angle
+    # If delta exceeds PI radians, swap it for lesser angle
     if delta:
         delta = abs((int(delta > math.pi) * C.TWO_PI) - delta)
 
@@ -480,18 +479,18 @@ def get_delta(arc, mat):
 
 def get_rotation(arc, vecs):
     """
-    Determine the dirction of rotation
+    Determine the direction of rotation
     """
 
-    #list all valid vector indices
-    _idx = [_i for _i, _v in enumerate(vecs) if _v != Vector()]
+    # List all valid vector indices
+    _idx = [_i for _i, _v in enumerate(vecs) if not TupleMath.is_zero(_v)]
 
     _v1 = None
     _v2 = None
 
     for _i in _idx:
         _l = _GEO.ROT_PAIRS[_i]
-        _m = [_j for _j in _l if vecs[_j] != Vector()]
+        _m = [_j for _j in _l if not TupleMath.is_zero(vecs[_j])]
 
         if _m:
             _v1 = vecs[_i]
@@ -527,8 +526,8 @@ def get_missing_parameters(arc, new_arc, points):
      - External distance
     """
 
-    #by this point, missing radius / delta is a problem
-    #missing both?  stop now.
+    # By this point, missing radius / delta is a problem
+    # Missing both? Stop now.
     if not new_arc.get('Radius') and not new_arc.get('Delta'):
         return None
 
@@ -536,7 +535,7 @@ def get_missing_parameters(arc, new_arc, points):
     _cos_half_delta = math.cos(_half_delta)
     _tan_half_delta = math.tan(_half_delta)
 
-    #missing radius requires middle ordinate (or PI / Center coords)
+    # Missing radius requires middle ordinate (or PI / Center coords)
     if not new_arc.get('Radius'):
 
         if new_arc.get('Tangent'):
@@ -544,13 +543,14 @@ def get_missing_parameters(arc, new_arc, points):
 
     if not new_arc.get('Radius'):
 
-        #attempt to assign middle length of curve
+        # Attempt to assign middle length of curve
         if not new_arc.middle:
 
             if points[2] and points[3]:
-                new_arc.middle = points[3].sub(points[2]).Length
+                new_arc.middle = TupleMath.length(
+                    TupleMath.subtract(points[3], points[2]))
 
-        #build radius from external, middle ordinate or middle length
+        # Build radius from external, middle ordinate or middle length
         if new_arc.middle:
             new_arc.radius = new_arc.middle * _cos_half_delta
 
@@ -560,7 +560,7 @@ def get_missing_parameters(arc, new_arc, points):
         elif new_arc.external:
             new_arc.radius = new_arc.external / ((1/_cos_half_delta) - 1)
 
-    #abort if unable to determine radius
+    # Abort if unable to determine radius
     if not new_arc.radius:
         return None
 
@@ -568,10 +568,7 @@ def get_missing_parameters(arc, new_arc, points):
         new_arc.middle = \
             new_arc.radius * (_cos_half_delta + (1/_cos_half_delta))
 
-    #pre-calculate values and fill in remaining parameters
-    #radius = new_arc.get('Radius')
-    #delta = new_arc.get('Delta')
-
+    # Pre-calculate values and fill in remaining parameters
     if not new_arc.length:
         new_arc.length = new_arc.radius * new_arc.delta
 
@@ -587,8 +584,8 @@ def get_missing_parameters(arc, new_arc, points):
     if not new_arc.chord:
         new_arc.chord = 2.0 * new_arc.radius * math.sin(_half_delta)
 
-    #quality-check - ensure everything is defined and default to
-    #existing where within tolerance
+    # Quality-check - ensure everything is defined and default to
+    # existing where within tolerance
     _keys = ['Chord', 'MiddleOrdinate', 'Tangent', 'Length', 'External']
 
     existing_vals = [arc.get(_k) for _k in _keys]
@@ -600,11 +597,11 @@ def get_missing_parameters(arc, new_arc, points):
 
         vals[_v] = existing_vals[_i]
 
-        #if values are close enough, then keep existing
+        # If values are close enough, then keep existing
         if support.within_tolerance(vals[_v], new_vals[_i]):
             continue
 
-        #out of tolerance or existing is None - use the calculated value
+        # Out of tolerance or existing is None - use the calculated value
         vals[_v] = new_vals[_i]
 
     return vals
@@ -624,33 +621,33 @@ def get_coordinates(arc, points):
     _center = points[2]
     _pi = points[3]
 
-    _vr = TupleMath.scale(vectors.get('Radius')[0],arc.get('Radius'))
-    _vt0 = TupleMath.scale(vectors.get('Tangent')[0],arc.get('Tangent'))
-    _vt1 = TupleMath.scale(vectors.get('Tangent')[1],arc.get('Tangent'))
-    _vc = TupleMath.scale(vectors.get('Internal')[1],arc.get('Chord'))
+    _vr = TupleMath.scale(vectors.get('Radius')[0], arc.get('Radius'))
+    _vt0 = TupleMath.scale(vectors.get('Tangent')[0], arc.get('Tangent'))
+    _vt1 = TupleMath.scale(vectors.get('Tangent')[1], arc.get('Tangent'))
+    _vc = TupleMath.scale(vectors.get('Internal')[1], arc.get('Chord'))
 
     if not _start:
 
         if _pi:
-            _start = TupleMath.subtract(_pi,_vt0)
+            _start = TupleMath.subtract(_pi, _vt0)
 
         elif _center:
-            _start = TupleMath.add(_center,_vr)
+            _start = TupleMath.add(_center, _vr)
 
         elif _end:
-            _start = TupleMath.subtract(_end,_vc)
+            _start = TupleMath.subtract(_end, _vc)
 
     if not _start:
         return None
 
     if not _pi:
-        _pi = TupleMath.add(_start,_vt0)
+        _pi = TupleMath.add(_start, _vt0)
 
     if not _center:
-        _center = TupleMath.subtract(_start,_vr)
+        _center = TupleMath.subtract(_start, _vr)
 
     if not _end:
-        _end = TupleMath.add(_pi,_vt1)
+        _end = TupleMath.add(_pi, _vt1)
 
     return {'Start': _start, 'Center': _center, 'End': _end, 'PI': _pi}
 
@@ -661,15 +658,15 @@ def get_parameters(source_arc, as_dict=True):
 
     _result = Arc(source_arc)
 
-    #Vector order:
-    #Radius in / out, Tangent in / out, Middle, and Chord
+    # Vector order:
+    # Radius in / out, Tangent in / out, Middle, and Chord
 
     points = [_result.start, _result.end, _result.center, _result.pi]
     point_count = len([_v for _v in points if _v])
 
-    #define the curve start at the origin if none is provided
+    # Define the curve start at the origin if none is provided
     if point_count == 0:
-        points[0] = [0, 0, 0]
+        points[0] = (0.0, 0.0, 0.0)
 
     _vecs = [
         support.safe_sub(points[0], points[2], True),
@@ -723,21 +720,14 @@ def get_parameters(source_arc, as_dict=True):
 
     _result.update(_p)
 
-    #get rid of the Bearings dict since we're done using it
-    #_result.pop('Bearings')
-
-    #merge the _result with the original dict to preserve other values
-
     if as_dict:
         return _result.to_dict()
 
     return _result
 
-    #scale_factor = 1.0 / Units.scale_factor()
-
 def convert_units(arc, to_document=False):
     """
-    Cnvert the units of the arc parameters to or from document units
+    Convert the units of the arc parameters to or from document units
 
     to_document = True - convert to document units
                   False - convert to system units (mm / radians)
@@ -778,13 +768,17 @@ def get_coord_on_arc(start, radius, direction, distance):
 
     delta = distance / radius
 
-    return Vector(
-        math.sin(delta), 1 - math.cos(delta), 0.0
-        ).multiply(radius) + start
+    _offset = (
+        math.sin(delta) * radius,
+        (1 - math.cos(delta)) * radius,
+        0.0
+    )
+
+    return TupleMath.add(start, _offset)
 
 def get_ortho_vector(arc_dict, distance, side=''):
     """
-    Given a distance form the start of a curve,
+    Given a distance from the start of a curve,
     and optional direction, return the orthogonal vector
     If no side is specified, directed vector to centerpoint is returned
 
@@ -812,31 +806,33 @@ def get_ortho_vector(arc_dict, distance, side=''):
     if not coord:
         return None, None
 
-    ortho = Vector(arc_dict.get('Center')).sub(coord).multiply(_x).normalize()
+    ortho = TupleMath.subtract(arc_dict.get('Center'), coord)
+    ortho = TupleMath.scale(TupleMath.unit(ortho), _x)
 
     return coord, ortho
 
 def get_tangent_vector(arc_dict, distance):
     """
     Given an arc and a distance, return the tangent at the point along
-    the curve from it's start
+    the curve from its start
     """
 
     side = 'r'
     multiplier = 1.0
 
-    if arc_dict < 0.0:
+    if arc_dict.get('Direction') < 0.0:
         side = 'l'
         multiplier = -1.0
 
     coord, ortho = get_ortho_vector(arc_dict, distance, side)
 
-    ortho.x, ortho.y = -ortho.y, ortho.x
-    ortho.multiply(multiplier)
+    # Rotate orthogonal vector 90 degrees to get tangent
+    ortho = (-ortho[1], ortho[0], ortho[2])
+    ortho = TupleMath.scale(ortho, multiplier)
 
     return coord, ortho
 
-def get_segments(bearing, deltas, direction, start, radius, _dtype=Vector):
+def get_segments(bearing, deltas, direction, start, radius, _dtype=tuple):
     """
     Calculate the coordinates of the curve segments
 
@@ -847,20 +843,21 @@ def get_segments(bearing, deltas, direction, start, radius, _dtype=Vector):
     radius - arc radius
     """
 
-    _forward = Vector(math.cos(bearing), math.sin(bearing), 0.0)
-    _right = Vector(_forward.y, -_forward.x, 0.0)
+    _forward = (math.cos(bearing), math.sin(bearing), 0.0)
+    _right = (_forward[1], -_forward[0], 0.0)
 
     _points = [_dtype(start)]
-    _start = Vector(start)
+    _start = tuple(start)
 
     for delta in deltas:
 
-        _dfw = Vector(_forward).multiply(math.sin(delta))
-        _drt = Vector(_right).multiply(direction * (1.0 - math.cos(delta)))
+        _dfw = TupleMath.scale(_forward, math.sin(delta))
+        _drt = TupleMath.scale(_right, direction * (1.0 - math.cos(delta)))
 
-        _vec = _start.add(_dfw.add(_drt).multiply(radius))
+        _vec = TupleMath.add(_start, TupleMath.scale(
+            TupleMath.add(_dfw, _drt), radius))
 
-        if _dtype is not Vector:
+        if _dtype is not tuple:
             _vec = _dtype(_vec)
 
         _points.append(_vec)
@@ -869,60 +866,104 @@ def get_segments(bearing, deltas, direction, start, radius, _dtype=Vector):
 
 def get_position_offset(arc, coord):
     """
-    Find the distance along the arc and the offset for the given coordinate
+    Find the station (distance along arc), point on arc, offset distance,
+    and boundary status for the given coordinate
+    
+    Returns:
+        station - distance along arc from start point
+        point - coordinate of projection point on arc
+        offset - perpendicular distance from arc (+ for outside, - for inside)
+        bound - boundary status: -1 (before start), 0 (on arc), 1 (after end)
     """
 
     _center = arc.get('Center')
-
-    #vectors from center point toward start, end, and coordinate
-    _vecs = [
-        _v.sub(_center).normalize() for _v in [arc.get('Start'), arc.get('End'), coord]
-    ]
-
-    _rad = arc.get('Radius')
-
-    #polar angles
-    _thetas = [math.acos(_v.x) for _v in _vecs]
-    _thetas = [_v if _v > 0 else C.TWO_PI + _v for _v in _thetas]
-
-    #if theta falls between start and end vectors, test to see if coord
-    #distance is > or < radius to determine side.
-
-    _offset = coord.distanceToPoint(_center) - _rad
-
-    #if the coord theta falls between the start / end radii thetas,
-    #return the point on the arc,
-    #the offset (adjusted for arc direction and side,
-    #and 0 (point falls on arc)
-    _min_theta = min(_thetas[:2])
-    _max_theta = max(_thetas[:2])
-
-    if _min_theta <= _thetas[2] <= _max_theta:
-
-        return _center.add(_vecs[2].multiply(_rad)), _offset * arc.get('Direction'), 0
-
-    #otherwise, if the offset is less than the radius,
-    #determine which theta is closer (start or end) and return
-    #-1 if clsoer to start
-    if abs(_offset) < _rad:
-
-        _deltas = [abs(_min_theta - _thetas[2]), abs(_max_theta - _thetas[2])]
-
-        if _deltas[0] < _deltas[1]:
-            if _min_theta == _thetas[0]:
-                return None, None, -1
-
-    #default point exceeds end of arc
-    return None, None, 1
+    _start = arc.get('Start')
+    _end = arc.get('End')
+    _radius = arc.get('Radius')
+    _direction = arc.get('Direction')
+    _delta = arc.get('Delta')
+    
+    # Check if coordinate is at start or end point
+    if support.within_tolerance(TupleMath.length(TupleMath.subtract(coord, _start))):
+        return 0.0, _start, 0.0, 0
+    
+    if support.within_tolerance(TupleMath.length(TupleMath.subtract(coord, _end))):
+        _arc_length = arc.get('Length')
+        return _arc_length, _end, 0.0, 0
+    
+    # Vector from center to coordinate
+    _center_to_coord = TupleMath.subtract(coord, _center)
+    
+    # Vector from center to start
+    _center_to_start = TupleMath.subtract(_start, _center)
+    
+    # Vector from center to end
+    _center_to_end = TupleMath.subtract(_end, _center)
+    
+    # Calculate the angle of coordinate from center
+    _coord_angle = math.atan2(_center_to_coord[1], _center_to_coord[0])
+    _start_angle = math.atan2(_center_to_start[1], _center_to_start[0])
+    _end_angle = math.atan2(_center_to_end[1], _center_to_end[0])
+    
+    # Calculate swept angle from start to coord
+    _swept = _coord_angle - _start_angle
+    
+    # Normalize based on arc direction
+    if _direction > 0:  # Clockwise
+        while _swept > 0:
+            _swept -= C.TWO_PI
+        _swept = abs(_swept)
+    else:  # Counter-clockwise
+        while _swept < 0:
+            _swept += C.TWO_PI
+    
+    # Calculate station along arc
+    _station = _swept * _radius
+    
+    # Calculate actual distance from center to coordinate
+    _dist_from_center = TupleMath.length(_center_to_coord)
+    
+    # Calculate radial offset (positive = outside arc, negative = inside arc)
+    _offset = _dist_from_center - _radius
+    
+    # Project coordinate onto arc (point on arc at same angle)
+    _unit_vec = TupleMath.unit(_center_to_coord)
+    _point_on_arc = TupleMath.add(_center, TupleMath.scale(_unit_vec, _radius))
+    
+    # Check boundary conditions
+    _arc_length = arc.get('Length')
+    
+    # Check if station is within arc bounds using tolerance
+    if support.within_tolerance(_station, 0.0) or _station < 0:
+        if _station < 0 and not support.within_tolerance(_station, 0.0):
+            # Point is before arc start
+            _dist_to_start = TupleMath.length(TupleMath.subtract(coord, _start))
+            return 0.0, _start, _dist_to_start, -1
+        else:
+            # Very close to start, consider it on arc
+            return 0.0, _point_on_arc, _offset, 0
+    
+    elif support.within_tolerance(_station, _arc_length) or _station > _arc_length:
+        if _station > _arc_length and not support.within_tolerance(_station, _arc_length):
+            # Point is after arc end
+            _dist_to_end = TupleMath.length(TupleMath.subtract(coord, _end))
+            return _arc_length, _end, _dist_to_end, 1
+        else:
+            # Very close to end, consider it on arc
+            return _arc_length, _point_on_arc, _offset, 0
+    
+    else:
+        # Point projection is within arc bounds
+        return _station, _point_on_arc, _offset, 0
 
 def get_points(
-        arc, size=10.0, method='Segment', interval=None, _dtype=Vector):
+        arc, size=10.0, method='Segment', interval=None, _dtype=tuple):
     """
     Discretize an arc into the specified segments.
     Resulting list of coordinates omits provided starting point and
     concludes with end point
 
-    arc_dict    - A dictionary containing key elements:
+    arc         - A dictionary containing key elements:
         Direction   - non-zero.  <0 = ccw, >0 = cw
         Radius      - in document units (non-zero, positive)
         Delta       - in radians (non-zero, positive)
@@ -931,15 +972,15 @@ def get_points(
 
     size        - size of discrete elements (non-zero, positive)
 
-    method     (Method of discretization)
+    method      (Method of discretization)
         'Segment'   - subdivide into n equal segments (default)
         'Interval'  - subdivide into fixed length segments
         'Tolerance' - limit error between segment and curve
 
     interval    - Start and distance along arc to discretize
-    layer       - the z coordinate to apply to all points
+    _dtype      - data type for returned points (tuple or Vector)
 
-    Points are returned references to start_coord
+    Points are returned referenced to start_coord
     """
 
     _arc = arc
@@ -963,22 +1004,22 @@ def get_points(
     _delta_angle = interval[0] / radius
     _start_angle = bearing_in + (_delta_angle * direction)
 
-    #get the start coordinate at the actual starting point on the curve
+    # Get the start coordinate at the actual starting point on the curve
     if interval[0] > 0.0:
 
         start = get_segments(
             bearing_in, [_delta_angle], direction, start, radius
         )[1]
 
-    #if the distance is specified, calculate the central angle from that
-    #otherwise, the new central angle is the old central angle less the delta
+    # If the distance is specified, calculate the central angle from that
+    # otherwise, the new central angle is the old central angle less the delta
     if interval[1] > 0.0:
         angle = interval[1] / radius
     else:
         angle = angle - _delta_angle
 
-    #define the incremental angle for segment calculations,
-    #defaulting to 'Segment'
+    # Define the incremental angle for segment calculations,
+    # defaulting to 'Segment'
     _delta = angle / size
 
     _ratio = (size * support.scale_factor()) / radius
@@ -989,8 +1030,8 @@ def get_points(
     elif method == 'Tolerance':
         _delta = 2.0 * math.acos(1 - _ratio)
 
-    #pre-calculate the segment deltas,
-    #increasing from zero to the central angle
+    # Pre-calculate the segment deltas,
+    # increasing from zero to the central angle
     if _delta == 0.0:
         return None, None
 
@@ -1002,6 +1043,6 @@ def get_points(
         _start_angle, segment_deltas, direction, start, radius, _dtype
     )
 
-    _arc.points.append(Vector(end))
+    _arc.points.append(_dtype(end))
 
     return _arc.points

@@ -22,69 +22,81 @@
 
 """Provides the object code for Section objects."""
 
-import Part
+import FreeCAD, Part, MeshPart
+from ..utils.get_group import georigin
 
-from ..functions.section_functions import SectionFunctions
 
-
-class Section(SectionFunctions):
-    """
-    This class is about Section object data features.
-    """
+class Section:
+    """This class is about Section object data features."""
 
     def __init__(self, obj):
-        '''
-        Set data properties.
-        '''
+        """Set data properties."""
 
         self.Type = 'Road::Section'
 
         obj.addProperty(
-            'App::PropertyLink', "Surface", "Base",
-            "Projection surface").Surface = None
+            "App::PropertyPlacement", "Placement", "Base",
+            "Placement").Placement = FreeCAD.Placement()
 
         obj.addProperty(
-            'App::PropertyFloatList', "MinZ", "Base",
-            "Minimum elevations").MinZ = []
+            'App::PropertyLinkList', "Terrains", "Base",
+            "Projection terrains").Terrains = []
 
         obj.addProperty(
             "Part::PropertyPartShape", "Shape", "Base",
             "Object shape").Shape = Part.Shape()
 
+        obj.addProperty(
+            "App::PropertyFloat", "Height", "Geometry",
+            "Height of section view").Height = 50
+
+        obj.addProperty(
+            "App::PropertyFloat", "Width", "Geometry",
+            "Width of section view").Width = 100
+
+        obj.addProperty(
+            "App::PropertyFloat", "Vertical", "Distances",
+            "Vertical distance between section frame placements").Vertical = 200
+
+        obj.addProperty(
+            "App::PropertyFloat", "Horizontal", "Distances",
+            "Horizontal distance between section frame placements").Horizontal = 200
+
         obj.Proxy = self
 
-    def onChanged(self, obj, prop):
-        '''
-        Do something when a data property has changed.
-        '''
-        if prop == "Surface":
-            surface = obj.getPropertyByName("Surface")
-
-            if surface:
-                cs = obj.getParentGroup()
-                region = cs.getParentGroup()
-
-                obj.MinZ = self.minimum_elevations(region, surface)
-
     def execute(self, obj):
-        '''
-        Do something when doing a recomputation. 
-        '''
-        surface = obj.getPropertyByName("Surface")
+        """Do something when doing a recomputation."""
 
-        if surface and obj.InList:
-            cs = obj.getParentGroup()
-            region = cs.getParentGroup()
+        sections = obj.getParentGroup()
+        region = sections.getParentGroup()
+        regions = region.getParentGroup()
+        alignment = regions.getParentGroup()
 
-            horizons = cs.Horizons
-            if not horizons: return
+        for terrain in obj.Terrains:
+            shape = region.Shape.copy()
+            shape.Placement.move(terrain.Placement.Base.negative())
+            for wire in shape.Wires:
+                points_2d = []
+                for edge in wire.Edges:
+                    params = MeshPart.findSectionParameters(
+                        edge, terrain.Mesh, FreeCAD.Vector(0, 0, 1))
+                    params.insert(0, edge.FirstParameter+1)
+                    params.append(edge.LastParameter-1)
 
-            pos = cs.Position
-            h = cs.Height.Value
-            w = cs.Width.Value
-            ver = cs.Vertical.Value
-            hor = cs.Horizontal.Value
-            geometry = [h, w]
-            gaps = [ver, hor]
+                    values = [edge.valueAt(glp) for glp in params]
+                    points_2d.extend(values)
 
-            obj.Shape = self.draw_2d_sections(pos, region, surface, geometry, gaps, horizons)
+                points_3d = MeshPart.projectPointsOnMesh(
+                    points_2d, terrain.Mesh, FreeCAD.Vector(0, 0, 1))
+                
+                verts = []
+                for point in points_3d:
+                    verts.append(Part.Vertex(point))
+                    point = point.add(terrain.Placement.Base)
+                    sta = alignment.Proxy.model.get_alignment_station(coordinate=[*point])
+                
+                Part.show(Part.makeCompound(verts))
+
+    def onChanged(self, obj, prop):
+        """Do something when a data property has changed."""
+        pass

@@ -319,6 +319,8 @@ class AlignmentModel:
 
             _dist -= _eq['Back'] - _start_sta
             _start_sta = _eq['Ahead']
+        print("_start_sta, _dist")
+        print(_start_sta, _dist)
 
         #start station represents beginning of enclosing equation
         #and raw station represents distance within equation to point
@@ -334,11 +336,10 @@ class AlignmentModel:
         _classes = {'Line': line, 'Curve': arc, 'Spiral': spiral}
 
         #iterate the geometry, creating a list of potential matches
-        for _i, _v in enumerate(self.geometry):
-
-            _class = _classes[_v.get('Type')]
-
-            _pos, _dist, _b = _class.get_position_offset(_v, coordinate)
+        for i, geo in self.geometry.items():
+            _class = _classes[geo.get('Type')]
+            sta, _pos, _dist, _b = _class.get_position_offset(geo, [*coordinate])
+            print(_pos, _dist, _b)
 
             #if position is before geometry, quit
             if _b < 0:
@@ -349,7 +350,7 @@ class AlignmentModel:
                 continue
 
             #save result
-            _matches.append((_pos, _dist, _i))
+            _matches.append((sta, _pos, _dist, i))
 
         if not _matches:
             return None, None

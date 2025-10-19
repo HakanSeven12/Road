@@ -24,12 +24,12 @@
 Line generation tools
 """
 
+import FreeCAD
 import math
 
-from FreeCAD import Vector, Console
 from ... import support
-
 from ....utils.tuple_math import TupleMath
+
 
 class Line():
     """
@@ -60,7 +60,7 @@ class Line():
         self.object_id = ''
         self.note = ''
 
-        #build a list of key pairs fir string-based lookup
+        # Build a list of key pairs for string-based lookup
         self._key_pairs = {}
 
         _keys = list(self.__dict__.keys())
@@ -104,7 +104,7 @@ class Line():
 
     def set_bearing(self, value):
         """
-        Setter function for bearing_in / beraing_out aliasing
+        Setter function for bearing_in / bearing_out aliasing
         """
 
         self.bearing = value
@@ -136,7 +136,7 @@ class Line():
 
         if not key in self._key_pairs:
 
-            Console.PrintError('\nLine.set(): Bad key' + key)
+            FreeCAD.Console.PrintError('\nLine.set(): Bad key' + key)
             return
 
         if value and key.lower() in ('start', 'end', 'pi', 'center'):
@@ -144,8 +144,8 @@ class Line():
 
         setattr(self, self._key_pairs[key], value)
 
-    #alias bearing_in / bearing_out with the bearing attribute
-    #provides compatibility with curve classes
+    # Alias bearing_in / bearing_out with the bearing attribute
+    # provides compatibility with curve classes
     bearing_in = property(get_bearing, set_bearing)
     bearing_out = property(get_bearing, set_bearing)
 
@@ -162,10 +162,10 @@ def get_parameters(line, as_dict=True):
     _coord_truth = [_result.start, _result.end]
     _param_truth = [not math.isnan(_result.bearing), _result.length > 0.0]
 
-    #both coordinates defined
+    # Both coordinates defined
     _case_one = all(_coord_truth)
 
-    #only one coordinate defined, plus both length and bearing
+    # Only one coordinate defined, plus both length and bearing
     _case_two = any(_coord_truth) \
                 and not all(_coord_truth) \
                 and all(_param_truth)
@@ -195,11 +195,6 @@ def get_parameters(line, as_dict=True):
     else:
         print('Unable to calculate parameters for line', _result)
 
-    #result = None
-
-    #if _case_one or _case_two:
-    #    result = {**{'Type': 'Line'}, **line}
-
     if as_dict:
         return _result.to_dict()
 
@@ -227,18 +222,18 @@ def get_tangent_vector(line, distance):
     if _start is None or _end is None:
         return None, None
 
-    _slope = Vector(-(_end.y - _start.y), _end.x - _start.x).normalize()
+    _slope = TupleMath.unit((-(_end[1] - _start[1]), _end[0] - _start[0]))
 
-    _coord = get_coordinate(
+    _coord = TupleMath.add(get_coordinate(
         line.start, line.bearing, distance
-        ).add(_slope)
+        ), _slope)
 
     return _coord, _slope
 
 def get_ortho_vector(line, distance, side=''):
     """
     Return the orthogonal vector pointing toward the indicated side at the
-    provided position.  Defaults to left-hand side
+    provided position. Defaults to left-hand side
     """
 
     _dir = 1.0
@@ -266,89 +261,88 @@ def get_ortho_vector(line, distance, side=''):
 
 def get_orthogonal_point(start_pt, end_pt, coord):
     """
-    Return the point on the line specified by
+    Return the point on the line specified by the projection of coord
     """
-    _x = (coord.x - start_pt.x) *  (end_pt.x - start_pt.x)
-    _y = (coord.y - start_pt.y) * (end_pt.y - start_pt.y)
+    _x = (coord[0] - start_pt[0]) * (end_pt[0] - start_pt[0])
+    _y = (coord[1] - start_pt[1]) * (end_pt[1] - start_pt[1])
 
-    #euclidean distance
-    _d = (end_pt.x - start_pt.x)**2 + (end_pt.y - start_pt.y)**2
+    # Euclidean distance
+    _d = (end_pt[0] - start_pt[0])**2 + (end_pt[1] - start_pt[1])**2
 
     _u = (_x + _y) / _d
 
-    return Vector(
-        start_pt.x + (_u * (end_pt.x - start_pt.x)),
-        start_pt.y + (_u * (end_pt.y - start_pt.y)),
+    return (
+        start_pt[0] + (_u * (end_pt[0] - start_pt[0])),
+        start_pt[1] + (_u * (end_pt[1] - start_pt[1])),
         0.0
     )
 
 def get_position_offset(line, coord):
     """
-    Return the projection of the coordinate onto the line, the distance
-    from the line, and a bounding value [-1, 0, 1] that indicate if
-    coordinate falls within the endpoints (0),
-    before the start point (-1), or after the end point (1)
-
-    Original implementation at https://stackoverflow.com/questions/10301001/perpendicular-on-a-line-segment-from-a-given-point
+    Find the station (distance along line), point on line, offset distance,
+    and boundary status for the given coordinate
+    
+    Returns:
+        station - distance along line from start point
+        point - coordinate of projection point on line
+        offset - perpendicular distance from line (+ for left, - for right)
+        bound - boundary status: -1 (before start), 0 (on line), 1 (after end)
     """
 
-    #calculate the orthogonals on either end
-    _orthos = [
-        get_ortho_vector(line, 0, 'lt'),
-        get_ortho_vector(line, line.length, 'lt')
-    ]
+    line = Line(line)
 
-    #quit successfully if we're on endpoints
-    if support.within_tolerance(coord.distanceToPoint(line.start)):
-        return 0.0, 0.0, 0.0
+    _start = line.start
+    _end = line.end
+    _length = line.length
 
-    if support.within_tolerance(coord.distanceToPoint(line.end)):
-        return line.length, 0.0, 0.0
+    # Check if coordinate is at start or end point
+    if support.within_tolerance(TupleMath.length(TupleMath.subtract(coord, _start))):
+        return 0.0, _start, 0.0, 0
 
-    #get the point projection, and test to see if it's within the limits
-    #of the line
-    _r = get_orthogonal_point(line.start, line.end, coord)
+    if support.within_tolerance(TupleMath.length(TupleMath.subtract(coord, _end))):
+        return _length, _end, 0.0, 0
 
-    _ortho = coord.sub(_r)
+    # Get the orthogonal projection point on the line
+    _proj_point = get_orthogonal_point(_start, _end, coord)
 
-    _dir = -1.0
+    # Calculate station (distance from start to projection point)
+    _station = TupleMath.length(TupleMath.subtract(_proj_point, _start))
 
-    #determine the direction of the offset
-    if math.copysign(1, _ortho.x) == math.copysign(1, _orthos[0][1].x)\
-        and math.copysign(1, _ortho.y) == math.copysign(1, _orthos[0][1].y):
+    # Calculate offset (perpendicular distance from line)
+    _offset_dist = TupleMath.length(TupleMath.subtract(coord, _proj_point))
 
-        _dir = 1.0
+    # Calculate direction vector of line
+    _line_vec = TupleMath.unit(TupleMath.subtract(_end, _start))
 
-    _llim = \
-        min(line.start.x, line.end.x) < _r[0] < max(line.start.x, line.end.x)
+    # Calculate vector from projection point to coordinate
+    _offset_vec = TupleMath.subtract(coord, _proj_point)
 
-    _ulim = \
-        min(line.start.y, line.end.y) < _r[1] < max(line.start.y, line.end.y)
+    # Determine sign of offset using cross product
+    # Positive = left side, Negative = right side
+    _cross = TupleMath.cross(_line_vec, _offset_vec)
+    _sign = 1.0 if _cross[2] > 0 else -1.0
 
-    if _llim and _ulim:
+    _offset = _offset_dist * _sign
 
-        _point, _vec = get_tangent_vector(
-            line, line.start.distanceToPoint(_r)
-        )
+    # Check boundary conditions
+    if support.within_tolerance(_station, 0.0) or _station < 0:
+        if _station < 0 and not support.within_tolerance(_station, 0.0):
+            # Point is before line start
+            _dist_to_start = TupleMath.length(TupleMath.subtract(coord, _start))
+            return 0.0, _start, _dist_to_start, -1
+        else:
+            # Very close to start, consider it on line
+            return 0.0, _proj_point, _offset, 0
 
-        return _point, coord.distanceToPoint(_r) * _dir, 0
+    elif support.within_tolerance(_station, _length) or _station > _length:
+        if _station > _length and not support.within_tolerance(_station, _length):
+            # Point is after line end
+            _dist_to_end = TupleMath.length(TupleMath.subtract(coord, _end))
+            return _length, _end, _dist_to_end, 1
+        else:
+            # Very close to end, consider it on line
+            return _length, _proj_point, _offset, 0
 
-    #outside the limits
-    _o = _orthos[0][1]
-
-    _pts = [
-        get_orthogonal_point(line.start, _o.add(line.start), coord),
-        get_orthogonal_point(line.end, _o.add(line.end), coord)
-    ]
-
-    _dist = [
-        coord.distanceToPoint(_pts[0]),
-        coord.distanceToPoint(_pts[1])
-    ]
-
-    _bound = 1
-
-    if _dist[0] < _dist[1]:
-        _bound = -1
-
-    return _r, coord.distanceToPoint(_r) * _dir, _bound
+    else:
+        # Point projection is within line bounds
+        return _station, _proj_point, _offset, 0

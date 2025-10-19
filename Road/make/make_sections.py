@@ -25,18 +25,17 @@
 import FreeCAD
 
 from ..variables import icons_path
-from ..objects.sections import Sections
-from ..viewproviders.view_sections import ViewProviderSections
-
+from ..objects.group import Group
+from ..viewproviders.view_group import ViewProviderGroup
 
 def create():
-    obj=FreeCAD.ActiveDocument.addObject(
+    """Factory method for Section group."""
+
+    obj = FreeCAD.ActiveDocument.addObject(
         "App::DocumentObjectGroupPython", "Sections")
 
-    Sections(obj)
-    ViewProviderSections(obj.ViewObject)
-
+    Group(obj, "Road::Sections")
+    ViewProviderGroup(obj.ViewObject, icons_path + "/CreateSections.svg")
     obj.Label = "Sections"
-    obj.ViewObject.Proxy.Icon = icons_path + '/CreateSections.svg'
 
     return obj

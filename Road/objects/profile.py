@@ -74,9 +74,8 @@ class Profile:
             profiles = profile_frame.getParentGroup()
             alignment = profiles.getParentGroup()
 
-            origin = georigin().Base
             shape = alignment.Shape.copy()
-            shape.Placement.move(origin.negative())
+            shape.Placement.move(obj.Terrain.Placement.Base.negative())
             obj.Model = profile.from_mesh(shape, obj.Terrain.Mesh)
 
     def onChanged(self, obj, prop):
