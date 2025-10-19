@@ -3,6 +3,7 @@
 """Provides the object code for Section objects."""
 
 import FreeCAD, Part, MeshPart
+import math
 
 
 class Section:
@@ -31,19 +32,19 @@ class Section:
 
         obj.addProperty(
             "App::PropertyFloat", "Height", "Geometry",
-            "Height of section view").Height = 50
+            "Height of section view").Height = 15
 
         obj.addProperty(
             "App::PropertyFloat", "Width", "Geometry",
-            "Width of section view").Width = 100
+            "Width of section view").Width = 30
 
         obj.addProperty(
             "App::PropertyFloat", "Vertical", "Distances",
-            "Vertical distance between section frame placements").Vertical = 200
+            "Vertical distance between section frame placements").Vertical = 10
 
         obj.addProperty(
             "App::PropertyFloat", "Horizontal", "Distances",
-            "Horizontal distance between section frame placements").Horizontal = 200
+            "Horizontal distance between section frame placements").Horizontal = 20
 
         obj.Proxy = self
 
@@ -82,10 +83,50 @@ class Section:
                     offset_elevation.extend([offset, point.z])
                 obj.Model[sta][terrain.Label] = offset_elevation
 
-        from pprint import pprint
-        pprint(obj.Model, indent=2, width=40)
-        print(obj.Model.keys())
+
+        # Calculate grid dimensions (equal rows and columns)
+        total_items = len(obj.Model)
+        grid_size = math.ceil(math.sqrt(total_items))  # This ensures rows = columns
+
+        current_col = 0
+        current_row = 0
+
+        # Starting position
+        base = FreeCAD.Vector(0, 50000)
+
+        shapes = []
+        for sta, data in obj.Model.items():
+            # Calculate grid position for this item
+            origin = FreeCAD.Vector(current_col * obj.Horizontal, current_row * obj.Vertical, 0).multiply(1000).add(base)
+            
+            p2 = origin.add(FreeCAD.Vector(obj.Width * 1000, 0, 0))
+            p3 = origin.add(FreeCAD.Vector(obj.Width * 1000, obj.Height * 1000, 0))
+            p4 = origin.add(FreeCAD.Vector(0, obj.Height * 1000, 0))
+            frame = Part.makePolygon([origin, p2, p3, p4, origin])
+            shapes.append(frame)
+            
+            for terrain, values in data.items():
+                point_list = []
+                for i in range(0, len(values), 2):
+                    offset = values[i]
+                    elevation = values[i+1]
+                    if offset is None or elevation is None: 
+                        continue
+                    pt = FreeCAD.Vector(offset, elevation, 0)
+                    pt = pt.add(origin)
+                    point_list.append(pt)
                 
+                if len(point_list) > 1:  # Need at least 2 points to make a polygon
+                    section = Part.makePolygon(point_list)
+                    shapes.append(section)
+            
+            # Update grid position
+            current_row += 1
+            if current_row >= grid_size:
+                current_row = 0
+                current_col += 1
+            
+        Part.show(Part.Compound(shapes))
 
     def onChanged(self, obj, prop):
         """Do something when a data property has changed."""

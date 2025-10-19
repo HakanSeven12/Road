@@ -295,8 +295,6 @@ class AlignmentModel:
 
             _dist -= _eq['Back'] - _start_sta
             _start_sta = _eq['Ahead']
-        print("_start_sta, _dist")
-        print(_start_sta, _dist)
 
         #start station represents beginning of enclosing equation
         #and raw station represents distance within equation to point
