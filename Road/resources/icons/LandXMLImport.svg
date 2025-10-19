@@ -406,9 +406,11 @@
         
         <dc:contributor>
           <cc:Agent>
-            <dc:title>Icon based on a design by [agryson] Alexander Gryson</dc:title>
+            <dc:title>Based on a design by agryson ( Alexander Gryson )
+HakanSeven12</dc:title>
           </cc:Agent>
         </dc:contributor>
+        
       <cc:license
            rdf:resource="http://creativecommons.org/licenses/by-sa/4.0/" />
       </cc:Work>

@@ -95,12 +95,7 @@
         <dc:publisher/>
         <dc:identifier></dc:identifier>
         <dc:rights/>
-        
-        <dc:contributor>
-          <cc:Agent>
-            <dc:title></dc:title>
-          </cc:Agent>
-        </dc:contributor>
+        <dc:contributor/>
         <dc:subject>
           <rdf:Bag>
             <rdf:li>Data Table</rdf:li>
