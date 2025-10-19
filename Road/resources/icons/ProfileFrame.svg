@@ -386,31 +386,18 @@
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
         <dc:title>Trail_WB_EditCenterline</dc:title>
-        <cc:license
-           rdf:resource="" />
+        
         <dc:date>29-05-2020</dc:date>
         <dc:creator>
           <cc:Agent>
             <dc:title>bitacovir</dc:title>
           </cc:Agent>
         </dc:creator>
-        <dc:rights>
-          <cc:Agent>
-            <dc:title>FreeCAD LGPL2+</dc:title>
-          </cc:Agent>
-        </dc:rights>
-        <dc:publisher>
-          <cc:Agent>
-            <dc:title>FreeCAD</dc:title>
-          </cc:Agent>
-        </dc:publisher>
+        <dc:rights/>
+<dc:publisher/>
         <dc:identifier />
         <dc:relation />
-        <dc:contributor>
-          <cc:Agent>
-            <dc:title />
-          </cc:Agent>
-        </dc:contributor>
+        <dc:contributor/>
         <dc:subject>
           <rdf:Bag>
             <rdf:li>line</rdf:li>

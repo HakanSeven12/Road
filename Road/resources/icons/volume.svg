@@ -253,23 +253,10 @@
         <dc:title>PartDesign_MoveTip</dc:title>
         <dc:date>19-02-2021</dc:date>
         <dc:relation></dc:relation>
-        <dc:publisher>
-          <cc:Agent>
-            <dc:title>FreeCAD</dc:title>
-          </cc:Agent>
-        </dc:publisher>
-        <dc:identifier />
-        <dc:rights>
-          <cc:Agent>
-            <dc:title>FreeCAD LGPL2+</dc:title>
-          </cc:Agent>
-        </dc:rights>
-        <cc:license>https://www.gnu.org/copyleft/lesser.html</cc:license>
-        <dc:contributor>
-          <cc:Agent>
-            <dc:title />
-          </cc:Agent>
-        </dc:contributor>
+        <dc:rights/>
+<dc:publisher/>
+        
+        <dc:contributor/>
         <dc:subject>
           <rdf:Bag />
         </dc:subject>
