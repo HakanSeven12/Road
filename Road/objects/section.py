@@ -18,8 +18,8 @@ class Section:
             "Placement").Placement = FreeCAD.Placement()
 
         obj.addProperty(
-            "App::PropertyPythonObject", "Stations", "Base",
-            "List of stations").Stations = {}
+            "App::PropertyPythonObject", "Model", "Base",
+            "List of stations").Model = {}
         
         obj.addProperty(
             'App::PropertyLinkList', "Terrains", "Base",
@@ -56,29 +56,35 @@ class Section:
         alignment = regions.getParentGroup()
         if not hasattr(alignment.Proxy, "model"): return
 
-        for terrain in obj.Terrains:
-            shape = region.Shape.copy()
-            shape.Placement.move(terrain.Placement.Base.negative())
-            for wire in shape.Wires:
-                points_2d = []
-                for edge in wire.Edges:
+        for idx, sta in enumerate(region.Stations):
+            obj.Model[sta] = {}
+            for terrain in obj.Terrains:
+                shape = region.Shape.copy()
+                shape.Placement.move(terrain.Placement.Base.negative())
+
+                flat_points = []
+                for edge in shape.Wires[idx].Edges:
                     params = MeshPart.findSectionParameters(
                         edge, terrain.Mesh, FreeCAD.Vector(0, 0, 1))
                     params.insert(0, edge.FirstParameter+1)
                     params.append(edge.LastParameter-1)
 
                     values = [edge.valueAt(glp) for glp in params]
-                    points_2d.extend(values)
+                    flat_points.extend(values)
 
-                points_3d = MeshPart.projectPointsOnMesh(
-                    points_2d, terrain.Mesh, FreeCAD.Vector(0, 0, 1))
+                projected_points = MeshPart.projectPointsOnMesh(
+                    flat_points, terrain.Mesh, FreeCAD.Vector(0, 0, 1))
                 
-                for point in points_3d:
+                offset_elevation = []
+                for point in projected_points:
                     point = point.add(terrain.Placement.Base)
                     station, position, offset, index = alignment.Proxy.model.get_station_offset([*point])
-                    obj.Stations[station] = {'Offset': offset, 'Elevation': point.z}
+                    offset_elevation.extend([offset, point.z])
+                obj.Model[sta][terrain.Label] = offset_elevation
 
-        print(obj.Stations)
+        from pprint import pprint
+        pprint(obj.Model, indent=2, width=40)
+        print(obj.Model.keys())
                 
 
     def onChanged(self, obj, prop):
