@@ -36,15 +36,15 @@ class Section:
 
         obj.addProperty(
             "App::PropertyFloat", "Width", "Geometry",
-            "Width of section view").Width = 30
+            "Width of section view").Width = 40
 
         obj.addProperty(
             "App::PropertyFloat", "Vertical", "Distances",
-            "Vertical distance between section frame placements").Vertical = 10
+            "Vertical distance between section frame placements").Vertical = 20
 
         obj.addProperty(
             "App::PropertyFloat", "Horizontal", "Distances",
-            "Horizontal distance between section frame placements").Horizontal = 20
+            "Horizontal distance between section frame placements").Horizontal = 50
 
         obj.Proxy = self
 
@@ -58,7 +58,8 @@ class Section:
         if not hasattr(alignment.Proxy, "model"): return
 
         for idx, sta in enumerate(region.Stations):
-            obj.Model[sta] = {}
+            obj.Model[sta] = {'horizon': 0, 'sections': {}}
+            horizon = math.inf
             for terrain in obj.Terrains:
                 shape = region.Shape.copy()
                 shape.Placement.move(terrain.Placement.Base.negative())
@@ -80,9 +81,15 @@ class Section:
                 for point in projected_points:
                     point = point.add(terrain.Placement.Base)
                     station, position, offset, index = alignment.Proxy.model.get_station_offset([*point])
-                    offset_elevation.extend([offset, point.z])
-                obj.Model[sta][terrain.Label] = offset_elevation
+                    if offset: offset_elevation.append([offset, point.z])
+                    if point.z < horizon: horizon = point.z
 
+                # Sort by offset
+                offset_elevation.sort(key=lambda x: x[0])
+                obj.Model[sta]['sections'][terrain.Label] = offset_elevation
+
+            # Set horizon
+            obj.Model[sta]["horizon"] = math.floor(horizon / 5000) * 5000
 
         # Calculate grid dimensions (equal rows and columns)
         total_items = len(obj.Model)
@@ -99,24 +106,21 @@ class Section:
             # Calculate grid position for this item
             origin = FreeCAD.Vector(current_col * obj.Horizontal, current_row * obj.Vertical, 0).multiply(1000).add(base)
             
-            p2 = origin.add(FreeCAD.Vector(obj.Width * 1000, 0, 0))
-            p3 = origin.add(FreeCAD.Vector(obj.Width * 1000, obj.Height * 1000, 0))
-            p4 = origin.add(FreeCAD.Vector(0, obj.Height * 1000, 0))
-            frame = Part.makePolygon([origin, p2, p3, p4, origin])
+            p2 = origin.add(FreeCAD.Vector(-obj.Width * 1000 / 2, 0, 0))
+            p3 = origin.add(FreeCAD.Vector(-obj.Width * 1000 / 2, obj.Height * 1000, 0))
+            p4 = origin.add(FreeCAD.Vector(obj.Width * 1000 / 2, obj.Height * 1000, 0))
+            p5 = origin.add(FreeCAD.Vector(obj.Width * 1000 / 2, 0, 0))
+            frame = Part.makePolygon([origin, p2, p3, p4, p5, origin])
             shapes.append(frame)
             
-            for terrain, values in data.items():
+            for terrain, values in data['sections'].items():
                 point_list = []
-                for i in range(0, len(values), 2):
-                    offset = values[i]
-                    elevation = values[i+1]
-                    if offset is None or elevation is None: 
-                        continue
-                    pt = FreeCAD.Vector(offset, elevation, 0)
-                    pt = pt.add(origin)
-                    point_list.append(pt)
+                for offset, elevation in values:
+                    if offset is None or elevation is None: continue
+                    pt = FreeCAD.Vector(offset, elevation - data.get("horizon"), 0)
+                    point_list.append(origin.add(pt))
                 
-                if len(point_list) > 1:  # Need at least 2 points to make a polygon
+                if len(point_list) > 1:
                     section = Part.makePolygon(point_list)
                     shapes.append(section)
             
