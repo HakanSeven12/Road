@@ -101,7 +101,8 @@ class Section:
         # Starting position
         base = FreeCAD.Vector(0, 50000)
 
-        shapes = []
+        frames = []
+        crosssections = []
         for sta, data in obj.Model.items():
             # Calculate grid position for this item
             origin = FreeCAD.Vector(current_col * obj.Horizontal, current_row * obj.Vertical, 0).multiply(1000).add(base)
@@ -111,7 +112,7 @@ class Section:
             p4 = origin.add(FreeCAD.Vector(obj.Width * 1000 / 2, obj.Height * 1000, 0))
             p5 = origin.add(FreeCAD.Vector(obj.Width * 1000 / 2, 0, 0))
             frame = Part.makePolygon([origin, p2, p3, p4, p5, origin])
-            shapes.append(frame)
+            frames.append(frame)
             
             for terrain, values in data['sections'].items():
                 point_list = []
@@ -122,7 +123,7 @@ class Section:
                 
                 if len(point_list) > 1:
                     section = Part.makePolygon(point_list)
-                    shapes.append(section)
+                    crosssections.append(section)
             
             # Update grid position
             current_row += 1
@@ -130,7 +131,9 @@ class Section:
                 current_row = 0
                 current_col += 1
             
-        Part.show(Part.Compound(shapes))
+        shp_frame = Part.Compound(frames)
+        shp_section = Part.Compound(crosssections)
+        obj.Shape = Part.Compound([shp_frame, shp_section])
 
     def onChanged(self, obj, prop):
         """Do something when a data property has changed."""
