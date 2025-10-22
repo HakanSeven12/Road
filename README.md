@@ -14,7 +14,7 @@ Road is the Transportation and Geomatics Engineering workbench for FreeCAD.
 * Superelevation ❌
 * Road 🔄
 * Regions ✔️
-* Sections ❌
+* Sections ✔️
 * Volume ❌
 * GeoLine ❌
 * LandXML Importer ✔️
@@ -57,5 +57,7 @@ Developed with passion by Hakan Seven ([@HakanSeven12](https://github.com/HakanS
 ![Terrain](https://github.com/user-attachments/assets/7c6e91fb-4e6a-466c-a59d-e3a20a543dca)
 ![Alignment](https://github.com/user-attachments/assets/423c2bdb-91f7-4ae9-8187-28902157d0a2)
 ![Profile](https://github.com/user-attachments/assets/4550b37c-ded8-46e9-a480-57bb5f941d9b)
+![Sections](https://github.com/user-attachments/assets/86b22064-9f8a-4b9e-9a64-3467e8e345cd)
 ![Structure](https://github.com/user-attachments/assets/e1224ba8-4c80-4e4a-92bc-24d42024a67d)
 ![Road Model](https://github.com/user-attachments/assets/ef780b2d-c22a-4211-8bab-b413ca2c87ec)
+
