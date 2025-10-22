@@ -4,6 +4,7 @@
 
 import FreeCAD, FreeCADGui
 from pivy import coin
+import math
 
 from ..variables import icons_path
 from ..utils.get_group import georigin
@@ -62,7 +63,7 @@ class ViewProviderSection:
 
         # Horizontal lines
         self.horizontal_coords = coin.SoCoordinate3()
-        horizontal_lines = coin.SoIndexedLineSet()
+        horizontal_lines = coin.SoLineSet()
 
         self.horizontal_copy = coin.SoMultipleCopy()
         self.horizontal_copy.addChild(self.horizontal_coords)
@@ -94,9 +95,12 @@ class ViewProviderSection:
 
         # Section view
         self.section_color = coin.SoBaseColor()
+        draw_style = coin.SoDrawStyle()
+        draw_style.style = coin.SoDrawStyle.LINES
+        draw_style.lineWidth = 2
 
         section_view = coin.SoGroup()
-        section_view.addChild(self.draw_style)
+        section_view.addChild(draw_style)
         section_view.addChild(self.section_color)
 
         # Section data
@@ -178,7 +182,7 @@ class ViewProviderSection:
         if prop == "Shape":
             shape = obj.getPropertyByName(prop)
             if not shape.Compounds: return
-            shape.Placement.move(obj.Placement.Base.negative())
+            #shape.Placement.move(obj.Placement.Base.negative())
 
             border_coords = []
             border_count = []
@@ -208,61 +212,63 @@ class ViewProviderSection:
             self.elevations.removeAllChildren()
             self.offsets.removeAllChildren()
 
-            return
+            # Starting position
+            base = obj.Placement.Base
+            vertical_matrices = []
+            horizontal_matrices = []
             for sta, data in model.items():
-                vertical_matrices = []
-                for pos in range(10000, int(obj.Width), 10000):
+                # Calculate grid position for this item
+                origin = FreeCAD.Vector(data.get("origin"))
+                for pos in range(int(-obj.Width*1000/2), int(obj.Width*1000/2), 2000):
+                    position = origin.add(FreeCAD.Vector(pos, 0))
+                    position2 = origin.add(FreeCAD.Vector(pos, obj.Height*1000+500))
                     matrix = coin.SbMatrix()
                     location = coin.SoTranslation()
-                    station = coin.SoAsciiText()
+                    offset = coin.SoAsciiText()
 
                     matrix.setTransform(
-                        coin.SbVec3f(pos, 0, -1), 
+                        coin.SbVec3f(*position), 
                         coin.SbRotation(), 
                         coin.SbVec3f(1.0, 1.0, 1.0))
                     vertical_matrices.append(matrix)
 
-                    location.translation = coin.SbVec3f(pos, obj.Height+500, 0)
-                    station.justification = coin.SoAsciiText.CENTER
-
-                    text = str(round(pos / 1000, 2)).zfill(6)
-                    integer = text.split('.')[0]
-                    new_integer = integer[:-3] + "+" + integer[-3:]
-
-                    station.string.setValues([new_integer + "." + text.split('.')[1]])
+                    location.translation = coin.SbVec3f(*position2)
+                    offset.justification = coin.SoAsciiText.CENTER
+                    offset.string.setValues([int(pos / 1000)])
 
                     group = coin.SoTransformSeparator()
                     group.addChild(location)
-                    group.addChild(station)
+                    group.addChild(offset)
                     self.offsets.addChild(group)
 
-                self.vertical_coords.point.values = [corners[0], corners[3]]
-                self.vertical_copy.matrix.values = vertical_matrices
-
-                horizontal_matrices = []
-                start = (horizon + 9999) // 10000 * 10000
-                for pos in range(int(start), int(horizon+obj.Height), 10000):
+                horizon = data.get("horizon", 0)
+                for pos in range(0, int(obj.Height*1000), 2000):
+                    position = origin.add(FreeCAD.Vector(0, pos))
+                    position2 = origin.add(FreeCAD.Vector(-obj.Width*1000/2, pos, 0))
                     matrix = coin.SbMatrix()
                     location = coin.SoTranslation()
                     elevation = coin.SoAsciiText()
 
                     matrix.setTransform(
-                        coin.SbVec3f(0, pos-horizon, -1), 
+                        coin.SbVec3f(*position), 
                         coin.SbRotation(), 
                         coin.SbVec3f(1.0, 1.0, 1.0))
                     horizontal_matrices.append(matrix)
 
-                    location.translation = coin.SbVec3f(-500, pos-horizon, 0)
+                    location.translation = coin.SbVec3f(*position2)
                     elevation.justification = coin.SoAsciiText.RIGHT
-                    elevation.string.setValues([round(pos/1000, 3)])
+                    elevation.string.setValues([round((horizon+pos)/1000, 3)])
 
                     group = coin.SoTransformSeparator()
                     group.addChild(location)
                     group.addChild(elevation)
                     self.elevations.addChild(group)
 
-                self.horizontal_coords.point.values = [corners[0], corners[1]]
-                self.horizontal_copy.matrix.values = horizontal_matrices
+            self.vertical_coords.point.values = [FreeCAD.Vector(), FreeCAD.Vector(0,obj.Height*1000)]
+            self.vertical_copy.matrix.values = vertical_matrices
+
+            self.horizontal_coords.point.values = [FreeCAD.Vector(-obj.Width*1000/2,0) , FreeCAD.Vector(obj.Width*1000/2,0)]
+            self.horizontal_copy.matrix.values = horizontal_matrices
 
     def getDisplayModes(self,vobj):
         """Return a list of display modes."""

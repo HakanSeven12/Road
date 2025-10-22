@@ -59,7 +59,7 @@ class Section:
 
         for idx, sta in enumerate(region.Stations):
             obj.Model[sta] = {'horizon': 0, 'sections': {}}
-            horizon = math.inf
+            horizon = 0
             for terrain in obj.Terrains:
                 shape = region.Shape.copy()
                 shape.Placement.move(terrain.Placement.Base.negative())
@@ -82,7 +82,7 @@ class Section:
                     point = point.add(terrain.Placement.Base)
                     station, position, offset, index = alignment.Proxy.model.get_station_offset([*point])
                     if offset: offset_elevation.append([offset, point.z])
-                    if point.z < horizon: horizon = point.z
+                    if horizon==0 or point.z < horizon: horizon = point.z
 
                 # Sort by offset
                 offset_elevation.sort(key=lambda x: x[0])
@@ -99,13 +99,14 @@ class Section:
         current_row = 0
 
         # Starting position
-        base = FreeCAD.Vector(0, 50000)
+        base = obj.Placement.Base
 
         frames = []
         crosssections = []
         for sta, data in obj.Model.items():
             # Calculate grid position for this item
-            origin = FreeCAD.Vector(current_col * obj.Horizontal, current_row * obj.Vertical, 0).multiply(1000).add(base)
+            origin = FreeCAD.Vector(current_col * obj.Horizontal, current_row * obj.Vertical, 0).multiply(1000)
+            obj.Model[sta]["origin"] = [*origin]
             
             p2 = origin.add(FreeCAD.Vector(-obj.Width * 1000 / 2, 0, 0))
             p3 = origin.add(FreeCAD.Vector(-obj.Width * 1000 / 2, obj.Height * 1000, 0))
