@@ -4,18 +4,16 @@
 
 import FreeCAD
 from pivy import coin
-
 import math
-
-from ..variables import icons_path
-from ..utils.get_group import georigin
 from ..geoutils.alignment_old import transformation
+from .view_geo_object import ViewProviderGeoObject
 
 
-class ViewProviderRegion:
+class ViewProviderRegion(ViewProviderGeoObject):
     """This class is about Region Object view features."""
     def __init__(self, vobj):
         """Set view properties."""
+        super().__init__(vobj, "Region")
         vobj.addProperty(
             "App::PropertyBool", "Labels", "Base",
             "Show/hide labels").Labels = True
@@ -52,6 +50,7 @@ class ViewProviderRegion:
 
     def attach(self, vobj):
         """Create Object visuals in 3D view."""
+        super().attach(vobj)
         self.Object = vobj.Object
 
         self.draw_style = coin.SoDrawStyle()
@@ -108,7 +107,6 @@ class ViewProviderRegion:
         standard_selection.addChild(lines)
         standard_selection.addChild(self.labels)
 
-        self.standard = coin.SoGeoSeparator()
         self.standard.addChild(standard_selection)
 
         vobj.addDisplayMode(self.standard, "Standard")
@@ -199,20 +197,10 @@ class ViewProviderRegion:
 
     def updateData(self, obj, prop):
         """Update Object visuals when a data property changed."""
-        if prop == "Placement":
-            placement = obj.getPropertyByName(prop)
-            origin = georigin(placement.Base)
-            geo_system = ["UTM", origin.UtmZone, "FLAT"]
-
-            self.standard.geoSystem.setValues(geo_system)
-            self.standard.geoCoords.setValue(*placement.Base)
-
-        elif prop == "Shape":
-            shape = obj.getPropertyByName(prop).copy()
-            shape.Placement.move(obj.Placement.Base.negative())
-
+        super().updateData(obj, prop)
+        if prop == "Shape":
             line_coords, line_index = [], []
-            for edge in shape.Edges:
+            for edge in obj.Shape.Edges:
                 start = len(line_coords)
                 line_coords.extend(edge.discretize(2))
                 end = len(line_coords)
@@ -223,52 +211,6 @@ class ViewProviderRegion:
             self.line_coords.point.values = line_coords
             self.line_lines.coordIndex.values = line_index
 
-    def getDisplayModes(self,vobj):
-        """Return a list of display modes."""
-        modes = ["Standard"]
-        return modes
-
-    def getDefaultDisplayMode(self):
-        """Return the name of the default display mode."""
-        return "Standard"
-
-    def setDisplayMode(self,mode):
-        """Map the display mode defined in attach with 
-        those defined in getDisplayModes."""
-        return mode
-
-    def getIcon(self):
-        """Return object treeview icon."""
-        return icons_path + "/Region.svg"
-
     def claimChildren(self):
         """Provides object grouping"""
         return self.Object.Group
-
-    def setEdit(self, vobj, mode=0):
-        """Enable edit"""
-        return True
-
-    def unsetEdit(self, vobj, mode=0):
-        """Disable edit"""
-        return False
-
-    def doubleClicked(self, vobj):
-        """Detect double click"""
-        pass
-
-    def setupContextMenu(self, obj, menu):
-        """Context menu construction"""
-        pass
-
-    def edit(self):
-        """Edit callback"""
-        pass
-
-    def dumps(self):
-        """Called during document saving"""
-        return None
-
-    def loads(self, state):
-        """Called during document restore."""
-        return None

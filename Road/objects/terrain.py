@@ -2,28 +2,25 @@
 
 """Provides the object code for Terrain objects."""
 
-import FreeCAD
-import Mesh, Part
-import MeshGui
-
-import numpy
-from scipy.spatial import Delaunay
+import FreeCAD, Mesh, Part, MeshGui
+from.geo_object import GeoObject
 from ..functions.terrain_functions import (
     test_triangulation, 
     get_contours, 
     get_boundary)
 
+import numpy
+from scipy.spatial import Delaunay
 
-class Terrain:
+
+class Terrain(GeoObject):
     """This class is about Terrain Object data features."""
 
     def __init__(self, obj):
         """Set data properties."""
-        self.Type = "Road::Terrain"
+        super().__init__(obj)
 
-        obj.addProperty(
-            "App::PropertyPlacement", "Placement", "Base",
-            "Placement").Placement = FreeCAD.Placement()
+        self.Type = "Road::Terrain"
 
         obj.addProperty(
             "App::PropertyLinkList", "Clusters", "Base",
@@ -40,10 +37,6 @@ class Terrain:
         obj.addProperty(
             "App::PropertyPythonObject", "Operations", "Triangulation",
             "Terrain edit operations").Operations = []
-
-        obj.addProperty(
-            "Mesh::PropertyMeshKernel", "Mesh", "Triangulation",
-            "Mesh object of triangulation").Mesh = Mesh.Mesh()
 
         obj.addProperty(
             "App::PropertyLength", "MaxLength", "Constraint",
@@ -85,7 +78,9 @@ class Terrain:
 
     def onChanged(self, obj, prop):
         """Do something when a data property has changed."""
-        if prop == "Points" or prop == "Faces":
+        print("GeoObject onChanged:", prop)
+        super().onChanged(obj, prop)
+        if prop in ["Points", "Faces"]:
             mesh_obj = Mesh.Mesh()
             origin = None
 
@@ -99,8 +94,11 @@ class Terrain:
                 mesh_obj.addFacet(c1, c2, c3)
 
             if mesh_obj.CountFacets > 0:
-                obj.Placement.Base = origin
                 obj.Mesh = mesh_obj
+                print(origin, obj.Geolocation.Base)
+                if not origin == obj.Geolocation.Base:
+                    obj.Geolocation.Base = origin
+                print(origin, obj.Geolocation.Base)
 
         if prop in ["Operations"]:
             points = obj.Points

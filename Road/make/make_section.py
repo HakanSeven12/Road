@@ -8,7 +8,7 @@ from ..objects.section import Section
 from ..viewproviders.view_section import ViewProviderSection
 
 def create():
-    obj=FreeCAD.ActiveDocument.addObject("App::FeaturePython", "Section")
+    obj=FreeCAD.ActiveDocument.addObject("Part::FeaturePython", "Section")
 
     Section(obj)
     ViewProviderSection(obj.ViewObject)

@@ -49,5 +49,4 @@ def georigin(origin=FreeCAD.Vector(), name = "GeoOrigin"):
         origin.z = 0
         obj.Base = origin
 
-    FreeCAD.ActiveDocument.recompute()
     return obj

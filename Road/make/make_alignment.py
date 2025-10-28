@@ -11,8 +11,9 @@ from ..viewproviders.view_alignment import ViewProviderAlignment
 
 def create(label="Alignment"):
     """Class construction method"""
-    obj=FreeCAD.ActiveDocument.addObject(
-        "App::DocumentObjectGroupPython", "Alignment")
+    obj = FreeCAD.ActiveDocument.addObject("Part::FeaturePython", "Alignment")
+    obj.addExtension("App::GroupExtensionPython")
+    obj.ViewObject.addExtension("Gui::ViewProviderGroupExtensionPython")
 
     Alignment(obj)
     ViewProviderAlignment(obj.ViewObject)

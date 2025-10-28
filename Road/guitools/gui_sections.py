@@ -72,10 +72,6 @@ class SectionCreate:
         coordinate = view.getPoint(tuple(position.getValue()))
         coordinate.z = 0
 
-        origin = FreeCAD.ActiveDocument.getObject("GeoOrigin")
-        if origin:
-            coordinate = coordinate.add(origin.Base)
-
         section.Placement.Base = coordinate
         section.Terrains = self.terrain_selector.selected_objects
 

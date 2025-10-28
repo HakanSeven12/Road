@@ -7,25 +7,19 @@ import Part
 
 import copy
 
+from.geo_object import GeoObject
 from ..functions.alignment.alignment_model import AlignmentModel
 from ..functions.offset import offsetWire
 
 
-class Alignment:
+class Alignment(GeoObject):
     """This class is about Alignment Object data features."""
 
     def __init__(self, obj):
         """Set data properties."""
+        super().__init__(obj)
 
         self.Type = "Road::Alignment"
-
-        obj.addProperty(
-            "App::PropertyPlacement", "Placement", "Base",
-            "Placement").Placement = FreeCAD.Placement()
-
-        obj.addProperty(
-            "Part::PropertyPartShape", "Shape", "Base",
-            "Alignment Shape").Shape = Part.Shape()
 
         obj.addProperty(
             "App::PropertyEnumeration", "Status", "Base", "Alignment status"
@@ -87,7 +81,6 @@ class Alignment:
             "Set the curve segments to control accuracy").Seg_Value = 10
 
         obj.Proxy = self
-        self.Object = obj
         self.model = None
 
     def execute(self, obj):
@@ -98,16 +91,15 @@ class Alignment:
                 pis = self.model.get_pi_coords()
                 obj.PIs = [FreeCAD.Vector(pi) for pi in pis if pi]
 
+        start = obj.Geometry[0].get('Start')
+        if start:
+            vec = FreeCAD.Vector(start)
+            if obj.Geolocation.Base == vec: return
+            obj.Geolocation.Base = vec
+
     def onChanged(self, obj, prop):
         """Update Object when a property changed."""
-        if prop == "Geometry":
-            geometry = obj.getPropertyByName(prop)
-            start = geometry[0].get('Start')
-            if start:
-                vec = FreeCAD.Vector(start)
-                placement = FreeCAD.Placement()
-                placement.move(vec)
-                obj.Placement = placement
+        super().onChanged(obj, prop)
 
         if prop == "Meta":
             meta = obj.getPropertyByName(prop)

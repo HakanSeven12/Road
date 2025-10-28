@@ -4,18 +4,18 @@
 
 import FreeCAD
 from pivy import coin
+from ..geoutils.alignment_old import transformation
+from .view_geo_object import ViewProviderGeoObject
 
 import math
 
-from ..variables import icons_path
-from ..utils.get_group import georigin
-from ..geoutils.alignment_old import transformation
 
-
-class ViewProviderAlignment:
+class ViewProviderAlignment(ViewProviderGeoObject):
     """This class is about Alignment Object view features."""
     def __init__(self, vobj):
         """Set view properties."""
+        super().__init__(vobj, "Alignment")
+
         vobj.addProperty(
             "App::PropertyBool", "Labels", "Base",
             "Show/hide labels").Labels = False
@@ -56,6 +56,8 @@ class ViewProviderAlignment:
 
     def attach(self, vobj):
         """Create Object visuals in 3D view."""
+        super().attach(vobj)
+
         self.Object = vobj.Object
 
         self.draw_style = coin.SoDrawStyle()
@@ -200,8 +202,7 @@ class ViewProviderAlignment:
         centerline_selection.addChild(tangents)
         centerline_selection.addChild(self.labels)
 
-        self.centerline = coin.SoGeoSeparator()
-        self.centerline.addChild(centerline_selection)
+        self.standard.addChild(centerline_selection)
 
         # Offset group
         offset_selection = coin.SoType.fromName('SoFCSelection').createInstance()
@@ -213,7 +214,6 @@ class ViewProviderAlignment:
         self.offset = coin.SoGeoSeparator()
         self.offset.addChild(centerline_selection)
 
-        vobj.addDisplayMode(self.centerline, "Centerline")
         vobj.addDisplayMode(self.offset, "Offset")
 
         self.onChanged(vobj, "Labels")
@@ -313,7 +313,7 @@ class ViewProviderAlignment:
 
         elif prop == "DisplayMode":
             mode = vobj.getPropertyByName(prop)
-            if mode == "Centerline":
+            if mode == "Standard":
                 self.line_color.rgb = (1.0, 0.0, 0.0)
                 self.spiral_color.rgb = (0.0, 1.0, 0.0)
                 self.curve_color.rgb = (0.0, 0.0, 1.0)
@@ -330,32 +330,15 @@ class ViewProviderAlignment:
 
     def updateData(self, obj, prop):
         """Update Object visuals when a data property changed."""
-        if prop == "Placement":
-            placement = obj.getPropertyByName(prop)
-            origin = georigin(placement.Base)
-            geo_system = ["UTM", origin.UtmZone, "FLAT"]
-
-            self.centerline.geoSystem.setValues(geo_system)
-            self.centerline.geoCoords.setValue(*placement.Base)
-
-            self.offset.geoSystem.setValues(geo_system)
-            self.offset.geoCoords.setValue(*placement.Base)
-
-        elif prop == "PIs":
-            pis = obj.getPropertyByName(prop)
-            base = obj.Placement.Base
-            points = [point.sub(obj.Placement.Base) for point in pis]
-
-            self.tangent_coords.point.values = points
+        super().updateData(obj, prop)
+        if prop == "PIs":
+            self.tangent_coords.point.values = obj.PIs
 
         elif prop == "Shape":
-            shape = obj.getPropertyByName(prop).copy()
-            shape.Placement.move(obj.Placement.Base.negative())
-
             line_coords, line_index = [], []
             curves_coords, curves_index = [], []
             spirals_coords, spirals_index = [], []
-            for edge in shape.Edges:
+            for edge in obj.Shape.Edges:
                 if edge.Curve.TypeId == 'Part::GeomLine':
                     start = len(line_coords)
                     line_coords.extend(edge.discretize(2))
@@ -387,52 +370,6 @@ class ViewProviderAlignment:
             self.spiral_coords.point.values = spirals_coords
             self.spiral_lines.coordIndex.values = spirals_index
 
-    def getDisplayModes(self,vobj):
-        """Return a list of display modes."""
-        modes = ["Centerline", "Offset", "Curb Return", "Rail", "Miscellaneous"]
-        return modes
-
-    def getDefaultDisplayMode(self):
-        """Return the name of the default display mode."""
-        return "Centerline"
-
-    def setDisplayMode(self,mode):
-        """Map the display mode defined in attach with 
-        those defined in getDisplayModes."""
-        return mode
-
-    def getIcon(self):
-        """Return object treeview icon."""
-        return icons_path + "/Alignment.svg"
-
     def claimChildren(self):
         """Provides object grouping"""
         return self.Object.Group
-
-    def setEdit(self, vobj, mode=0):
-        """Enable edit"""
-        return True
-
-    def unsetEdit(self, vobj, mode=0):
-        """Disable edit"""
-        return False
-
-    def doubleClicked(self, vobj):
-        """Detect double click"""
-        pass
-
-    def setupContextMenu(self, obj, menu):
-        """Context menu construction"""
-        pass
-
-    def edit(self):
-        """Edit callback"""
-        pass
-
-    def dumps(self):
-        """Called during document saving"""
-        return None
-
-    def loads(self, state):
-        """Called during document restore."""
-        return None

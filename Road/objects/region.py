@@ -1,27 +1,19 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
 
 """Provides the object code for Region objects."""
-import FreeCAD
-
-import Part
-
+import FreeCAD, Part
+from.geo_object import GeoObject
 import copy
 
 
-class Region:
+class Region(GeoObject):
     """This class is about Region object data features."""
 
     def __init__(self, obj):
         """Set data properties."""
+        super().__init__(obj)
+
         self.Type = "Road::Region"
-
-        obj.addProperty(
-            "App::PropertyPlacement", "Placement", "Base",
-            "Placement").Placement = FreeCAD.Placement()
-
-        obj.addProperty(
-            "Part::PropertyPartShape", "Shape", "Base",
-            "Object shape").Shape = Part.Shape()
 
         obj.addProperty(
             "App::PropertyBool", "AtHorizontalGeometry", "Base",
@@ -110,9 +102,9 @@ class Region:
         obj.Shape = Part.makeCompound(lines)
 
     def onChanged(self, obj, prop):
-        """
-        Do something when a data property has changed.
-        """
+        """Do something when a data property has changed."""
+        super().onChanged(obj, prop)
+        
         regions = obj.getParentGroup()
         if not regions: return
         alignment = regions.getParentGroup()

@@ -5,48 +5,28 @@
 import FreeCAD
 from pivy import coin
 import random
+from ..variables import line_patterns
+from .view_geo_object import ViewProviderGeoObject
+from ..functions.terrain_functions import (
+    wire_view, 
+    elevation_analysis, 
+    slope_analysis, 
+    direction_analysis)
 
-from ..variables import icons_path, line_patterns
-from ..utils.get_group import georigin
-from ..functions.terrain_functions import wire_view, elevation_analysis, slope_analysis, direction_analysis
 
-
-class ViewProviderTerrain:
+class ViewProviderTerrain(ViewProviderGeoObject):
     """This class is about Terrain Object view features."""
 
     def __init__(self, vobj):
         """Set view properties."""
+        super().__init__(vobj,"Terrain")
 
         (r, g, b) = (random.random(), random.random(), random.random())
 
         # Triangulation properties.
         vobj.addProperty(
-            "App::PropertyIntegerConstraint", "Transparency", "Terrain Style",
-            "Set triangle face transparency").Transparency = (50, 0, 100, 1)
-
-        vobj.addProperty(
-            "App::PropertyColor", "ShapeColor", "Terrain Style",
-            "Set triangle face color").ShapeColor = (r, g, b, vobj.Transparency/100)
-
-        vobj.addProperty(
-            "App::PropertyMaterial", "ShapeMaterial", "Terrain Style",
-            "Triangle face material").ShapeMaterial = FreeCAD.Material()
-
-        vobj.addProperty(
-            "App::PropertyIntegerConstraint", "LineTransparency", "Terrain Style",
-            "Set triangle edge transparency").LineTransparency = (50, 0, 100, 1)
-
-        vobj.addProperty(
-            "App::PropertyColor", "LineColor", "Terrain Style",
-            "Set triangle face color").LineColor = (0.5, 0.5, 0.5, vobj.LineTransparency/100)
-
-        vobj.addProperty(
             "App::PropertyMaterial", "LineMaterial", "Terrain Style",
             "Triangle face material").LineMaterial = FreeCAD.Material()
-
-        vobj.addProperty(
-            "App::PropertyFloatConstraint", "LineWidth", "Terrain Style",
-            "Set triangle edge line width").LineWidth = (0.0, 1.0, 20.0, 1.0)
 
         # Boundary properties.
         vobj.addProperty(
@@ -83,10 +63,11 @@ class ViewProviderTerrain:
             "Set major contour line width").MinorWidth = (2.0, 1.0, 20.0, 1.0)
 
         vobj.Proxy = self
-        vobj.ShapeMaterial.DiffuseColor = vobj.ShapeColor
+        vobj.Transparency = 50
 
     def attach(self, vobj):
         """Create Object visuals in 3D view."""
+        super().attach(vobj)
 
         # GeoCoords Node.
         self.terrain_coords = coin.SoCoordinate3()
@@ -171,12 +152,11 @@ class ViewProviderTerrain:
         edge.addChild(highlight)
 
         # Terrain root.
-        self.terrain_root = coin.SoGeoSeparator()
-        self.terrain_root.addChild(face)
-        self.terrain_root.addChild(offset)
-        self.terrain_root.addChild(edge)
-        self.terrain_root.addChild(major_contours)
-        self.terrain_root.addChild(minor_contours)
+        self.standard.addChild(face)
+        self.standard.addChild(offset)
+        self.standard.addChild(edge)
+        self.standard.addChild(major_contours)
+        self.standard.addChild(minor_contours)
 
         # Boundary root.
         self.boundary_root = coin.SoGeoSeparator()
@@ -194,13 +174,8 @@ class ViewProviderTerrain:
         self.wireframe_root.addChild(major_contours)
         self.wireframe_root.addChild(minor_contours)
 
-        vobj.addDisplayMode(self.terrain_root,"Terrain")
-        vobj.addDisplayMode(self.boundary_root,"Boundary")
-        vobj.addDisplayMode(self.flatlines_root,"Flat Lines")
-        vobj.addDisplayMode(self.wireframe_root,"Wireframe")
-
         # Take features from properties.
-        self.onChanged(vobj,"ShapeColor")
+        self.onChanged(vobj,"ShapeAppearance")
         self.onChanged(vobj,"LineColor")
         self.onChanged(vobj,"LineWidth")
         self.onChanged(vobj,"BoundaryColor")
@@ -212,105 +187,21 @@ class ViewProviderTerrain:
         self.onChanged(vobj,"MinorColor")
         self.onChanged(vobj,"MinorWidth")
 
-    def updateData(self, obj, prop):
-        """Update Object visuals when a data property changed."""
-
-        if prop == "Placement":
-            placement = obj.getPropertyByName(prop)
-            geo_system = ["UTM", georigin().UtmZone, "FLAT"]
-
-            self.terrain_root.geoSystem.setValues(geo_system)
-            self.terrain_root.geoCoords.setValue(*placement.Base)
-
-            self.boundary_root.geoSystem.setValues(geo_system)
-            self.boundary_root.geoCoords.setValue(*placement.Base)
-
-            self.flatlines_root.geoSystem.setValues(geo_system)
-            self.flatlines_root.geoCoords.setValue(*placement.Base)
-
-            self.wireframe_root.geoSystem.setValues(geo_system)
-            self.wireframe_root.geoCoords.setValue(*placement.Base)
-
-        if prop == "Mesh":
-            mesh = obj.getPropertyByName(prop)
-            self.terrain_coords.point.values = mesh.Topology[0]
-            self.triangles.coordIndex.values = [x for i in mesh.Topology[1] for x in (*i, -1)]
-
-        elif prop == "Contour":
-            shape = obj.getPropertyByName(prop)
-
-            if shape.SubShapes:
-                major = shape.SubShapes[0]
-                points, vertices = wire_view(major)
-
-                self.major_coords.point.values = points
-                self.major_lines.numVertices.values = vertices
-
-                minor = shape.SubShapes[1]
-                points, vertices = wire_view(minor)
-
-                self.minor_coords.point.values = points
-                self.minor_lines.numVertices.values = vertices
-
-        elif prop == "Boundary":
-            boundary = obj.getPropertyByName(prop)
-            points, vertices = wire_view(boundary)
-
-            self.boundary_coords.point.values = points
-            self.boundary_lines.numVertices.values = vertices
-        
-        elif prop == "AnalysisType" or prop == "Ranges":
-            analysis_type = obj.getPropertyByName("AnalysisType")
-            ranges = obj.getPropertyByName("Ranges")
-
-            if analysis_type == "Default":
-                if hasattr(obj.ViewObject, "ShapeMaterial"):
-                    material = obj.ViewObject.ShapeMaterial
-                    self.face_material.diffuseColor = material.DiffuseColor[:3]
-                    self.mat_binding.value = coin.SoMaterialBinding.OVERALL
-
-            elif analysis_type == "Elevation":
-                colorlist = elevation_analysis(obj.Mesh, ranges)
-                self.mat_binding.value = coin.SoMaterialBinding.PER_FACE
-                self.face_material.diffuseColor.setValues(0,len(colorlist),colorlist)
-
-            elif analysis_type == "Slope":
-                colorlist = slope_analysis(obj.Mesh, ranges)
-                self.mat_binding.value = coin.SoMaterialBinding.PER_FACE
-                self.face_material.diffuseColor.setValues(0,len(colorlist),colorlist)
-
-            elif analysis_type == "Direction":
-                colorlist = direction_analysis(obj.Mesh, ranges)
-                self.mat_binding.value = coin.SoMaterialBinding.PER_FACE
-                self.face_material.diffuseColor.setValues(0,len(colorlist),colorlist)
-        
     def onChanged(self, vobj, prop):
         """Update Object visuals when a view property changed."""
 
-        if prop == "ShapeColor" or prop == "Transparency":
-            if hasattr(vobj, "ShapeColor") and hasattr(vobj, "Transparency"):
-                color = vobj.getPropertyByName("ShapeColor")
-                transparency = vobj.getPropertyByName("Transparency")
-                color = (color[0], color[1], color[2], transparency/100)
-                vobj.ShapeMaterial.DiffuseColor = color
-
-        if prop == "ShapeMaterial":
-            if hasattr(vobj, "ShapeMaterial"):
-                material = vobj.getPropertyByName(prop)
-                self.face_material.diffuseColor.setValue(material.DiffuseColor[:3])
-                self.face_material.transparency = material.DiffuseColor[3]
-
-        if prop == "LineColor" or prop == "LineTransparency":
-            if hasattr(vobj, "LineColor") and hasattr(vobj, "LineTransparency"):
-                color = vobj.getPropertyByName("LineColor")
-                transparency = vobj.getPropertyByName("LineTransparency")
-                color = (color[0], color[1], color[2], transparency/100)
-                vobj.LineMaterial.DiffuseColor = color
+        if prop == "ShapeAppearance":
+            material = vobj.ShapeAppearance[0]
+            self.face_material.diffuseColor.setValue(material.DiffuseColor[:3])
+            self.face_material.ambientColor.setValue(material.AmbientColor[:3])
+            self.face_material.specularColor.setValue(material.SpecularColor[:3])
+            self.face_material.emissiveColor.setValue(material.EmissiveColor[:3])
+            self.face_material.shininess.setValue(material.Shininess)
+            self.face_material.transparency.setValue(material.Transparency)
 
         if prop == "LineMaterial":
-            material = vobj.getPropertyByName(prop)
-            self.edge_material.diffuseColor.setValue(material.DiffuseColor[:3])
-            self.edge_material.transparency = material.DiffuseColor[3]
+            self.edge_material.diffuseColor.setValue(vobj.LineMaterial.DiffuseColor[:3])
+            self.edge_material.transparency = vobj.LineMaterial.DiffuseColor[3]
 
         if prop == "LineWidth":
             width = vobj.getPropertyByName(prop)
@@ -350,30 +241,64 @@ class ViewProviderTerrain:
             width = vobj.getPropertyByName(prop)
             self.minor_style.lineWidth = width
 
-    def getDisplayModes(self,vobj):
-        """Return a list of display modes."""
+    def updateData(self, obj, prop):
+        """Update Object visuals when a data property changed."""
+        super().updateData(obj, prop)
 
-        modes = ["Terrain", "Boundary", "Flat Lines", "Shaded", "Wireframe"]
+        if prop == "Mesh":
+            mesh = obj.getPropertyByName(prop)
+            self.terrain_coords.point.values = mesh.Topology[0]
+            self.triangles.coordIndex.values = [x for i in mesh.Topology[1] for x in (*i, -1)]
 
-        return modes
+        elif prop == "Contour":
+            shape = obj.getPropertyByName(prop)
 
-    def getDefaultDisplayMode(self):
-        """Return the name of the default display mode."""
-        return "Terrain"
+            if shape.SubShapes:
+                major = shape.SubShapes[0]
+                points, vertices = wire_view(major)
 
-    def setDisplayMode(self,mode):
-        """Map the display mode defined in attach with 
-        those defined in getDisplayModes."""
-        return mode
+                self.major_coords.point.values = points
+                self.major_lines.numVertices.values = vertices
 
-    def getIcon(self):
-        """Return object treeview icon."""
-        return icons_path + "/Terrain.svg"
+                minor = shape.SubShapes[1]
+                points, vertices = wire_view(minor)
 
-    def dumps(self):
-        """Called during document saving"""
-        return None
+                self.minor_coords.point.values = points
+                self.minor_lines.numVertices.values = vertices
 
-    def loads(self, state):
-        """Called during document restore."""
-        return None
+        elif prop == "Boundary":
+            boundary = obj.getPropertyByName(prop)
+            points, vertices = wire_view(boundary)
+
+            self.boundary_coords.point.values = points
+            self.boundary_lines.numVertices.values = vertices
+        
+        elif prop == "AnalysisType" or prop == "Ranges":
+            analysis_type = obj.getPropertyByName("AnalysisType")
+            ranges = obj.getPropertyByName("Ranges")
+
+            if analysis_type == "Default":
+                material = obj.ViewObject.ShapeAppearance[0]
+                self.face_material.diffuseColor.setValue(material.DiffuseColor[:3])
+                self.face_material.ambientColor.setValue(material.AmbientColor[:3])
+                self.face_material.specularColor.setValue(material.SpecularColor[:3])
+                self.face_material.emissiveColor.setValue(material.EmissiveColor[:3])
+                self.face_material.shininess = material.Shininess
+                self.face_material.transparency = material.Transparency
+
+                self.mat_binding.value = coin.SoMaterialBinding.OVERALL
+
+            elif analysis_type == "Elevation":
+                colorlist = elevation_analysis(obj.Mesh, ranges)
+                self.mat_binding.value = coin.SoMaterialBinding.PER_FACE
+                self.face_material.diffuseColor.setValues(0,len(colorlist),colorlist)
+
+            elif analysis_type == "Slope":
+                colorlist = slope_analysis(obj.Mesh, ranges)
+                self.mat_binding.value = coin.SoMaterialBinding.PER_FACE
+                self.face_material.diffuseColor.setValues(0,len(colorlist),colorlist)
+
+            elif analysis_type == "Direction":
+                colorlist = direction_analysis(obj.Mesh, ranges)
+                self.mat_binding.value = coin.SoMaterialBinding.PER_FACE
+                self.face_material.diffuseColor.setValues(0,len(colorlist),colorlist)

@@ -26,9 +26,7 @@ class GeoOrigin(Group):
 
 
     def execute(self, obj):
-        '''
-        Update Object when doing a recomputation. 
-        '''
+        """Update Object when doing a recomputation. """
         mw = FreeCADGui.getMainWindow()
         statusbar = mw.statusBar()
         

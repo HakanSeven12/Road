@@ -3,20 +3,18 @@
 """Provides the object code for Section objects."""
 
 import FreeCAD, Part, MeshPart
+from.geo_object import GeoObject
 import math
 
 
-class Section:
+class Section(GeoObject):
     """This class is about Section object data features."""
 
     def __init__(self, obj):
         """Set data properties."""
+        super().__init__(obj)
 
         self.Type = 'Road::Section'
-
-        obj.addProperty(
-            "App::PropertyPlacement", "Placement", "Base",
-            "Placement").Placement = FreeCAD.Placement()
 
         obj.addProperty(
             "App::PropertyPythonObject", "Model", "Base",
@@ -25,10 +23,6 @@ class Section:
         obj.addProperty(
             'App::PropertyLinkList', "Terrains", "Base",
             "Projection terrains").Terrains = []
-
-        obj.addProperty(
-            "Part::PropertyPartShape", "Shape", "Base",
-            "Object shape").Shape = Part.Shape()
 
         obj.addProperty(
             "App::PropertyFloat", "Height", "Geometry",
@@ -63,6 +57,7 @@ class Section:
             for terrain in obj.Terrains:
                 shape = region.Shape.copy()
                 shape.Placement.move(terrain.Placement.Base.negative())
+                Part.show(shape)
 
                 flat_points = []
                 for edge in shape.Wires[idx].Edges:
@@ -98,9 +93,6 @@ class Section:
         current_col = 0
         current_row = 0
 
-        # Starting position
-        base = obj.Placement.Base
-
         frames = []
         crosssections = []
         for sta, data in obj.Model.items():
@@ -135,7 +127,3 @@ class Section:
         shp_frame = Part.Compound(frames)
         shp_section = Part.Compound(crosssections)
         obj.Shape = Part.Compound([shp_frame, shp_section])
-
-    def onChanged(self, obj, prop):
-        """Do something when a data property has changed."""
-        pass

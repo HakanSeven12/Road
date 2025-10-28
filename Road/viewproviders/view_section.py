@@ -2,24 +2,24 @@
 
 """Provides the viewprovider code for Profile Frame objects."""
 
-import FreeCAD, FreeCADGui
+import FreeCAD, FreeCADGui, Part
 from pivy import coin
-import math
-
 from ..variables import icons_path
-from ..utils.get_group import georigin
+from .view_geo_object import ViewProviderGeoObject
 
 
-class ViewProviderSection:
+class ViewProviderSection(ViewProviderGeoObject):
     """This class is about Profile Frame Object view features."""
     def __init__(self, vobj):
         """Set view properties."""
-
+        super().__init__(vobj, "CreateSections")
         vobj.Proxy = self
 
     def attach(self, vobj):
         """Create Object visuals in 3D view."""
+        super().attach(vobj)
         self.Object = vobj.Object
+        self.view = vobj
 
         self.draw_style = coin.SoDrawStyle()
         self.draw_style.style = coin.SoDrawStyle.LINES
@@ -145,48 +145,31 @@ class ViewProviderSection:
         # Profile Frame
         #-----------------------------------------------------------------
 
+        self.sel1 = coin.SoType.fromName('SoFCSelection').createInstance()
+        self.sel1.style = 'EMISSIVE_DIFFUSE'
+        self.sel1.addChild(border)
+
+        self.sel2 = coin.SoType.fromName('SoFCSelection').createInstance()
+        self.sel2.style = 'EMISSIVE_DIFFUSE'
+        self.sel2.addChild(sections)
+
         # Frame group
         self.drag = coin.SoSeparator()
-        self.frames = coin.SoGeoSeparator()
-        self.frames.addChild(border)
-        self.frames.addChild(grid)
-        self.frames.addChild(sections)
-        self.frames.addChild(labels)
-        self.frames.addChild(self.drag)
-
-        root = coin.SoType.fromName('SoFCSelection').createInstance()
-        root.style = 'EMISSIVE_DIFFUSE'
-        root.addChild(self.frames)
-
-        vobj.addDisplayMode(root, "Frame")
-
-    def onChanged(self, vobj, prop):
-        """Update Object visuals when a view property changed."""
-        pass
+        self.standard.addChild(self.sel1)
+        self.standard.addChild(grid)
+        self.standard.addChild(self.sel2)
+        self.standard.addChild(labels)
+        self.standard.addChild(self.drag)
 
     def updateData(self, obj, prop):
         """Update Object visuals when a data property changed."""
-        if prop == "Placement":
-            placement = obj.getPropertyByName(prop)
-            origin = georigin(placement.Base)
-            geo_system = ["UTM", origin.UtmZone, "FLAT"]
-
-            self.frames.geoSystem.setValues(geo_system)
-            self.frames.geoCoords.setValue(*placement.Base)
-
-            """
-            self.offsets.geoSystem.setValues(geo_system)
-            self.offsets.geoCoords.setValue(*placement.Base)
-            """
+        super().updateData(obj, prop)
 
         if prop == "Shape":
-            shape = obj.getPropertyByName(prop)
-            if not shape.Compounds: return
-            #shape.Placement.move(obj.Placement.Base.negative())
-
+            if not len(obj.Shape.SubShapes) == 2: return
             border_coords = []
             border_count = []
-            borders = shape.SubShapes[0].SubShapes
+            borders = obj.Shape.SubShapes[0].SubShapes
             for border in borders:
                 border_points = [ver.Point for ver in border.Vertexes]
                 border_points.append(border_points[0])
@@ -198,7 +181,7 @@ class ViewProviderSection:
 
             section_coords = []
             section_count = []
-            sections = shape.SubShapes[1].SubShapes
+            sections = obj.Shape.SubShapes[1].SubShapes
             for section in sections:
                 section_points = [ver.Point for ver in section.Vertexes]
                 section_coords.extend(section_points)
@@ -270,23 +253,32 @@ class ViewProviderSection:
             self.horizontal_coords.point.values = [FreeCAD.Vector(-obj.Width*1000/2,0) , FreeCAD.Vector(obj.Width*1000/2,0)]
             self.horizontal_copy.matrix.values = horizontal_matrices
 
-    def getDisplayModes(self,vobj):
-        """Return a list of display modes."""
-        modes = ["Frame"]
-        return modes
+    def getDetailPath(self, subname, path, append):
+        vobj = self.view
+        if append:
+            path.append(vobj.RootNode)
+            path.append(vobj.SwitchNode)
 
-    def getDefaultDisplayMode(self):
-        """Return the name of the default display mode."""
-        return "Frame"
+            mode = vobj.SwitchNode.whichChild.getValue()
+            if mode >= 0:
+                mode = vobj.SwitchNode.getChild(mode)
+                path.append(mode)
+                sub = Part.splitSubname(subname)[-1]
+                if sub == 'Atom1':
+                    path.append(self.sel1)
+                elif sub == 'Atom2':
+                    path.append(self.sel2)
+                else:
+                    path.append(mode.getChild(0))
+        return True
 
-    def setDisplayMode(self,mode):
-        """Map the display mode defined in attach with 
-        those defined in getDisplayModes."""
-        return mode
-
-    def getIcon(self):
-        """Return object treeview icon."""
-        return icons_path + "/ProfileFrame.svg"
+    def getElementPicked(self, pp):
+        path = pp.getPath()
+        if path.findNode(self.sel1) >= 0:
+            return 'Atom1'
+        if path.findNode(self.sel2) >= 0:
+            return 'Atom2'
+        raise NotImplementedError
 
     def doubleClicked(self, vobj):
         """Detect double click"""
@@ -316,11 +308,3 @@ class ViewProviderSection:
         self.Object.Placement.move(displacement)
         self.drag.removeAllChildren()
         FreeCAD.ActiveDocument.recompute()
-
-    def dumps(self):
-        """Called during document saving"""
-        return None
-
-    def loads(self, state):
-        """Called during document restore."""
-        return None

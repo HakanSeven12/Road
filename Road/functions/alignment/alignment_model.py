@@ -26,7 +26,9 @@ class AlignmentModel:
         self.station = station
         self.geometry = {i+1: v for i, v in enumerate(geometry)}
 
-        if geometry: self.construct_geometry()
+        if geometry:
+            self.construct_geometry()
+            self.zero_reference_coordinates()
 
     def get_datum(self):
         """
@@ -41,7 +43,7 @@ class AlignmentModel:
         as a list of vectors
         """
 
-        result = [self.get_datum()]
+        result = [(0, 0, 0)]
         result += [
             _v.get('PI') for _v in self.geometry.values() if _v.get('PI')]
 
@@ -80,6 +82,23 @@ class AlignmentModel:
 
         self.validate_datum()
         self.validate_stationing()
+
+    def zero_reference_coordinates(self):
+        """
+        Reference the coordinates to the start point
+        by adjustuing by the datum
+        """
+        datum = self.get_datum()
+        for no, _geo in self.geometry.items():
+            for _key in ['Start', 'End', 'Center', 'PI']:
+
+                if _geo.get(_key) is None:
+                    continue
+
+                _geo[_key] = TupleMath.subtract(_geo[_key], datum)
+
+        if self.meta.get('End'):
+            self.meta['End'] = TupleMath.subtract(self.meta.get('End'), datum)
 
     def validate_datum(self):
         """

@@ -16,8 +16,9 @@ def create(alignment, name="Region"):
             regions = item
             break
 
-    obj = FreeCAD.ActiveDocument.addObject(
-        "App::DocumentObjectGroupPython", "Region")
+    obj = FreeCAD.ActiveDocument.addObject("Part::FeaturePython", "Region")
+    obj.addExtension("App::GroupExtensionPython")
+    obj.ViewObject.addExtension("Gui::ViewProviderGroupExtensionPython")
     regions.addObject(obj)
 
     Region(obj)
