@@ -201,7 +201,7 @@ class ViewProviderSection(ViewProviderGeoObject):
             horizontal_matrices = []
             for sta, data in model.items():
                 # Calculate grid position for this item
-                origin = FreeCAD.Vector(data.get("origin"))
+                origin = FreeCAD.Vector(data.get("origin")).add(base)
                 for pos in range(int(-obj.Width*1000/2), int(obj.Width*1000/2), 2000):
                     position = origin.add(FreeCAD.Vector(pos, 0))
                     position2 = origin.add(FreeCAD.Vector(pos, obj.Height*1000+500))

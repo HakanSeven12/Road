@@ -3,7 +3,7 @@
 """Provides the object code for Section objects."""
 
 import FreeCAD, Part, MeshPart
-from.geo_object import GeoObject
+from .geo_object import GeoObject
 import math
 
 
@@ -55,12 +55,8 @@ class Section(GeoObject):
             obj.Model[sta] = {'horizon': 0, 'sections': {}}
             horizon = 0
             for terrain in obj.Terrains:
-                shape = region.Shape.copy()
-                shape.Placement.move(terrain.Placement.Base.negative())
-                Part.show(shape)
-
                 flat_points = []
-                for edge in shape.Wires[idx].Edges:
+                for edge in region.Shape.Wires[idx].Edges:
                     params = MeshPart.findSectionParameters(
                         edge, terrain.Mesh, FreeCAD.Vector(0, 0, 1))
                     params.insert(0, edge.FirstParameter+1)
@@ -74,7 +70,7 @@ class Section(GeoObject):
                 
                 offset_elevation = []
                 for point in projected_points:
-                    point = point.add(terrain.Placement.Base)
+                    point = point.add(terrain.Geolocation.Base).sub(terrain.Placement.Base)
                     station, position, offset, index = alignment.Proxy.model.get_station_offset([*point])
                     if offset: offset_elevation.append([offset, point.z])
                     if horizon==0 or point.z < horizon: horizon = point.z

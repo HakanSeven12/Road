@@ -78,7 +78,6 @@ class Terrain(GeoObject):
 
     def onChanged(self, obj, prop):
         """Do something when a data property has changed."""
-        print("GeoObject onChanged:", prop)
         super().onChanged(obj, prop)
         if prop in ["Points", "Faces"]:
             mesh_obj = Mesh.Mesh()
@@ -95,10 +94,7 @@ class Terrain(GeoObject):
 
             if mesh_obj.CountFacets > 0:
                 obj.Mesh = mesh_obj
-                print(origin, obj.Geolocation.Base)
-                if not origin == obj.Geolocation.Base:
-                    obj.Geolocation.Base = origin
-                print(origin, obj.Geolocation.Base)
+                obj.Geolocation.Base = origin
 
         if prop in ["Operations"]:
             points = obj.Points

@@ -37,6 +37,18 @@ class ViewProviderGeoObject:
             base = obj.Geolocation.Base
             origin = georigin(base)
             geo_system = ["UTM", origin.UtmZone, "FLAT"]
+            self.flat_lines.geoSystem.setValues(geo_system)
+            self.flat_lines.geoCoords.setValue(*base)
+
+            self.shaded.geoSystem.setValues(geo_system)
+            self.shaded.geoCoords.setValue(*base)
+
+            self.wireframe.geoSystem.setValues(geo_system)
+            self.wireframe.geoCoords.setValue(*base)
+
+            self.points.geoSystem.setValues(geo_system)
+            self.points.geoCoords.setValue(*base)
+            
             self.standard.geoSystem.setValues(geo_system)
             self.standard.geoCoords.setValue(*base)
 

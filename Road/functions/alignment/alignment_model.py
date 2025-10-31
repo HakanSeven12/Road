@@ -327,12 +327,14 @@ class AlignmentModel:
 
         _matches = []
         _classes = {'Line': line, 'Curve': arc, 'Spiral': spiral}
-        coord = [coordinate[0], coordinate[1], 0.0]
+        
+        coordinate[2] = 0.0
+        coordinate = TupleMath.subtract(coordinate, self.get_datum())
 
         #iterate the geometry, creating a list of potential matches
         for index, geo in self.geometry.items():
             _class = _classes[geo.get('Type')]
-            internal_station, position, offset, boundary = _class.get_position_offset(geo, coord)
+            internal_station, position, offset, boundary = _class.get_position_offset(geo, coordinate)
 
             #if position is before geometry, quit
             if boundary < 0:
