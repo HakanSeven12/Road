@@ -18,7 +18,7 @@ class GeoObject:
     def onChanged(self, obj, prop):
         """Do something when a data property has changed."""
         if prop == "Geolocation":
-            origin = georigin(obj.Geolocation.Base)
+            origin = georigin(obj.Geolocation.Base.sub(FreeCAD.Vector(1, 1)))
             base = obj.Geolocation.Base.sub(origin.Base)
             if obj.Placement.Base != base:
                 obj.Placement.Base = base
