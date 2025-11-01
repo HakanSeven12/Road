@@ -1,15 +1,15 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
 
-"""Provides GUI tools to import GeoPoints."""
+"""Provides GUI tools to export GeoPoints."""
 
 import FreeCAD, FreeCADGui
 
 from ..variables import icons_path
-from ..tasks import task_cluster_import
+from ..tasks import task_geopoints_export
 
 
-class GeoPointImport:
-    """Command to import point file which includes survey data."""
+class GeoPointsExport:
+    """Command to export points to point file."""
 
     def __init__(self):
         """Constructor"""
@@ -19,9 +19,9 @@ class GeoPointImport:
         """Return the command resources dictionary."""
 
         return {
-            "Pixmap": icons_path + "/ImportPointFile.svg",
-            "MenuText": "Import GeoPoints",
-            "ToolTip": "Import GeoPoints from file."
+            "Pixmap": icons_path + "/ExportPoints.svg",
+            "MenuText": "Export GeoPoints",
+            "ToolTip": "Export GeoPoints to file."
             }
 
     def IsActive(self):
@@ -30,9 +30,9 @@ class GeoPointImport:
 
     def Activated(self):
         """Command activation method"""
-        panel = task_cluster_import.TaskClusterImport()
+        panel = task_geopoints_export.TaskGeoPointsExport()
         FreeCADGui.Control.showDialog(panel)
-        
+
         FreeCAD.ActiveDocument.recompute()
 
-FreeCADGui.addCommand("GeoPoint Import", GeoPointImport())
+FreeCADGui.addCommand("GeoPoints Export", GeoPointsExport())

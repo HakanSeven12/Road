@@ -6,7 +6,7 @@ import FreeCAD, FreeCADGui
 import Part
 
 from ..variables import icons_path
-from ..make import make_terrain, make_cluster
+from ..make import make_terrain, make_geopoints
 from ..utils.get_group import georigin
 
 
@@ -55,7 +55,7 @@ class CreatePad:
         self.copy_shape.Placement.move(self.origin.Origin)
         self.points = self.copy_shape.discretize(Distance=5000)
 
-        self.pg = make_cluster.create()
+        self.pg = make_geopoints.create()
         self.terrain = make_terrain.create()
 
         maxz = self.target.Mesh.BoundBox.ZMax

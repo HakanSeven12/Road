@@ -6,7 +6,7 @@ import FreeCAD, FreeCADGui
 
 from .task_panel import TaskPanel
 from ..functions.xml.parser import Parser
-from ..make import make_terrain, make_alignment, make_geopoint, make_cluster
+from ..make import make_terrain, make_alignment, make_geopoints, make_geopoints
 from ..functions.alignment.alignment_model import AlignmentModel
 
 from PySide.QtWidgets import (QWidget, QVBoxLayout, 
@@ -254,18 +254,13 @@ class TaskLandXMLImport(TaskPanel):
             
         for name, ref in self.xml['CgPoints'].get("Groups").items():
             if name not in selected_items: continue
-            cluster = make_cluster.create(label=name)
+            geopoints = make_geopoints.create(name)
 
+            points = {}
             for name in ref:
                 if name in self.xml['CgPoints'].get("All_Points").keys():
-                    point = self.xml['CgPoints']['All_Points'][name]
-                    geopoint = make_geopoint.create(
-                        name = name,
-                        easting = point.get("Easting", 0.0),
-                        northing = point.get("Northing", 0.0),
-                        elevation = point.get("Elevation", 0.0),
-                        description = point.get("Description", ""))
-                    cluster.addObject(geopoint)
+                    points[name] = self.xml['CgPoints']['All_Points'][name]
+            geopoints.Model = points
 
         for name, data in self.xml['Surfaces'].items():
             if name not in selected_items: continue

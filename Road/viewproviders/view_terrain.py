@@ -159,20 +159,12 @@ class ViewProviderTerrain(ViewProviderGeoObject):
         self.standard.addChild(minor_contours)
 
         # Boundary root.
-        self.boundary_root = coin.SoGeoSeparator()
-        self.boundary_root.addChild(boundaries)
-
-        # Flat Lines root.
-        self.flatlines_root = coin.SoGeoSeparator()
-        self.flatlines_root.addChild(face)
-        self.flatlines_root.addChild(offset)
-        self.flatlines_root.addChild(edge)
+        self.flat_lines.addChild(boundaries)
 
         # Wireframe root.
-        self.wireframe_root = coin.SoGeoSeparator()
-        self.wireframe_root.addChild(edge)
-        self.wireframe_root.addChild(major_contours)
-        self.wireframe_root.addChild(minor_contours)
+        self.wireframe.addChild(edge)
+        self.wireframe.addChild(major_contours)
+        self.wireframe.addChild(minor_contours)
 
         # Take features from properties.
         self.onChanged(vobj,"ShapeAppearance")

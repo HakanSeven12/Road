@@ -5,10 +5,10 @@
 import FreeCAD, FreeCADGui
 
 from ..variables import icons_path
-from Road.make import make_cluster
+from Road.make import make_geopoints
 
 
-class ClusterCreate:
+class GeoPointsCreate:
     """Command to create a new GeoPoint Cluster"""
 
     def __init__(self):
@@ -29,7 +29,7 @@ class ClusterCreate:
 
     def Activated(self):
         """Command activation method"""
-        make_cluster.create()
+        make_geopoints.create()
         FreeCAD.ActiveDocument.recompute()
 
-FreeCADGui.addCommand("Cluster Create", ClusterCreate())
+FreeCADGui.addCommand("GeoPoints Create", GeoPointsCreate())

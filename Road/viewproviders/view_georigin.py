@@ -28,12 +28,12 @@ class ViewProviderGeoOrigin(ViewProviderGroup):
 
     def getDisplayModes(self, vobj):
         """Return a list of display modes."""
-        modes=["GoeOrigin"]
+        modes=["GeoOrigin"]
         return modes
 
     def getDefaultDisplayMode(self):
         """Return the name of the default display mode."""
-        return "GoeOrigin"
+        return "GeoOrigin"
 
     def setDisplayMode(self,mode):
         """Map the display mode defined in attach with 

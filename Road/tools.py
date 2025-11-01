@@ -8,11 +8,11 @@ that is, those actions that can be called from menus and buttons.
 
 # Functions
 from .guitools import (
+    gui_geopoints_add,
+    gui_geopoints_create,
+    gui_geopoints_export,
+    gui_geopoints_import,
     gui_landxml_import,
-    gui_cluster_create,
-    gui_geopoint_create,
-    gui_geopoint_import,
-    gui_geopoint_export,
     gui_terrain_create,
     gui_terrain_object,
     gui_terrain_edit,

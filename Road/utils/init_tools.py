@@ -4,14 +4,14 @@
 
 def get_io_commands():
     """Return the input/output commands list."""
-    return ["LandXML Import"]
+    return ["GeoPoints Import",
+            "GeoPoints Export",
+            "LandXML Import"]
 
 def get_point_commands():
     """Return the point commands list."""
-    return ["Cluster Create",
-            "GeoPoint Create",
-            "GeoPoint Import",
-            "GeoPoint Export"]
+    return ["GeoPoints Create",
+            "GeoPoints Add"]
 
 def get_surface_commands():
     """Return the surface commands list."""

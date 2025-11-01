@@ -5,13 +5,12 @@
 import FreeCAD, FreeCADGui
 
 from ..variables import icons_path
-from ..make import make_geopoint,make_cluster
+from ..make import make_geopoints
 from ..tasks.task_selection import SingleSelection
 from ..utils.trackers import ViewTracker
-from ..utils import get_group
 
 
-class GeoPointCreate:
+class GeoPointsAdd:
     """Command to create a new GeoPoint."""
 
     def __init__(self):
@@ -59,10 +58,10 @@ class GeoPointCreate:
         if origin:
             coordinate = coordinate.add(origin.Base)
 
-        geopoint = make_geopoint.create()
+        geopoint = make_geopoints.create()
         geopoint.Placement.move(coordinate)
         self.cluster.addObject(geopoint)
         FreeCAD.ActiveDocument.recompute()
 
 
-FreeCADGui.addCommand("GeoPoint Create", GeoPointCreate())
+FreeCADGui.addCommand("GeoPoints Add", GeoPointsAdd())
