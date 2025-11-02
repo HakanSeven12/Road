@@ -49,9 +49,7 @@ class AlignmentModel:
 
         result.append(self.meta.get('End'))
 
-        if len(result) < 3: return []
-
-        return result
+        return result if len(result) > 3 else []
 
     def construct_geometry(self):
         """

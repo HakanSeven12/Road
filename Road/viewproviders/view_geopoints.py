@@ -45,8 +45,8 @@ class ViewProviderGeoPoints(ViewProviderGeoObject):
             "Show/hide norting label").Northing = False
 
         vobj.addProperty(
-            "App::PropertyBool", "PointElevation", "Labels Visibility",
-            "Show/hide elevation label").PointElevation = True
+            "App::PropertyBool", "Elevation", "Labels Visibility",
+            "Show/hide elevation label").Elevation = True
 
         vobj.addProperty(
             "App::PropertyBool", "Description", "Labels Visibility",
@@ -83,7 +83,7 @@ class ViewProviderGeoPoints(ViewProviderGeoObject):
                 "Label": vobj.Label,
                 "Easting": vobj.Easting,
                 "Northing": vobj.Northing,
-                "PointElevation": vobj.PointElevation,
+                "Elevation": vobj.Elevation,
                 "Description": vobj.Description}
 
         vobj.Proxy = self
@@ -214,7 +214,7 @@ class ViewProviderGeoPoints(ViewProviderGeoObject):
                     if label == "Number": 
                         label_set.append(no)
                     elif isinstance(data.get(label), float):
-                        round(data.get(label), 3) 
+                        label_set.append(str(round(data.get(label)/1000, 3)))
                     
                     else:
                         label_set.append(data.get(label))
@@ -323,7 +323,7 @@ class ViewProviderGeoPoints(ViewProviderGeoObject):
             scale = vobj.PointSize * 100
             self.marker_scale.scaleFactor.setValue(scale, scale, 1)
 
-        elif prop in ["Number", "Label", "Easting", "Northing", "PointElevation", "Description"]:
+        elif prop in ["Number", "Label", "Easting", "Northing", "Elevation", "Description"]:
             vobj.LabelDisplay[prop] = vobj.getPropertyByName(prop)
             self.onChanged(vobj, "LabelDisplay")
 
