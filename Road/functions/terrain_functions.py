@@ -63,6 +63,10 @@ def get_boundary(mesh):
     for facet in facets:
         for i in range(3):
             if facet.NeighbourIndices[i] != -1: continue
+            start = facet.Points[i]
+            end = facet.Points[(i + 1) % 3]
+            
+            if start == end: continue
             line = Part.makeLine(
                 facet.Points[i], 
                 facet.Points[(i + 1) % 3])

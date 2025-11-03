@@ -49,7 +49,6 @@ class Section(GeoObject):
         region = sections.getParentGroup()
         regions = region.getParentGroup()
         alignment = regions.getParentGroup()
-        if not hasattr(alignment.Proxy, "model"): return
 
         for idx, sta in enumerate(region.Stations):
             obj.Model[sta] = {'horizon': 0, 'sections': {}}
@@ -71,7 +70,7 @@ class Section(GeoObject):
                 offset_elevation = []
                 for point in projected_points:
                     point = point.add(terrain.Geolocation.Base).sub(terrain.Placement.Base)
-                    station, position, offset, index = alignment.Proxy.model.get_station_offset([*point])
+                    station, position, offset = alignment.Model.get_station_offset([*point])
                     if offset: offset_elevation.append([offset, point.z])
                     if horizon==0 or point.z < horizon: horizon = point.z
 

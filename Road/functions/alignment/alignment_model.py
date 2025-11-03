@@ -17,18 +17,17 @@ class AlignmentModel:
     """
     Alignment model for the alignment FeaturePython class
     """
-    def __init__(self, meta, station, geometry):
+    def __init__(self, data):
         """
         Default Constructor
         """
         self.errors = []
-        self.meta = meta
-        self.station = station
-        self.geometry = {i+1: v for i, v in enumerate(geometry)}
+        self.meta = data.get('meta')
+        self.station = data.get('station')
+        self.geometry = data.get('geometry')
 
-        if geometry:
+        if self.geometry:
             self.construct_geometry()
-            self.zero_reference_coordinates()
 
     def get_datum(self):
         """
@@ -45,7 +44,7 @@ class AlignmentModel:
 
         result = [(0, 0, 0)]
         result += [
-            _v.get('PI') for _v in self.geometry.values() if _v.get('PI')]
+            _v.get('PI') for _v in self.geometry if _v.get('PI')]
 
         result.append(self.meta.get('End'))
 
@@ -55,31 +54,30 @@ class AlignmentModel:
         """
         Assign geometry to the alignment object
         """
-        for no, _geo in self.geometry.items():
+        for _geo in self.geometry:
             if _geo.get('Type') == 'Line':
-                self.geometry[no] = line.get_parameters(_geo)
+                _geo = line.get_parameters(_geo)
 
             elif _geo.get('Type') == 'Curve':
-                self.geometry[no] = arc.get_parameters(_geo)
+                _geo = arc.get_parameters(_geo)
 
             elif _geo.get('Type') == 'Spiral':
-                self.geometry[no] = spiral.get_parameters(_geo)
+                _geo = spiral.get_parameters(_geo)
 
             else:
                 self.errors.append('Undefined geometry: ' + str(_geo))
                 continue
 
-        last = len(self.geometry)
-        if not last: return
-        self.meta["Start"] = self.geometry[1].get("Start")
-        self.meta["End"] = self.geometry[last].get("End")
-        try: self.meta["StartStation"] = self.geometry[1].get('InternalStation')[0] / 1000; 
+        self.meta["Start"] = self.geometry[0].get("Start")
+        self.meta["End"] = self.geometry[-1].get("End")
+        try: self.meta["StartStation"] = self.geometry[0].get('InternalStation')[0] / 1000; 
         except: self.meta["StartStation"] = 0
-        try: self.meta["EndStation"] = self.geometry[last].get('InternalStation')[1] / 1000; 
+        try: self.meta["EndStation"] = self.geometry[-1].get('InternalStation')[1] / 1000; 
         except: self.meta["EndStation"] = 0
 
         self.validate_datum()
         self.validate_stationing()
+        self.zero_reference_coordinates()
 
     def zero_reference_coordinates(self):
         """
@@ -87,7 +85,7 @@ class AlignmentModel:
         by adjustuing by the datum
         """
         datum = self.get_datum()
-        for no, _geo in self.geometry.items():
+        for _geo in self.geometry:
             for _key in ['Start', 'End', 'Center', 'PI']:
 
                 if _geo.get(_key) is None:
@@ -105,7 +103,7 @@ class AlignmentModel:
         cannot be inferred fromt the starting geometry
         """
         _datum = self.meta
-        _geo = self.geometry[1]
+        _geo = self.geometry[0]
 
         if not _geo or not _datum:
             return
@@ -215,7 +213,7 @@ class AlignmentModel:
         if (prev_coord is None) or (prev_station is None):
             return
 
-        for _geo in self.geometry.values():
+        for _geo in self.geometry:
 
             if not _geo:
                 continue
@@ -330,7 +328,7 @@ class AlignmentModel:
         coordinate = TupleMath.subtract(coordinate, self.get_datum())
 
         #iterate the geometry, creating a list of potential matches
-        for index, geo in self.geometry.items():
+        for geo in self.geometry:
             _class = _classes[geo.get('Type')]
             internal_station, position, offset, boundary = _class.get_position_offset(geo, coordinate)
 
@@ -344,10 +342,10 @@ class AlignmentModel:
 
             #save result
             station = self.get_alignment_station(internal_station)
-            _matches.append((station, position, offset, index))
+            _matches.append((station, position, offset))
 
         if not _matches:
-            return None, None, None, None
+            return None, None, None
 
         #get the distances
         offsets = [_v[2] for _v in _matches]
@@ -367,7 +365,7 @@ class AlignmentModel:
 
         prev_geo = None
 
-        for _geo in self.geometry.values():
+        for _geo in self.geometry:
 
             if _geo.get('InternalStation')[0] > int_station:
                 break
@@ -412,7 +410,7 @@ class AlignmentModel:
         last = None
         stations = []
         inc = {"Line": increment[0]*1000, "Curve": increment[1]*1000, "Spiral": increment[2]*1000}
-        for geo in self.geometry.values():
+        for geo in self.geometry:
             # Get starting and ending stations based on alignment
             geo_start = geo.get('StartStation')*1000
             length = geo.get('Length')
@@ -594,7 +592,7 @@ class AlignmentModel:
         Get the shape of the alignment geometry
         """
         shapes = []
-        for curve in self.geometry.values():
+        for curve in self.geometry:
             if not curve: continue
 
             if curve.get('Type') == 'Curve':
@@ -628,3 +626,9 @@ class AlignmentModel:
 
         return Part.Compound(shapes)
         return Part.Wire(shapes)
+
+    def __getstate__(self):
+        return self.__dict__
+    
+    def __setstate__(self, state):
+        self.__dict__.update(state)

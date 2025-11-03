@@ -272,12 +272,7 @@ class TaskLandXMLImport(TaskPanel):
         for name, data in self.xml['Alignments'].items():
             if name not in selected_items: continue
             alignment = make_alignment.create(name)
-            
-            alignment.Meta = data['meta'] or {}
-            alignment.Station = data['station'] or {}
-            alignment.Geometry = data['geometry'] or {}
-
-            alignment.Proxy.onDocumentRestored(alignment)
+            alignment.Model = AlignmentModel(data)
 
         FreeCADGui.Control.closeDialog()
         FreeCAD.ActiveDocument.recompute()

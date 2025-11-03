@@ -46,16 +46,8 @@ class Alignment(GeoObject):
             "Points of Intersection (PIs) as a list of vectors").PIs = []
 
         obj.addProperty(
-            "App::PropertyPythonObject", "Meta", "Geometry",
-            "Alignment horizontal geometry model").Meta = {}
-
-        obj.addProperty(
-            "App::PropertyPythonObject", "Station", "Geometry",
-            "Alignment horizontal geometry model").Station = {}
-
-        obj.addProperty(
-            "App::PropertyPythonObject", "Geometry", "Geometry",
-            "Alignment horizontal geometry model").Geometry = {}
+            "App::PropertyPythonObject", "Model", "Geometry",
+            "Alignment horizontal geometry model").Model = None
 
         obj.addProperty(
             "App::PropertyLink", "OffsetAlignment", "Offset",
@@ -65,33 +57,16 @@ class Alignment(GeoObject):
             "App::PropertyFloat", "OffsetLength", "Offset",
             "Offset length").OffsetLength = 0
 
-        subdivision_desc = """
-            Method of Curve Subdivision\n\n
-            Tolerance - ensure error between segments and curve is (n)\n
-            Interval - Subdivide curve into segments of fixed length\n
-            Segment - Subdivide curve into equal-length segments
-            """
-
-        obj.addProperty(
-            'App::PropertyEnumeration', 'Method', 'Segment', subdivision_desc
-        ).Method = ['Tolerance', 'Interval', 'Segment']
-
-        obj.addProperty(
-            "App::PropertyFloat", "Seg_Value", "Segment",
-            "Set the curve segments to control accuracy").Seg_Value = 10
-
         obj.Proxy = self
-        self.model = None
 
     def execute(self, obj):
         """Update Object when doing a recomputation."""
-        if hasattr(self, "model"):
-            if self.model: 
-                obj.Shape = self.model.get_shape()
-                pis = self.model.get_pi_coords()
-                obj.PIs = [FreeCAD.Vector(pi) for pi in pis if pi]
+        if not obj.Model: return
+        obj.Shape = obj.Model.get_shape()
+        pis = obj.Model.get_pi_coords()
+        obj.PIs = [FreeCAD.Vector(pi) for pi in pis if pi]
 
-        start = obj.Geometry[0].get('Start')
+        start = obj.Model.meta.get('Start')
         if start:
             vec = FreeCAD.Vector(start)
             if obj.Geolocation.Base == vec: return
@@ -101,15 +76,19 @@ class Alignment(GeoObject):
         """Update Object when a property changed."""
         super().onChanged(obj, prop)
 
-        if prop == "Meta":
-            meta = obj.getPropertyByName(prop)
+        if prop == "Model":
+            if obj.Model.errors:
+                for _err in obj.Model.errors:
+                    print('Error in alignment {0}: {1}'.format(obj.Label, _err))
+                obj.Model.errors.clear()
 
-            obj.StartStation = meta.get("StartStation", 0) * 1000
+            meta = obj.Model.meta
             obj.Length = meta.get("Length", 0)
+            obj.StartStation = meta.get("StartStation", 0) * 1000
             obj.EndStation = meta.get("EndStation", 0) * 1000
-
-            obj.Description = meta.get("Description") if meta.get("Description") else ""
             obj.Status = meta.get("Status") if meta.get("Status") else "existing"
+            obj.Description = meta.get("Description") if meta.get("Description") else ""
+
 
         elif prop == "OffsetLength":
             if obj.getPropertyByName(prop): self.onChanged(obj, "OffsetAlignment")
@@ -143,36 +122,3 @@ class Alignment(GeoObject):
                             if 'Spiral Length Out' in values: values['Spiral Length Out'] = float(values['Spiral Length Out']) * ( 1 + factor * ((abs(offset) / 1000) / (2 * R)))
 
                 obj.Model = model
-
-    def onDocumentRestored(self, obj):
-        """Restore Object references on reload."""
-        self.model = AlignmentModel(obj.Meta, obj.Station, obj.Geometry)
-        if self.model.errors:
-            for _err in self.model.errors:
-                print('Error in alignment {0}: {1}'.format(obj.Label, _err))
-            self.model.errors.clear()
-
-        meta = self.model.meta
-        if meta.get('Description'):
-            obj.Description = meta.get('Description')
-
-        if meta.get('Length'):
-            obj.Length = meta.get('Length')
-
-        if meta.get('Status'):
-            obj.Status = meta.get('Status')
-
-        if meta.get('StartStation'):
-            obj.StartStation = str(meta.get('StartStation'))
-
-        if meta.get('EndStation'):
-            obj.EndStation = str(meta.get('EndStation'))
-
-    def dumps(self):
-        """Called during document saving."""
-        self.model = None
-        return self.Type
-    
-    def loads(self, state):
-        """Called during document restore."""
-        self.Type = state

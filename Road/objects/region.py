@@ -73,8 +73,6 @@ class Region(GeoObject):
         """
         regions = obj.getParentGroup()
         alignment = regions.getParentGroup()
-        if not hasattr(alignment.Proxy, "model"): return
-        model = alignment.Proxy.model
 
         start = obj.StartStation * 1000
         end = obj.EndStation * 1000
@@ -83,14 +81,14 @@ class Region(GeoObject):
         spiral = obj.IncrementAlongSpirals
         terminal = obj.AtHorizontalGeometry
 
-        stations = model.get_stations([tangent, curve, spiral], terminal)
+        stations = alignment.Model.get_stations([tangent, curve, spiral], terminal)
         obj.Stations = stations
         #obj.Stations = [x for x in stations if start <= x <= end]
 
         lines = []
         # Computing coordinates and orthoginals for guidelines
         for sta in obj.Stations:
-            tuple_coord, tuple_vec = model.get_orthogonal( sta/1000, "Left")
+            tuple_coord, tuple_vec = alignment.Model.get_orthogonal( sta/1000, "Left")
             coord = FreeCAD.Vector(tuple_coord)
             vec = FreeCAD.Vector(tuple_vec)
             left_vec = copy.deepcopy(vec)
