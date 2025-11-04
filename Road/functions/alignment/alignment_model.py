@@ -348,7 +348,7 @@ class AlignmentModel:
             return None, None, None
 
         #get the distances
-        offsets = [_v[2] for _v in _matches]
+        offsets = [abs(_v[2]) for _v in _matches]
 
         #return the closest match
         return _matches[offsets.index(min(offsets))]
