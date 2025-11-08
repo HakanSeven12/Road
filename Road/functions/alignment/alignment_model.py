@@ -11,6 +11,10 @@ import math
 
 from .. import support
 from .geometry import arc, line, spiral
+from .geometry.line_new import Line
+from .geometry.curve_new import Curve
+from .geometry.spiral_new import Spiral
+
 from ...utils.tuple_math import TupleMath
 
 class AlignmentModel:
@@ -44,7 +48,7 @@ class AlignmentModel:
 
         result = [(0, 0, 0)]
         result += [
-            _v.get('PI') for _v in self.geometry if _v.get('PI')]
+            _v.get('pi') for _v in self.geometry if _v.get('pi')]
 
         result.append(self.meta.get('End'))
 
@@ -56,13 +60,13 @@ class AlignmentModel:
         """
         for _geo in self.geometry:
             if _geo.get('Type') == 'Line':
-                _geo = line.get_parameters(_geo)
+                _geo = Line(_geo).to_dict()
 
             elif _geo.get('Type') == 'Curve':
-                _geo = arc.get_parameters(_geo)
+                _geo = Curve(_geo).to_dict()
 
             elif _geo.get('Type') == 'Spiral':
-                _geo = spiral.get_parameters(_geo)
+                _geo = Spiral(_geo).to_dict()
 
             else:
                 self.errors.append('Undefined geometry: ' + str(_geo))
@@ -592,38 +596,23 @@ class AlignmentModel:
         Get the shape of the alignment geometry
         """
         shapes = []
-        for curve in self.geometry:
-            if not curve: continue
+        for _geo in self.geometry:
+            if not _geo: continue
 
-            if curve.get('Type') == 'Curve':
-                center = Vector(curve.get('Center'))
-                radius = curve.get('Radius')
-                start = Vector(curve.get('Start'))
-                end = Vector(curve.get('End'))
+            if _geo.get('Type') == 'Line':
+                _pts = Line(_geo).get_key_points()
+                shapes.append(Part.LineSegment(*[Vector(*p) for p in _pts]).toShape())
 
-                chord_middle = (start + end) / 2
-                middle = chord_middle.sub(center).normalize().multiply(radius).add(center)
-                shapes.append(Part.Arc(start, middle, end).toShape())
+            elif _geo.get('Type') == 'Curve':
+                _pts = Curve(_geo).get_key_points()
+                shapes.append(Part.Arc(*[Vector(*p) for p in _pts]).toShape())
 
-            elif curve.get('Type') == 'Spiral':
-
-                _pts = spiral.get_points(curve, size=1, method="Interval")
-                if not _pts: continue
-                try:
-                    bspline = Part.BSplineCurve()
-                    bspline.interpolate(_pts)
-                    shapes.append(bspline.toShape())
+            elif _geo.get('Type') == 'Spiral':
+                _pts = Spiral(_geo).generate_points(1000)
+                bspline = Part.BSplineCurve()
+                bspline.interpolate([Vector(*p) for p in _pts])
+                shapes.append(bspline.toShape())
                 
-                except: 
-                    continue
-                    shp = Part.makePolygon(_pts)
-                    shp.Placement.move(Vector(_pts[0]).negative())
-
-            else:
-                start = Vector(curve.get('Start'))
-                end = Vector(curve.get('End'))
-                shapes.append(Part.LineSegment(start, end).toShape())
-
         return Part.Compound(shapes)
         return Part.Wire(shapes)
 

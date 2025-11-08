@@ -1,0 +1,247 @@
+# SPDX-License-Identifier: LGPL-2.1-or-later
+
+import math
+from typing import Dict, Tuple
+from .geometry import Geometry
+
+
+class Curve(Geometry):
+    """
+    LandXML 1.2 curve element reader & geometry generator.
+    Supports circular arc curves and auto-computes all missing optional attributes.
+    """
+
+    VALID_TYPES = ['arc', 'chord']
+
+    def __init__(self, data: Dict):
+        # Required attributes
+        super().__init__(data)
+        self.rotation = 'ccw' if data['Direction'] == -1 else 'cw'
+        
+        # Geometry control points
+        self.center_point = data.get('Center', None)
+        self.pi_point = data.get('PI', None)
+        
+        if self.start_point is None or self.center_point is None or self.end_point is None:
+            raise ValueError("Start, Center and End coordinates must be provided")
+        
+        # Calculate radius from start point to center
+        dx = self.center_point[0] - self.start_point[0]
+        dy = self.center_point[1] - self.start_point[1]
+        self.radius = math.sqrt(dx**2 + dy**2)
+        
+        if self.radius <= 0:
+            raise ValueError("Radius must be positive")
+        
+        # Optional attributes
+        self.curve_type = data.get('crvType', 'arc')
+        self.chord = float(data['chord']) if 'chord' in data else None
+        self.delta = float(data['delta']) if 'delta' in data else None
+        self.dir_start = float(data['dirStart']) if 'dirStart' in data else None
+        self.dir_end = float(data['dirEnd']) if 'dirEnd' in data else None
+        self.length = float(data['length']) if 'length' in data else None
+        self.mid_ordinate = float(data['midOrd']) if 'midOrd' in data else None
+        self.tangent = float(data['tangent']) if 'tangent' in data else None
+        self.external = float(data['external']) if 'external' in data else None
+        
+        # Auto compute missing values
+        self.compute_missing_values()
+    
+    def compute_missing_values(self):
+        """Calculate all missing optional attributes from geometry"""
+        
+        # Calculate central angle (delta) first - needed for other calculations
+        if self.delta is None:
+            start_angle = math.atan2(
+                self.start_point[1] - self.center_point[1],
+                self.start_point[0] - self.center_point[0]
+            )
+            end_angle = math.atan2(
+                self.end_point[1] - self.center_point[1],
+                self.end_point[0] - self.center_point[0]
+            )
+            
+            delta = end_angle - start_angle
+            
+            # Normalize delta based on rotation
+            if self.rotation == 'cw':
+                if delta > 0:
+                    delta -= 2 * math.pi
+            else:
+                if delta < 0:
+                    delta += 2 * math.pi
+            
+            self.delta = abs(delta)
+        
+        # Calculate arc length
+        if self.length is None:
+            self.length = self.radius * self.delta
+        
+        # Calculate start and end directions
+        if self.dir_start is None:
+            start_angle = math.atan2(
+                self.start_point[1] - self.center_point[1],
+                self.start_point[0] - self.center_point[0]
+            )
+            if self.rotation == 'cw':
+                self.dir_start = start_angle - math.pi / 2
+            else:
+                self.dir_start = start_angle + math.pi / 2
+        
+        # Calculate end direction
+        if self.dir_end is None:
+            sign = 1 if self.rotation == 'ccw' else -1
+            self.dir_end = self.dir_start + self.delta * sign
+        
+        # Calculate PI point if not provided (after delta and length are set)
+        if self.pi_point is None:
+            self.pi_point = self._calculate_pi_point()
+        if self.chord is None:
+            half_delta = self.delta / 2
+            self.chord = 2 * self.radius * math.sin(half_delta)
+        
+        # Calculate tangent length (from start/end point to PI)
+        if self.tangent is None:
+            half_delta = self.delta / 2
+            self.tangent = self.radius * math.tan(half_delta)
+        
+        # Calculate mid-ordinate (sagitta)
+        if self.mid_ordinate is None:
+            half_delta = self.delta / 2
+            self.mid_ordinate = self.radius * (1 - math.cos(half_delta))
+        
+        # Calculate external distance
+        if self.external is None:
+            half_delta = self.delta / 2
+            self.external = self.radius * (1 / math.cos(half_delta) - 1)
+
+    def _calculate_pi_point(self) -> Tuple[float, float]:
+        """Calculate PI point intersection from tangent lines at start and end points"""
+        
+        # Direction from center to start point
+        start_angle = math.atan2(
+            self.start_point[1] - self.center_point[1],
+            self.start_point[0] - self.center_point[0]
+        )
+        
+        # Direction from center to end point
+        end_angle = math.atan2(
+            self.end_point[1] - self.center_point[1],
+            self.end_point[0] - self.center_point[0]
+        )
+        
+        # Tangent directions at start and end (perpendicular to radius)
+        if self.rotation == 'cw':
+            tangent_start = start_angle - math.pi / 2
+            tangent_end = end_angle - math.pi / 2
+        else:
+            tangent_start = start_angle + math.pi / 2
+            tangent_end = end_angle + math.pi / 2
+        
+        # PI point is intersection of two tangent lines
+        # Line 1: start_point + t1 * (cos(tangent_start), sin(tangent_start))
+        # Line 2: end_point + t2 * (cos(tangent_end), sin(tangent_end))
+        
+        cos_ts = math.cos(tangent_start)
+        sin_ts = math.sin(tangent_start)
+        cos_te = math.cos(tangent_end)
+        sin_te = math.sin(tangent_end)
+        
+        # Solve for intersection using parametric equations
+        # start_point.x + t1 * cos_ts = end_point.x + t2 * cos_te
+        # start_point.y + t1 * sin_ts = end_point.y + t2 * sin_te
+        
+        dx = self.end_point[0] - self.start_point[0]
+        dy = self.end_point[1] - self.start_point[1]
+        
+        denom = cos_ts * sin_te - sin_ts * cos_te
+        
+        if abs(denom) < 1e-10:
+            raise ValueError("Tangent lines are parallel; cannot compute PI point")
+        
+        t1 = (dx * sin_te - dy * cos_te) / denom
+        
+        pi_x = self.start_point[0] + t1 * cos_ts
+        pi_y = self.start_point[1] + t1 * sin_ts
+        
+        return (pi_x, pi_y)
+
+    def get_point_at_distance(self, s: float) -> Tuple[float, float]:
+        """Get point coordinates at distance s along the arc from start point"""
+        
+        if s < 0 or s > self.length:
+            raise ValueError(f"Distance {s} outside arc length {self.length}")
+        
+        # Calculate angle traversed at distance s
+        angle_traversed = s / self.radius
+        
+        # Get starting angle from center
+        start_angle = math.atan2(
+            self.start_point[1] - self.center_point[1],
+            self.start_point[0] - self.center_point[0]
+        )
+        
+        # Calculate current angle based on rotation
+        if self.rotation == 'cw':
+            current_angle = start_angle - angle_traversed
+        else:
+            current_angle = start_angle + angle_traversed
+        
+        # Calculate point on arc
+        x = self.center_point[0] + self.radius * math.cos(current_angle)
+        y = self.center_point[1] + self.radius * math.sin(current_angle)
+        
+        return x, y
+    
+    def generate_points(self, step: float) -> list:
+        """Generate points along the arc at regular intervals"""
+        
+        if step <= 0:
+            raise ValueError("Step must be positive")
+        
+        points = []
+        s = 0.0
+        
+        while s < self.length:
+            x, y = self.get_point_at_distance(s)
+            points.append((x, y))
+            s += step
+        
+        # Add final end point
+        x, y = self.get_point_at_distance(self.length)
+        points.append((x, y))
+        
+        return points
+    
+    def get_key_points(self) -> Tuple[Tuple[float, float], Tuple[float, float], Tuple[float, float]]:
+        """Return start, middle (arc midpoint), and end points of the curve"""
+        
+        # Middle point is at half of arc length
+        mid_point = self.get_point_at_distance(self.length / 2)
+        
+        return self.start_point, mid_point, self.end_point
+    
+    def to_dict(self) -> Dict:
+        """Export curve properties as dictionary"""
+        
+        return {
+            'Type': 'Curve',
+            'name': self.name,
+            'description': self.description,
+            'crvType': self.curve_type,
+            'staStart': self.sta_start,
+            'radius': self.radius,
+            'rot': self.rotation,
+            'delta': self.delta,
+            'length': self.length,
+            'chord': self.chord,
+            'tangent': self.tangent,
+            'midOrd': self.mid_ordinate,
+            'external': self.external,
+            'dirStart': self.dir_start,
+            'dirEnd': self.dir_end,
+            'start': self.start_point,
+            'center': self.center_point,
+            'end': self.end_point,
+            'pi': self.pi_point
+        }
