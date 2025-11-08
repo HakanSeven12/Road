@@ -101,7 +101,7 @@ class Spiral(Geometry):
     # LOCAL CLOTHOID
     def get_point_at_distance(self, s: float) -> Tuple[float, float]:
         if s < 0 or s > self.length:
-            raise ValueError("Distance outside spiral length")
+            raise ValueError(f"Distance {s} outside spiral length {self.length}")
         if self.radius_start != float('inf') and self.radius_end != float('inf'):
             return self._compound_clothoid_point(s)
         return self._clothoid_point(s)
@@ -184,6 +184,80 @@ class Spiral(Geometry):
         pts.append((X, Y))
 
         return pts
+
+    def get_point_and_orthogonal(self, s: float, side: str = 'left') -> Tuple[Tuple[float, float], Tuple[float, float]]:
+        """
+        Get both the point and orthogonal vector at distance s along the spiral.
+        
+        Args:
+            s: Distance along the spiral from start point
+            side: Direction of orthogonal vector - 'left' or 'right' (relative to spiral direction)
+            
+        Returns:
+            Tuple containing:
+            - Point coordinates as (x, y) in global coordinate system
+            - Unit orthogonal vector as (x, y)
+        """
+        
+        if side not in ['left', 'right']:
+            raise ValueError("side must be 'left' or 'right'")
+        
+        # Get the local point coordinates at distance s
+        xl, yl = self.get_point_at_distance(s)
+        
+        # Determine start point and rotation for transformation
+        start = self.start_point
+        dir_angle = self.dir_start
+        
+        if self.radius_end > self.radius_start:
+            start = self.end_point
+            dir_angle = self.dir_end + math.pi
+        
+        # Transform local coordinates to global coordinates
+        cos_a = math.cos(dir_angle)
+        sin_a = math.sin(dir_angle)
+        
+        x = start[0] + xl * cos_a - yl * sin_a
+        y = start[1] + xl * sin_a + yl * cos_a
+        point = (x, y)
+        
+        # Calculate tangent direction using numerical differentiation
+        delta = 1e-6
+        
+        if s - delta >= 0:
+            xl_before, yl_before = self.get_point_at_distance(s - delta)
+        else:
+            xl_before, yl_before = self.get_point_at_distance(0)
+        
+        if s + delta <= self.length:
+            xl_after, yl_after = self.get_point_at_distance(s + delta)
+        else:
+            xl_after, yl_after = self.get_point_at_distance(self.length)
+        
+        # Local tangent
+        dx_local = xl_after - xl_before
+        dy_local = yl_after - yl_before
+        
+        tangent_length = math.sqrt(dx_local**2 + dy_local**2)
+        
+        if tangent_length < 1e-10:
+            raise ValueError("Cannot determine tangent direction at this point")
+        
+        # Normalize local tangent
+        tangent_x_local = dx_local / tangent_length
+        tangent_y_local = dy_local / tangent_length
+        
+        # Transform tangent to global coordinates
+        tangent_x_global = tangent_x_local * cos_a - tangent_y_local * sin_a
+        tangent_y_global = tangent_x_local * sin_a + tangent_y_local * cos_a
+        
+        # Orthogonal vector based on side
+        if side == 'left':  # 90 degrees counterclockwise from tangent
+            orthogonal = (-tangent_y_global, tangent_x_global)
+        else:  # right - 90 degrees clockwise from tangent
+            orthogonal = (tangent_y_global, -tangent_x_global)
+    
+        return point, orthogonal
 
     def to_dict(self) -> Dict:
         return {

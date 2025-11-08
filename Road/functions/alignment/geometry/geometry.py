@@ -38,6 +38,11 @@ class Geometry(ABC):
         pass
     
     @abstractmethod
+    def get_orthogonal(self, s: float, side: str = 'left') -> Tuple[Tuple[float, float], Tuple[float, float]]:
+        """Get both the point and orthogonal vector at distance s along the line."""
+        pass
+
+    @abstractmethod
     def to_dict(self) -> Dict:
         """Export element properties as dictionary"""
         pass

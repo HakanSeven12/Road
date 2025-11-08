@@ -261,6 +261,46 @@ class Curve(Geometry):
         
         return self.start_point, mid_point, self.end_point
     
+    def get_orthogonal(self, s: float, side: str = 'left') -> Tuple[Tuple[float, float], Tuple[float, float]]:
+        """
+        Get orthogonal vector at distance s along the arc.
+        
+        Args:
+            s: Distance along the arc from start point
+            side: Direction of orthogonal vector - 'left' (toward center) or 'right' (away from center)
+            
+        Returns:
+            Tuple containing:
+            - Point coordinates as (x, y)
+            - Unit orthogonal vector as (x, y)
+        """
+
+        if side not in ['left', 'right']:
+            raise ValueError("side must be 'left' or 'right'")
+        
+        point = self.get_point_at_distance(s)
+        
+        # Calculate vector from point to center
+        dx = self.center_point[0] - point[0]
+        dy = self.center_point[1] - point[1]
+        
+        distance = math.sqrt(dx**2 + dy**2)
+        
+        if distance < 1e-10:
+            raise ValueError("Point coincides with center")
+        
+        # Normalize vector
+        center_vector_x = dx / distance
+        center_vector_y = dy / distance
+        
+        # Choose orthogonal direction based on side
+        if side == 'left':  # toward center
+            orthogonal = (center_vector_x, center_vector_y)
+        else:  # right - away from center
+            orthogonal = (-center_vector_x, -center_vector_y)
+        
+        return point, orthogonal
+
     def to_dict(self) -> Dict:
         """Export curve properties as dictionary"""
         

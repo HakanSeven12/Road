@@ -80,6 +80,36 @@ class Line(Geometry):
         
         return self.start_point, self.end_point
     
+    def get_orthogonal(self, s: float, side: str = 'left') -> Tuple[Tuple[float, float], Tuple[float, float]]:
+        """
+        Get both the point and orthogonal vector at distance s along the line.
+        
+        Args:
+            s: Distance along the line from start point
+            side: Direction of orthogonal vector - 'left' or 'right'
+            
+        Returns:
+            Tuple containing:
+            - Point coordinates as (x, y)
+            - Unit orthogonal vector as (x, y)
+        """
+
+        if side not in ['left', 'right']:
+            raise ValueError("side must be 'left' or 'right'")
+        
+        point = self.get_point_at_distance(s)
+        
+        # Calculate orthogonal vector (perpendicular to line direction)
+        if side == 'left':
+            orthogonal_direction = self.direction + math.pi / 2
+        else:  # right
+            orthogonal_direction = self.direction - math.pi / 2
+        
+        orthogonal = (math.cos(orthogonal_direction), math.sin(orthogonal_direction))
+        
+        return point, orthogonal
+
+
     def to_dict(self) -> Dict:
         """Export line properties as dictionary"""
         
