@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
 
 import math
-from typing import Dict, Tuple
+from typing import Dict, Tuple, List
 from .geometry import Geometry
 
 
@@ -43,6 +43,9 @@ class Curve(Geometry):
         self.mid_ordinate = float(data['midOrd']) if 'midOrd' in data else None
         self.tangent = float(data['tangent']) if 'tangent' in data else None
         self.external = float(data['external']) if 'external' in data else None
+        
+        # For large arcs, store multiple PI points
+        self.pi_points = []
         
         # Auto compute missing values
         self.compute_missing_values()
@@ -93,9 +96,13 @@ class Curve(Geometry):
             sign = 1 if self.rotation == 'ccw' else -1
             self.dir_end = self.dir_start + self.delta * sign
         
-        # Calculate PI point if not provided (after delta and length are set)
-        if self.pi_point is None:
-            self.pi_point = self._calculate_pi_point()
+        # Calculate PI point(s) - handle large arcs by subdividing
+        if self.pi_point is None or not self.pi_points:
+            self.pi_points = self._calculate_pi_points()
+            # For backward compatibility, set single PI point
+            if self.pi_points:
+                self.pi_point = self.pi_points[0]
+        
         if self.chord is None:
             half_delta = self.delta / 2
             self.chord = 2 * self.radius * math.sin(half_delta)
@@ -115,54 +122,87 @@ class Curve(Geometry):
             half_delta = self.delta / 2
             self.external = self.radius * (1 / math.cos(half_delta) - 1)
 
-    def _calculate_pi_point(self) -> Tuple[float, float]:
-        """Calculate PI point intersection from tangent lines at start and end points"""
+    def _calculate_pi_points(self) -> List[Tuple[float, float]]:
+        """
+        Calculate PI point(s) for the arc.
+        For arcs >= 180 degrees, subdivide into smaller arcs and calculate PI for each.
+        """
         
-        # Direction from center to start point
-        start_angle = math.atan2(
-            self.start_point[1] - self.center_point[1],
-            self.start_point[0] - self.center_point[0]
-        )
+        pi_points = []
         
-        # Direction from center to end point
-        end_angle = math.atan2(
-            self.end_point[1] - self.center_point[1],
-            self.end_point[0] - self.center_point[0]
-        )
-        
-        # Tangent directions at start and end (perpendicular to radius)
-        if self.rotation == 'cw':
-            tangent_start = start_angle - math.pi / 2
-            tangent_end = end_angle - math.pi / 2
+        if self.delta >= math.pi:
+            # Subdivide the arc into smaller segments
+            # Calculate midpoint on the arc
+            mid_distance = self.length / 2
+            mid_point = self.get_point_at_distance(mid_distance)
+            
+            # First segment: start -> mid
+            pi1 = self._calculate_single_pi_point(self.start_point, mid_point)
+            if pi1:
+                pi_points.append(pi1)
+            
+            # Second segment: mid -> end
+            pi2 = self._calculate_single_pi_point(mid_point, self.end_point)
+            if pi2:
+                pi_points.append(pi2)
         else:
-            tangent_start = start_angle + math.pi / 2
-            tangent_end = end_angle + math.pi / 2
+            # For smaller arcs, calculate single PI point
+            pi = self._calculate_single_pi_point(self.start_point, self.end_point)
+            if pi:
+                pi_points.append(pi)
+        
+        return pi_points
+
+    def _calculate_single_pi_point(self, point1: Tuple[float, float], 
+                                   point2: Tuple[float, float]) -> Tuple[float, float]:
+        """
+        Calculate PI point intersection from tangent lines at two points on the arc.
+        Returns None if tangent lines are parallel.
+        """
+        
+        # Direction from center to first point
+        angle1 = math.atan2(
+            point1[1] - self.center_point[1],
+            point1[0] - self.center_point[0]
+        )
+        
+        # Direction from center to second point
+        angle2 = math.atan2(
+            point2[1] - self.center_point[1],
+            point2[0] - self.center_point[0]
+        )
+        
+        # Tangent directions at both points (perpendicular to radius)
+        if self.rotation == 'cw':
+            tangent1 = angle1 - math.pi / 2
+            tangent2 = angle2 - math.pi / 2
+        else:
+            tangent1 = angle1 + math.pi / 2
+            tangent2 = angle2 + math.pi / 2
         
         # PI point is intersection of two tangent lines
-        # Line 1: start_point + t1 * (cos(tangent_start), sin(tangent_start))
-        # Line 2: end_point + t2 * (cos(tangent_end), sin(tangent_end))
+        # Line 1: point1 + t1 * (cos(tangent1), sin(tangent1))
+        # Line 2: point2 + t2 * (cos(tangent2), sin(tangent2))
         
-        cos_ts = math.cos(tangent_start)
-        sin_ts = math.sin(tangent_start)
-        cos_te = math.cos(tangent_end)
-        sin_te = math.sin(tangent_end)
+        cos_t1 = math.cos(tangent1)
+        sin_t1 = math.sin(tangent1)
+        cos_t2 = math.cos(tangent2)
+        sin_t2 = math.sin(tangent2)
         
         # Solve for intersection using parametric equations
-        # start_point.x + t1 * cos_ts = end_point.x + t2 * cos_te
-        # start_point.y + t1 * sin_ts = end_point.y + t2 * sin_te
+        dx = point2[0] - point1[0]
+        dy = point2[1] - point1[1]
         
-        dx = self.end_point[0] - self.start_point[0]
-        dy = self.end_point[1] - self.start_point[1]
+        denom = cos_t1 * sin_t2 - sin_t1 * cos_t2
         
-        denom = cos_ts * sin_te - sin_ts * cos_te
-        
+        # Check if lines are parallel (denominator near zero)
         if abs(denom) < 1e-10:
-            raise ValueError("Tangent lines are parallel; cannot compute PI point")
+            return None
         
-        t1 = (dx * sin_te - dy * cos_te) / denom
+        t1 = (dx * sin_t2 - dy * cos_t2) / denom
         
-        pi_x = self.start_point[0] + t1 * cos_ts
-        pi_y = self.start_point[1] + t1 * sin_ts
+        pi_x = point1[0] + t1 * cos_t1
+        pi_y = point1[1] + t1 * sin_t1
         
         return (pi_x, pi_y)
 
@@ -243,5 +283,6 @@ class Curve(Geometry):
             'start': self.start_point,
             'center': self.center_point,
             'end': self.end_point,
-            'pi': self.pi_point
+            'pi': self.pi_point,
+            'pi_points': self.pi_points  # All PI points for large arcs
         }
