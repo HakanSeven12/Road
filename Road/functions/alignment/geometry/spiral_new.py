@@ -185,7 +185,7 @@ class Spiral(Geometry):
 
         return pts
 
-    def get_point_and_orthogonal(self, s: float, side: str = 'left') -> Tuple[Tuple[float, float], Tuple[float, float]]:
+    def get_orthogonal(self, s: float, side: str = 'left') -> Tuple[Tuple[float, float], Tuple[float, float]]:
         """
         Get both the point and orthogonal vector at distance s along the spiral.
         
