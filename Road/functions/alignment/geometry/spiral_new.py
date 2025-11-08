@@ -2,7 +2,7 @@
 
 import math
 from scipy.special import fresnel
-from typing import Dict, Tuple
+from typing import Dict, Tuple, Optional
 from .geometry import Geometry
 
 
@@ -198,7 +198,7 @@ class Spiral(Geometry):
             - Point coordinates as (x, y) in global coordinate system
             - Unit orthogonal vector as (x, y)
         """
-        
+
         if side not in ['left', 'right']:
             raise ValueError("side must be 'left' or 'right'")
         
@@ -258,6 +258,78 @@ class Spiral(Geometry):
             orthogonal = (tangent_y_global, -tangent_x_global)
     
         return point, orthogonal
+
+    def project_point(self, point):
+        """
+        Project a point onto the spiral and return distance along spiral.
+        Uses a robust 1D parabolic search over arc length.
+        """
+
+        # Transform to local system
+        start = self.start_point
+        dir_angle = self.dir_start
+
+        if self.radius_end > self.radius_start:
+            start = self.end_point
+            dir_angle = self.dir_end + math.pi
+
+        cos_a = math.cos(dir_angle)
+        sin_a = math.sin(dir_angle)
+
+        dx = point[0] - start[0]
+        dy = point[1] - start[1]
+
+        local_x = dx * cos_a + dy * sin_a
+        local_y = -dx * sin_a + dy * cos_a
+
+        # Distance-squared function in local coords
+        def f(s):
+            xl, yl = self.get_point_at_distance(s)
+            return (xl - local_x)**2 + (yl - local_y)**2
+
+        # Initial coarse search (samples)
+        N = 50
+        s_values = [i * self.length / N for i in range(N + 1)]
+        d_values = [f(s) for s in s_values]
+
+        i_min = min(range(len(d_values)), key=lambda i: d_values[i])
+
+        # Bracket minimum
+        if i_min == 0:
+            a, b = s_values[0], s_values[1]
+        elif i_min == N:
+            a, b = s_values[N - 1], s_values[N]
+        else:
+            a = s_values[i_min - 1]
+            b = s_values[i_min + 1]
+
+        # Parabolic refinement
+        tol = 1e-7
+        for _ in range(60):
+            m1 = a + (b - a) * 0.25
+            m2 = a + (b - a) * 0.5
+            m3 = a + (b - a) * 0.75
+
+            f1, f2, f3 = f(m1), f(m2), f(m3)
+
+            # Pick best sub-interval
+            if f1 < f2:
+                b = m2
+            elif f3 < f2:
+                a = m2
+            else:
+                a = m1
+                b = m3
+
+            if b - a < tol:
+                break
+
+        distance = (a + b) / 2
+
+        if distance < 0 or distance > self.length:
+            return None
+        
+        return distance
 
     def to_dict(self) -> Dict:
         return {

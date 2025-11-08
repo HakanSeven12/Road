@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
 
 import math
-from typing import Dict, Tuple
+from typing import Dict, Tuple, Optional
 from .geometry import Geometry
 
 
@@ -109,6 +109,32 @@ class Line(Geometry):
         
         return point, orthogonal
 
+    def project_point(self, point: Tuple[float, float]) -> Optional[float]:
+        """
+        Project point onto line and return distance along line from start.
+        
+        Args:
+            point: (x, y) coordinates to project
+            
+        Returns:
+            Distance along line from start point, or None if projection is outside line
+        """
+        # Vector from start to point
+        dx_point = point[0] - self.start_point[0]
+        dy_point = point[1] - self.start_point[1]
+        
+        # Line direction vector
+        dx_line = math.cos(self.direction)
+        dy_line = math.sin(self.direction)
+        
+        # Project point onto line (dot product)
+        distance = dx_point * dx_line + dy_point * dy_line
+        
+        # Check if projection is within line bounds
+        if distance < 0 or distance > self.length:
+            return None
+        
+        return distance
 
     def to_dict(self) -> Dict:
         """Export line properties as dictionary"""

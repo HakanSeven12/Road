@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
 
 import math
-from typing import Dict, Tuple, List
+from typing import Dict, Tuple, Optional, List
 from .geometry import Geometry
 
 
@@ -300,6 +300,51 @@ class Curve(Geometry):
             orthogonal = (-center_vector_x, -center_vector_y)
         
         return point, orthogonal
+
+    def project_point(self, point: Tuple[float, float]) -> Optional[float]:
+        """
+        Project point onto curve and return distance along curve from start.
+        
+        Args:
+            point: (x, y) coordinates to project
+            
+        Returns:
+            Distance along curve from start point, or None if projection is outside curve
+        """
+        # Calculate angle from center to point
+        dx = point[0] - self.center_point[0]
+        dy = point[1] - self.center_point[1]
+        point_angle = math.atan2(dy, dx)
+        
+        # Calculate start angle
+        start_angle = math.atan2(
+            self.start_point[1] - self.center_point[1],
+            self.start_point[0] - self.center_point[0]
+        )
+        
+        # Calculate angle difference
+        angle_diff = point_angle - start_angle
+        
+        # Normalize based on rotation
+        if self.rotation == 'cw':
+            # Clockwise rotation
+            if angle_diff > 0:
+                angle_diff -= 2 * math.pi
+            angle_traversed = abs(angle_diff)
+        else:
+            # Counter-clockwise rotation
+            if angle_diff < 0:
+                angle_diff += 2 * math.pi
+            angle_traversed = angle_diff
+        
+        # Check if angle is within curve bounds
+        if angle_traversed < 0 or angle_traversed > self.delta:
+            return None
+        
+        # Calculate distance along curve
+        distance = self.radius * angle_traversed
+        
+        return distance
 
     def to_dict(self) -> Dict:
         """Export curve properties as dictionary"""
