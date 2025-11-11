@@ -136,7 +136,7 @@ class Alignment(GeoObject):
                 edges.append(Part.Arc(*points).toShape())
 
             elif isinstance(el, Spiral):
-                _pts = el.generate_points(1000)
+                _pts = el.generate_points(1)
                 points = zero_referance(model.start_point, _pts)
                 bspline = Part.BSplineCurve()
                 bspline.interpolate(points)
@@ -161,6 +161,7 @@ class Alignment(GeoObject):
             List of (x, y) tuples representing PI points
         """
         pi_points = []
+        pi_points.append(model.get_start_point())
         
         # Get alignment PI points
         align_pis = model.get_align_pis()
@@ -184,6 +185,8 @@ class Alignment(GeoObject):
                 for pi in element_dict['pi_points']:
                     # Convert from meters to mm
                     pi_points.append(pi)
+
+        pi_points.append(model.get_end_point())
         
         return zero_referance(model.start_point, pi_points)
 

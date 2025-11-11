@@ -69,7 +69,7 @@ class Spiral(Geometry):
                 R2 = self.radius_end
                 self.constant = math.sqrt(R1 * R2 * self.length / abs(R1 - R2))
 
-        if self.theta is None:
+        if True: #self.theta is None:
             R = self.radius_end if self.radius_start == float('inf') else self.radius_start
             self.theta = self.length / (2 * R)
 
