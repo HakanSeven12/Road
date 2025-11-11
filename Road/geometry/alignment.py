@@ -2,9 +2,9 @@
 
 import math
 from typing import Dict, List, Tuple, Optional, Union
-from .geometry.line_new import Line
-from .geometry.curve_new import Curve
-from .geometry.spiral_new import Spiral
+from .line import Line
+from .curve import Curve
+from .spiral import Spiral
 
 
 class Alignment:
@@ -64,6 +64,8 @@ class Alignment:
         # Parse alignment PI points
         if 'AlignPIs' in data and data['AlignPIs']:
             self._parse_align_pis(data['AlignPIs'])
+        elif 'alignPIs' in data and data['alignPIs']:  # Also handle lowercase version
+            self._parse_align_pis(data['alignPIs'])
         
         # Station equations list (sorted by internal station)
         self.station_equations: List[Dict] = []
@@ -71,6 +73,8 @@ class Alignment:
         # Parse station equations first (before geometry)
         if 'StaEquation' in data and data['StaEquation']:
             self._parse_station_equations(data['StaEquation'])
+        elif 'stationEquations' in data and data['stationEquations']:  # Also handle lowercase version
+            self._parse_station_equations(data['stationEquations'])
         
         # Geometry elements list
         self.elements: List[Union[Line, Curve, Spiral]] = []
@@ -100,7 +104,7 @@ class Alignment:
                 pi = {
                     'point': (float(pi_point[0]), float(pi_point[1])),
                     'station': float(pi_data['station']) if 'station' in pi_data else None,
-                    'description': pi_data.get('desc', None)
+                    'description': pi_data.get('desc', pi_data.get('description', None))
                 }
                 
                 self.align_pis.append(pi)
@@ -120,13 +124,13 @@ class Alignment:
                 sta_ahead = float(eq_data['staAhead'])
                 sta_back = float(eq_data['staBack'])
                 sta_internal = float(eq_data.get('staInternal', sta_back))
-                description = eq_data.get('desc', None)
+                description = eq_data.get('desc', eq_data.get('description', None))
                 
                 equation = {
                     'staAhead': sta_ahead,
                     'staBack': sta_back,
                     'staInternal': sta_internal,
-                    'adjustment': sta_ahead - sta_back,
+                    'adjustment': eq_data.get('adjustment', sta_ahead - sta_back),
                     'description': description
                 }
                 
@@ -182,7 +186,7 @@ class Alignment:
         # Check if alignment start point matches first element start point
         if self.start_point is not None:
             first_elem_start = self.elements[0].get_start_point()
-            tolerance = 1e-6
+            tolerance = 1e-3
             
             dx = abs(self.start_point[0] - first_elem_start[0])
             dy = abs(self.start_point[1] - first_elem_start[1])
@@ -194,7 +198,7 @@ class Alignment:
                 )
         
         # Check continuity between consecutive elements
-        tolerance = 1e-6
+        tolerance = 1e-3
         
         for i in range(len(self.elements) - 1):
             current = self.elements[i]
@@ -444,12 +448,7 @@ class Alignment:
             
             if elem_sta_start_internal <= internal_station <= elem_sta_end_internal:
                 distance = internal_station - elem_sta_start_internal
-                
-                # Handle Spiral differently as it has different method name
-                if isinstance(element, Spiral):
-                    return element.get_point_and_orthogonal(distance, side)
-                else:
-                    return element.get_orthogonal(distance, side)
+                return element.get_orthogonal(distance, side)
         
         raise ValueError(f"No element found at station {station}")
     
@@ -624,18 +623,18 @@ class Alignment:
         
         return {
             'name': self.name,
-            'description': self.description,
+            'desc': self.description,
             'length': self.length,
             'staStart': self.sta_start,
             'staEnd': self.get_sta_end(),
-            'startPoint': self.start_point,
+            'start': self.start_point,
             'endPoint': self.get_end_point(),
             'elementCount': len(self.elements),
             'piCount': len(self.align_pis),
             'stationEquationCount': len(self.station_equations),
-            'alignPIs': self.align_pis,
-            'stationEquations': self.station_equations,
-            'elements': [elem.to_dict() for elem in self.elements]
+            'AlignPIs': self.align_pis,
+            'StaEquation': self.station_equations,
+            'CoordGeom': [elem.to_dict() for elem in self.elements]
         }
     
     def __repr__(self) -> str:
@@ -650,7 +649,120 @@ class Alignment:
             f"{eq_info}, "
             f"sta_start={self.sta_start:.2f})"
         )
-    
+        
+    def __str__(self) -> str:
+        """Human-readable string representation"""
+        pi_info = f", {len(self.align_pis)} PIs" if self.align_pis else ""
+        eq_info = f", {len(self.station_equations)} equations" if self.station_equations else ""
+        
+        return (
+            f"Alignment '{self.name}': {self.length:.2f}m, "
+            f"{len(self.elements)} elements{pi_info}{eq_info}, "
+            f"Sta {self.sta_start:.2f} to {self.get_sta_end():.2f}"
+        )
+
+    def __eq__(self, other) -> bool:
+        """Check equality between two alignments"""
+        if not isinstance(other, Alignment):
+            return False
+        
+        return (
+            self.name == other.name and
+            abs(self.length - other.length) < 1e-6 and
+            abs(self.sta_start - other.sta_start) < 1e-6 and
+            len(self.elements) == len(other.elements) and
+            all(e1 == e2 for e1, e2 in zip(self.elements, other.elements))
+        )
+
+    def __ne__(self, other) -> bool:
+        """Check inequality between two alignments"""
+        return not self.__eq__(other)
+
+    def __hash__(self) -> int:
+        """Make alignment objects hashable"""
+        return hash((
+            'Alignment',
+            self.name,
+            round(self.length, 6),
+            round(self.sta_start, 6),
+            len(self.elements)
+        ))
+
     def __len__(self) -> int:
         """Return number of geometry elements"""
         return len(self.elements)
+
+    def __bool__(self) -> bool:
+        """Alignment is True if it has elements"""
+        return len(self.elements) > 0
+
+    def __contains__(self, station: float) -> bool:
+        """Check if station is within alignment range"""
+        sta_end = self.get_sta_end()
+        return self.sta_start <= station <= sta_end
+
+    def __iter__(self):
+        """Iterate over geometry elements"""
+        return iter(self.elements)
+
+    def __getitem__(self, index: Union[int, slice]):
+        """
+        Get element by index or slice.
+        Supports negative indexing.
+        """
+        return self.elements[index]
+
+    def __reversed__(self):
+        """Iterate over elements in reverse order"""
+        return reversed(self.elements)
+
+    def __add__(self, other):
+        """
+        Concatenate two alignments (not fully implemented).
+        This would require complex geometry validation.
+        """
+        raise NotImplementedError(
+            "Alignment concatenation not yet implemented. "
+            "Use extend() method to manually add elements."
+        )
+
+    def __iadd__(self, other):
+        """In-place addition (not implemented)"""
+        raise NotImplementedError("In-place alignment addition not supported")
+
+    def __format__(self, format_spec: str) -> str:
+        """
+        Custom formatting support.
+        
+        Format specs:
+            'short' or 's' - Brief summary
+            'long' or 'l' - Detailed information
+            'csv' or 'c' - CSV-friendly format
+        """
+        if format_spec in ('short', 's', ''):
+            return f"{self.name}: {self.length:.2f}m, {len(self.elements)} elements"
+        elif format_spec in ('long', 'l'):
+            return (
+                f"Alignment: {self.name}\n"
+                f"  Description: {self.description or 'N/A'}\n"
+                f"  Length: {self.length:.2f}m\n"
+                f"  Station: {self.sta_start:.2f} to {self.get_sta_end():.2f}\n"
+                f"  Elements: {len(self.elements)}\n"
+                f"  PIs: {len(self.align_pis)}\n"
+                f"  Equations: {len(self.station_equations)}"
+            )
+        elif format_spec in ('csv', 'c'):
+            return (
+                f"{self.name},{self.length:.2f},{self.sta_start:.2f},"
+                f"{self.get_sta_end():.2f},{len(self.elements)}"
+            )
+        else:
+            raise ValueError(f"Unknown format specifier: {format_spec}")
+
+    def __getstate__(self):
+        """Return state for JSON serialization"""
+        return self.to_dict()
+    
+    def __setstate__(self, state):
+        """Restore state from JSON deserialization"""
+        self.__init__(state)

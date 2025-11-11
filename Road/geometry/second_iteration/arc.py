@@ -9,8 +9,8 @@ import numpy
 
 from FreeCAD import Console
 
-from ... import support
-from ....utils.tuple_math import TupleMath
+from ...functions import support
+from ...utils.tuple_math import TupleMath
 
 C = support.Constants
 

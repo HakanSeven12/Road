@@ -9,11 +9,11 @@ import Part
 
 import math
 
-from .. import support
-from .geometry import arc, line, spiral
-from .geometry.line_new import Line
-from .geometry.curve_new import Curve
-from .geometry.spiral_new import Spiral
+from ...functions import support
+from . import arc, line, spiral
+from ..line import Line
+from ..curve import Curve
+from ..spiral import Spiral
 
 from ...utils.tuple_math import TupleMath
 

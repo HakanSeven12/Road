@@ -5,7 +5,7 @@
 import FreeCAD
 from pivy import coin
 import math
-from ..geoutils.alignment_old import transformation
+from ..geometry.first_iteration.alignment_old import transformation
 from .view_geo_object import ViewProviderGeoObject
 
 

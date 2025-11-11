@@ -2,14 +2,14 @@
 
 """Provides the object code for Alignment objects."""
 
-import FreeCAD
-import Part
+import FreeCAD, Part
 
-import copy
-
-from.geo_object import GeoObject
-from ..functions.alignment.alignment_model import AlignmentModel
-from ..functions.offset import offsetWire
+from .geo_object import GeoObject
+from ..geometry.alignment import Alignment as AlignmentModel
+from ..geometry.line import Line
+from ..geometry.curve import Curve
+from ..geometry.spiral import Spiral
+from ..utils.support import  zero_referance
 
 
 class Alignment(GeoObject):
@@ -35,7 +35,7 @@ class Alignment(GeoObject):
 
         obj.addProperty(
             "App::PropertyLength", "EndStation", "Station",
-            "Starting station of the alignment").EndStation = 0.0
+            "Ending station of the alignment").EndStation = 0.0
 
         obj.addProperty(
             "App::PropertyLength", "Length", "Station",
@@ -61,64 +61,266 @@ class Alignment(GeoObject):
 
     def execute(self, obj):
         """Update Object when doing a recomputation."""
-        if not obj.Model: return
-        obj.Shape = obj.Model.get_shape()
-        pis = obj.Model.get_pi_coords()
-        obj.PIs = [FreeCAD.Vector(pi) for pi in pis if pi]
+        if not obj.Model:
+            return
+        
+        # Generate shape from alignment model
+        obj.Shape = self._generate_shape_from_model(obj.Model)
+        
+        # Extract PI points from alignment
+        obj.PIs = self._get_pi_points(obj.Model)
 
-        start = obj.Model.meta.get('Start')
+        # Update geolocation based on alignment start point
+        start = obj.Model.get_start_point()
         if start:
-            vec = FreeCAD.Vector(start)
-            if obj.Geolocation.Base == vec: return
-            obj.Geolocation.Base = vec
+            vec = FreeCAD.Vector(start[0] * 1000, start[1] * 1000, 0)
+            if obj.Geolocation.Base != vec:
+                obj.Geolocation.Base = vec
 
     def onChanged(self, obj, prop):
         """Update Object when a property changed."""
         super().onChanged(obj, prop)
 
         if prop == "Model":
-            if obj.Model.errors:
-                for _err in obj.Model.errors:
-                    print('Error in alignment {0}: {1}'.format(obj.Label, _err))
-                obj.Model.errors.clear()
-
-            meta = obj.Model.meta
-            obj.Length = meta.get("Length", 0)
-            obj.StartStation = meta.get("StartStation", 0) * 1000
-            obj.EndStation = meta.get("EndStation", 0) * 1000
-            obj.Status = meta.get("Status") if meta.get("Status") else "existing"
-            obj.Description = meta.get("Description") if meta.get("Description") else ""
-
+            if not obj.Model:
+                return
+            
+            # Update properties from model
+            obj.Length = obj.Model.get_length() * 1000  # Convert m to mm
+            obj.StartStation = obj.Model.get_sta_start() * 1000  # Convert m to mm
+            obj.EndStation = obj.Model.get_sta_end() * 1000  # Convert m to mm
+            
+            # Update description if available
+            if obj.Model.description:
+                obj.Description = obj.Model.description
+            
+            # Status is not stored in new alignment model, keep existing or default
+            if not obj.Status:
+                obj.Status = "existing"
 
         elif prop == "OffsetLength":
-            if obj.getPropertyByName(prop): self.onChanged(obj, "OffsetAlignment")
+            if obj.getPropertyByName(prop):
+                self.onChanged(obj, "OffsetAlignment")
 
         elif prop == "OffsetAlignment":
             parent = obj.getPropertyByName(prop)
-            if parent:
-                wire = Part.makePolygon(parent.PIs)
-                offset = obj.OffsetLength
-                line = parent.PIs[0].sub(parent.PIs[1])
-                normal = FreeCAD.Vector(-line.y, line.x, line.z)
-                pi_offset = offsetWire(wire, normal.normalize().multiply(offset))
-                points = [vertex.Point for vertex in pi_offset.Vertexes]
+            if parent and parent.Model:
+                self.generate_offset_alignment(obj, parent)
 
-                model = copy.deepcopy(parent.Model)
-                for i, (pi, values) in enumerate(model.items()):
-                    values['X'] = points[i].x/1000
-                    values['Y'] = points[i].y/1000
-                    if 0 < i < len(points)-1:
-                        v1 = points[i].sub(points[i-1])
-                        v2 = points[i+1].sub(points[i])
-                        crossz = v1.cross(v2).z
+    def _generate_shape_from_model(self, model: AlignmentModel) -> Part.Shape:
+        """
+        Generate FreeCAD shape from alignment model.
+        
+        Args:
+            model: AlignmentModel instance
+            
+        Returns:
+            Part.Shape representing the alignment
+        """
+        elements = model.get_elements()
+        
+        # Create wire from points
+        if not elements:
+            return Part.Shape()
+        
+        edges = []
+        for el in elements:
+            if isinstance(el, Line):
+                _pts = el.get_key_points()
+                points = zero_referance(model.start_point, _pts)
+                edges.append(Part.LineSegment(*points).toShape())
 
-                        if 'Radius' in values: 
-                            R=float(values['Radius'])
-                            factor = 1 
-                            if (crossz > 0 and offset < 0) or (crossz < 0 and offset > 0):
-                                factor = -1
-                            values['Radius'] = float(values['Radius']) + factor * abs(offset) / 1000
-                            if 'Spiral Length In' in values: values['Spiral Length In'] = float(values['Spiral Length In']) * ( 1 + factor * ((abs(offset) / 1000) / (2 * R)))
-                            if 'Spiral Length Out' in values: values['Spiral Length Out'] = float(values['Spiral Length Out']) * ( 1 + factor * ((abs(offset) / 1000) / (2 * R)))
+            elif isinstance(el, Curve):
+                _pts = el.get_key_points()
+                points = zero_referance(model.start_point, _pts)
+                edges.append(Part.Arc(*points).toShape())
 
-                obj.Model = model
+            elif isinstance(el, Spiral):
+                _pts = el.generate_points(1000)
+                points = zero_referance(model.start_point, _pts)
+                bspline = Part.BSplineCurve()
+                bspline.interpolate(points)
+                edges.append(bspline.toShape())
+
+        if edges:
+            try:
+                return Part.Wire(edges)
+            except:
+                return Part.Compound(edges)
+        else:
+            return Part.Shape()
+
+    def _get_pi_points(self, model: AlignmentModel) -> list:
+        """
+        Extract PI points from alignment model.
+        
+        Args:
+            model: AlignmentModel instance
+            
+        Returns:
+            List of (x, y) tuples representing PI points
+        """
+        pi_points = []
+        
+        # Get alignment PI points
+        align_pis = model.get_align_pis()
+        for pi in align_pis:
+            if pi['point']:
+                # Convert from meters to mm for FreeCAD
+                pi_points.append(pi)
+        
+        # Also collect PI points from curve and spiral elements
+        for element in model.get_elements():
+            element_dict = element.to_dict()
+            
+            # Get PI point from curves and spirals
+            if 'PI' in element_dict and element_dict['PI']:
+                pi = element_dict['PI']
+                # Convert from meters to mm
+                pi_points.append(pi)
+            
+            # For curves with multiple PI points (large arcs)
+            if 'pi_points' in element_dict and element_dict['pi_points']:
+                for pi in element_dict['pi_points']:
+                    # Convert from meters to mm
+                    pi_points.append(pi)
+        
+        return zero_referance(model.start_point, pi_points)
+
+    def generate_offset_alignment(self, obj, parent, offset):
+        """
+        Advanced method to create offset alignment preserving geometry types.
+        This method attempts to offset curves and spirals properly.
+        
+        Args:
+            obj: Current alignment object
+            parent: Parent alignment object
+            offset: Offset distance in meters
+        """
+        elements = []
+        parent_elements = parent.Model.get_elements()
+        
+        for element in parent_elements:
+            element_dict = element.to_dict()
+            element_type = element_dict['Type']
+            
+            if element_type == 'Line':
+                # Offset line by moving parallel
+                start = element.get_start_point()
+                end = element.get_end_point()
+                
+                # Get orthogonal vector at start
+                _, ortho = element.get_orthogonal(0, 'left' if offset > 0 else 'right')
+                
+                # Offset start and end points
+                offset_start = (
+                    start[0] + abs(offset) * ortho[0],
+                    start[1] + abs(offset) * ortho[1]
+                )
+                offset_end = (
+                    end[0] + abs(offset) * ortho[0],
+                    end[1] + abs(offset) * ortho[1]
+                )
+                
+                new_element = {
+                    'Type': 'Line',
+                    'Start': offset_start,
+                    'End': offset_end,
+                    'staStart': element_dict['staStart']
+                }
+                elements.append(new_element)
+                
+            elif element_type == 'Curve':
+                # Offset curve by adjusting radius
+                radius = element_dict['radius']
+                center = element_dict['center']
+                
+                # Determine if we're offsetting inward or outward
+                # This depends on curve rotation and offset direction
+                rotation = element_dict['rot']
+                
+                if (rotation == 'ccw' and offset > 0) or (rotation == 'cw' and offset < 0):
+                    # Offset increases radius (away from center)
+                    new_radius = radius + abs(offset)
+                else:
+                    # Offset decreases radius (toward center)
+                    new_radius = radius - abs(offset)
+                
+                if new_radius <= 0:
+                    print(f"Warning: Offset curve radius becomes negative, skipping element")
+                    continue
+                
+                # Calculate new start and end points
+                # The center remains the same, but points move along radial directions
+                start = element.get_start_point()
+                end = element.get_end_point()
+                
+                # Calculate new start point
+                start_angle = element_dict['dirStart']
+                if (rotation == 'ccw' and offset > 0) or (rotation == 'cw' and offset < 0):
+                    start_offset = abs(offset)
+                else:
+                    start_offset = -abs(offset)
+                
+                new_start = (
+                    center[0] + new_radius * (start[0] - center[0]) / radius,
+                    center[1] + new_radius * (start[1] - center[1]) / radius
+                )
+                
+                new_end = (
+                    center[0] + new_radius * (end[0] - center[0]) / radius,
+                    center[1] + new_radius * (end[1] - center[1]) / radius
+                )
+                
+                new_element = {
+                    'Type': 'Curve',
+                    'Start': new_start,
+                    'End': new_end,
+                    'Center': center,
+                    'Direction': element_dict.get('Direction', 1),
+                    'staStart': element_dict['staStart']
+                }
+                elements.append(new_element)
+                
+            elif element_type == 'Spiral':
+                # Spirals are more complex to offset
+                # Simplified approach: generate offset points and create line segments
+                spiral_length = element_dict['length']
+                step = 1.0  # 1 meter
+                
+                for dist in range(0, int(spiral_length), int(step)):
+                    point, ortho = element.get_orthogonal(
+                        dist, 
+                        'left' if offset > 0 else 'right'
+                    )
+                    
+                    offset_point = (
+                        point[0] + abs(offset) * ortho[0],
+                        point[1] + abs(offset) * ortho[1]
+                    )
+                    
+                    # Store offset point for line segment creation
+                    if dist == 0:
+                        prev_point = offset_point
+                    else:
+                        new_element = {
+                            'Type': 'Line',
+                            'Start': prev_point,
+                            'End': offset_point,
+                            'staStart': element_dict['staStart'] + dist - step
+                        }
+                        elements.append(new_element)
+                        prev_point = offset_point
+        
+        # Create new alignment
+        alignment_data = {
+            'name': f"{parent.Model.name}_offset_{offset}",
+            'desc': f"Advanced offset alignment from {parent.Model.name}",
+            'staStart': parent.Model.get_sta_start(),
+            'CoordGeom': elements
+        }
+        
+        try:
+            obj.Model = AlignmentModel(alignment_data)
+        except Exception as e:
+            print(f"Error creating advanced offset alignment: {str(e)}")

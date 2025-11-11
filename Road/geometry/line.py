@@ -146,6 +146,43 @@ class Line(Geometry):
             'staStart': self.sta_start,
             'length': self.length,
             'dir': self.direction,
-            'start': self.start_point,
-            'end': self.end_point
+            'Start': self.start_point,
+            'End': self.end_point
         }
+
+    def __repr__(self) -> str:
+        """String representation of line"""
+        return (
+            f"Line(start={self.start_point}, end={self.end_point}, "
+            f"length={self.length:.2f}, direction={math.degrees(self.direction):.2f}°)"
+        )
+
+    def __str__(self) -> str:
+        """Human-readable string representation"""
+        return (
+            f"Line: {self.length:.2f}m from "
+            f"({self.start_point[0]:.2f}, {self.start_point[1]:.2f}) to "
+            f"({self.end_point[0]:.2f}, {self.end_point[1]:.2f})"
+        )
+
+    def __eq__(self, other) -> bool:
+        """Check equality between two lines"""
+        if not isinstance(other, Line):
+            return False
+        
+        return (
+            self.start_point == other.start_point and
+            self.end_point == other.end_point and
+            abs(self.length - other.length) < 1e-6 and
+            abs(self.direction - other.direction) < 1e-6
+        )
+
+    def __hash__(self) -> int:
+        """Make line objects hashable"""
+        return hash((
+            'Line',
+            self.start_point,
+            self.end_point,
+            round(self.length, 6),
+            round(self.direction, 6)
+        ))

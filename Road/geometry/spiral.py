@@ -2,7 +2,7 @@
 
 import math
 from scipy.special import fresnel
-from typing import Dict, Tuple, Optional
+from typing import Dict, Tuple
 from .geometry import Geometry
 
 
@@ -15,14 +15,14 @@ class Spiral(Geometry):
     VALID_TYPES = ['clothoid', 'bloss', 'cosine', 'sine', 'biquadratic']
 
     def __init__(self, data: Dict):
-        #self._validate_data(data)
+        self._validate_data(data)
         super().__init__(data)
 
         # Required attributes
-        self.length = float(data['Length'])
-        self.radius_end = float(data['EndRadius'])
-        self.radius_start = float(data['StartRadius'])
-        self.rotation = 'ccw' if data['Direction'] == -1 else 'cw'
+        self.length = float(data['length'])
+        self.radius_end = float(data['radiusEnd'])
+        self.radius_start = float(data['radiusStart'])
+        self.rotation = data['rot']
 
         # Geometry control points
         self.pi_point = data.get('PI', None)
@@ -71,9 +71,9 @@ class Spiral(Geometry):
 
         if self.theta is None:
             R = self.radius_end if self.radius_start == float('inf') else self.radius_start
-            self.theta = self.length / (2 * abs(R))
+            self.theta = self.length / (2 * R)
 
-        if self.dir_start is None:
+        if True: #self.dir_start is None:
             dx = self.pi_point[0] - self.start_point[0]
             dy = self.pi_point[1] - self.start_point[1]
             if dx == 0 and dy == 0:
@@ -338,9 +338,9 @@ class Spiral(Geometry):
             'description': self.description,
             'spiType': self.spiral_type,
             'staStart': self.sta_start,
-            'start': self.start_point,
-            'end': self.end_point,
-            'pi': self.pi_point,
+            'Start': self.start_point,
+            'End': self.end_point,
+            'PI': self.pi_point,
             'length': self.length,
             'radiusStart': self.radius_start,
             'radiusEnd': self.radius_end,
@@ -355,3 +355,68 @@ class Spiral(Geometry):
             'constant': self.constant,
             'chord': self.chord,
         }
+
+    def __repr__(self) -> str:
+        """String representation of spiral"""
+        r_start = f"{self.radius_start:.2f}" if self.radius_start != float('inf') else "∞"
+        r_end = f"{self.radius_end:.2f}" if self.radius_end != float('inf') else "∞"
+        
+        return (
+            f"Spiral(type='{self.spiral_type}', length={self.length:.2f}, "
+            f"R_start={r_start}, R_end={r_end}, rot='{self.rotation}')"
+        )
+
+
+    def __str__(self) -> str:
+        """Human-readable string representation"""
+        r_start = f"{self.radius_start:.2f}m" if self.radius_start != float('inf') else "∞"
+        r_end = f"{self.radius_end:.2f}m" if self.radius_end != float('inf') else "∞"
+        
+        return (
+            f"Spiral: L={self.length:.2f}m, A={self.constant:.2f}, "
+            f"R: {r_start} → {r_end}, {self.rotation.upper()}"
+        )
+
+
+    def __eq__(self, other) -> bool:
+        """Check equality between two spirals"""
+        if not isinstance(other, Spiral):
+            return False
+        
+        return (
+            self.start_point == other.start_point and
+            self.end_point == other.end_point and
+            self.pi_point == other.pi_point and
+            abs(self.length - other.length) < 1e-6 and
+            abs(self.radius_start - other.radius_start) < 1e-6 and
+            abs(self.radius_end - other.radius_end) < 1e-6 and
+            abs(self.constant - other.constant) < 1e-6 and
+            self.rotation == other.rotation and
+            self.spiral_type == other.spiral_type
+        )
+
+
+    def __hash__(self) -> int:
+        """Make spiral objects hashable"""
+        return hash((
+            'Spiral',
+            self.start_point,
+            self.end_point,
+            self.pi_point,
+            round(self.length, 6),
+            round(self.radius_start, 6),
+            round(self.radius_end, 6),
+            round(self.constant, 6),
+            self.rotation,
+            self.spiral_type
+        ))
+
+
+    def __len__(self) -> int:
+        """Return length as integer (for compatibility)"""
+        return int(self.length)
+
+
+    def __bool__(self) -> bool:
+        """Spiral is True if it has positive length"""
+        return self.length > 0

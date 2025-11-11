@@ -16,7 +16,7 @@ class Curve(Geometry):
     def __init__(self, data: Dict):
         # Required attributes
         super().__init__(data)
-        self.rotation = 'ccw' if data['Direction'] == -1 else 'cw'
+        self.rotation = data['rot']
         
         # Geometry control points
         self.center_point = data.get('Center', None)
@@ -365,9 +365,50 @@ class Curve(Geometry):
             'external': self.external,
             'dirStart': self.dir_start,
             'dirEnd': self.dir_end,
-            'start': self.start_point,
-            'center': self.center_point,
-            'end': self.end_point,
-            'pi': self.pi_point,
+            'Start': self.start_point,
+            'Center': self.center_point,
+            'End': self.end_point,
+            'PI': self.pi_point,
             'pi_points': self.pi_points  # All PI points for large arcs
         }
+
+    def __repr__(self) -> str:
+        """String representation of curve"""
+        return (
+            f"Curve(radius={self.radius:.2f}, length={self.length:.2f}, "
+            f"delta={math.degrees(self.delta):.2f}°, rot='{self.rotation}')"
+        )
+
+    def __str__(self) -> str:
+        """Human-readable string representation"""
+        return (
+            f"Curve: R={self.radius:.2f}m, L={self.length:.2f}m, "
+            f"Δ={math.degrees(self.delta):.2f}°, {self.rotation.upper()}"
+        )
+
+    def __eq__(self, other) -> bool:
+        """Check equality between two curves"""
+        if not isinstance(other, Curve):
+            return False
+        
+        return (
+            self.start_point == other.start_point and
+            self.end_point == other.end_point and
+            self.center_point == other.center_point and
+            abs(self.radius - other.radius) < 1e-6 and
+            abs(self.length - other.length) < 1e-6 and
+            abs(self.delta - other.delta) < 1e-6 and
+            self.rotation == other.rotation
+        )
+
+    def __hash__(self) -> int:
+        """Make curve objects hashable"""
+        return hash((
+            'Curve',
+            self.start_point,
+            self.end_point,
+            self.center_point,
+            round(self.radius, 6),
+            round(self.delta, 6),
+            self.rotation
+        ))

@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
 
 from abc import ABC, abstractmethod
-from typing import Dict, Tuple, List
+from typing import Dict, Tuple, List, Optional
 
 
 class Geometry(ABC):
@@ -12,9 +12,12 @@ class Geometry(ABC):
 
     def __init__(self, data: Dict):
         # Common attributes for all geometry types
+        # Required attributes
         self.name = data.get('name', None)
         self.description = data.get('desc', None)
         self.sta_start = float(data['staStart']) if 'staStart' in data else None
+        
+        # Geometry control points
         self.start_point = data.get('Start', None)
         self.end_point = data.get('End', None)
         
@@ -38,9 +41,14 @@ class Geometry(ABC):
     
     @abstractmethod
     def get_orthogonal(self, s: float, side: str = 'left') -> Tuple[Tuple[float, float], Tuple[float, float]]:
-        """Get both the point and orthogonal vector at distance s along the line."""
+        """Get both the point and orthogonal vector at distance s along the geometry."""
         pass
 
+    @abstractmethod
+    def project_point(self, point: Tuple[float, float]) -> Optional[float]:
+        """Project point onto line and return distance along geometry from start."""
+        pass
+    
     @abstractmethod
     def to_dict(self) -> Dict:
         """Export element properties as dictionary"""
@@ -71,3 +79,47 @@ class Geometry(ABC):
         if self.sta_start is not None and self.length is not None:
             return self.sta_start + self.length
         return None
+
+    def __str__(self) -> str:
+        """Human-readable string representation"""
+        return self.__repr__()
+
+    def __eq__(self, other) -> bool:
+        """Check equality between two geometry objects"""
+        if not isinstance(other, self.__class__):
+            return False
+        
+        return (
+            self.start_point == other.start_point and
+            self.end_point == other.end_point and
+            abs(self.length - other.length) < 1e-6
+        )
+
+    def __ne__(self, other) -> bool:
+        """Check inequality between two geometry objects"""
+        return not self.__eq__(other)
+
+    def __hash__(self) -> int:
+        """Make geometry objects hashable"""
+        return hash((
+            self.__class__.__name__,
+            self.start_point,
+            self.end_point,
+            round(self.length, 6)
+        ))
+
+    def __len__(self) -> int:
+        """Return length as integer (for compatibility)"""
+        return int(self.length)
+
+    def __bool__(self) -> bool:
+        """Line is True if it has positive length"""
+        return self.length > 0
+    
+    def __getstate__(self) -> Dict:
+        """Return state for pickling/JSON serialization"""
+        return self.to_dict()
+
+    def __setstate__(self, state: Dict):
+        """Restore state from unpickling/JSON deserialization"""
+        self.__init__(state)
