@@ -48,7 +48,16 @@ class Geometry(ABC):
     def project_point(self, point: Tuple[float, float]) -> Optional[float]:
         """Project point onto line and return distance along geometry from start."""
         pass
-    
+
+    def get_type(self) -> str:
+        """
+        Get geometry element type.
+        
+        Returns:
+            Class Name string identifier
+        """
+        return __class__.__name__
+
     @abstractmethod
     def to_dict(self) -> Dict:
         """Export element properties as dictionary"""

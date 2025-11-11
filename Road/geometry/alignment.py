@@ -551,7 +551,155 @@ class Alignment:
                 pass
         
         return offset_points
-    
+
+    def generate_stations(
+        self,
+        start_station: Optional[float] = None,
+        end_station: Optional[float] = None,
+        increments: Optional[Union[float, Dict[str, float]]] = None,
+        at_geometry_points: bool = True
+    ) -> List[float]:
+        """
+        Generate station list along alignment based on element types and increments.
+        
+        Args:
+            start_station: Start station (displayed). If None, uses alignment start
+            end_station: End station (displayed). If None, uses alignment end
+            increments: Station increment(s). Can be:
+                - Single float: Same increment for all elements
+                - Dict with keys 'Line', 'Curve', 'Spiral': Different increments per type
+                If None, uses default of 10.0 for all types
+            at_geometry_points: If True, add stations at geometry transition points
+            
+        Returns:
+            List of station values (displayed, sorted, unique)
+            
+        Example:
+            # Single increment for all
+            stations = alignment.generate_stations(increments=5.0)
+            
+            # Different increments per element type
+            stations = alignment.generate_stations(
+                increments={'Line': 20.0, 'Curve': 5.0, 'Spiral': 2.0}
+            )
+        """
+        # Set default start/end stations
+        if start_station is None:
+            start_station = self.sta_start
+        if end_station is None:
+            end_station = self.get_sta_end()
+        
+        # Validate station range
+        if start_station > end_station:
+            raise ValueError(
+                f"start_station ({start_station}) must be <= end_station ({end_station})"
+            )
+        
+        # Validate stations are within alignment
+        align_start = self.sta_start
+        align_end = self.get_sta_end()
+        
+        if start_station < align_start or end_station > align_end:
+            raise ValueError(
+                f"Station range ({start_station} to {end_station}) "
+                f"outside alignment range ({align_start} to {align_end})"
+            )
+        
+        # Process increments parameter
+        if increments is None:
+            # Default increment
+            increment_dict = {'Line': 10.0, 'Curve': 10.0, 'Spiral': 10.0}
+        elif isinstance(increments, (int, float)):
+            # Single increment for all types
+            increment_dict = {
+                'Line': float(increments),
+                'Curve': float(increments),
+                'Spiral': float(increments)
+            }
+        elif isinstance(increments, dict):
+            # Use provided dictionary, fill missing with default
+            increment_dict = {
+                'Line': float(increments.get('Line', 10.0)),
+                'Curve': float(increments.get('Curve', 10.0)),
+                'Spiral': float(increments.get('Spiral', 10.0))
+            }
+        else:
+            raise ValueError(
+                "increments must be None, a number, or a dict with 'Line', 'Curve', 'Spiral' keys"
+            )
+        
+        # Validate increments are positive
+        for elem_type, inc in increment_dict.items():
+            if inc <= 0:
+                raise ValueError(f"Increment for {elem_type} must be positive, got {inc}")
+        
+        stations = []
+        
+        # Always add start station
+        stations.append(start_station)
+        
+        # Iterate through alignment elements
+        for element in self.elements:
+            elem_type = element.get_type()
+            elem_start = element.sta_start
+            elem_length = element.get_length()
+            
+            # Calculate element end station
+            elem_start_internal = self.station_to_internal(elem_start)
+            elem_end_internal = elem_start_internal + elem_length
+            elem_end = self.internal_to_station(elem_end_internal)
+            
+            # Skip if element is completely outside requested range
+            if elem_end < start_station or elem_start > end_station:
+                continue
+            
+            # Get increment for this element type
+            increment = increment_dict.get(elem_type, 10.0)
+            
+            # Add geometry point at element start if requested
+            if at_geometry_points:
+                if start_station <= elem_start <= end_station:
+                    stations.append(elem_start)
+            
+            # Generate intermediate stations along element
+            # Start from first station after element start
+            current_internal = elem_start_internal
+            
+            while True:
+                current_internal += increment
+                
+                # Check if we've reached element end
+                if current_internal >= elem_end_internal:
+                    break
+                
+                # Convert to displayed station
+                current_sta = self.internal_to_station(current_internal)
+                
+                # Check if within requested range
+                if start_station <= current_sta <= end_station:
+                    stations.append(current_sta)
+            
+            # Add geometry point at element end if requested
+            if at_geometry_points:
+                if start_station <= elem_end <= end_station:
+                    stations.append(elem_end)
+        
+        # Always add end station
+        stations.append(end_station)
+        
+        # Remove duplicates and sort
+        stations = sorted(list(set(stations)))
+        
+        # Final filter to ensure all stations are within range
+        # (with small tolerance for floating point errors)
+        tolerance = 1e-9
+        stations = [
+            sta for sta in stations 
+            if start_station - tolerance <= sta <= end_station + tolerance
+        ]
+        
+        return stations
+
     def get_align_pis(self) -> List[Dict]:
         """Return list of all alignment PI points"""
         return self.align_pis.copy()
