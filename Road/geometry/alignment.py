@@ -286,7 +286,7 @@ class Alignment:
                 continue
         
         return closest_station
-    
+
     def station_to_internal(self, station: float) -> float:
         """
         Convert displayed station to internal station (for geometry calculations).
@@ -301,19 +301,28 @@ class Alignment:
         if not self.station_equations:
             return station
         
-        # Find applicable station equations
-        cumulative_adjustment = 0.0
+        # Start with the input station
+        internal = station
         
+        # Apply each station equation that affects this station
         for eq in self.station_equations:
-            if station >= eq['staAhead']:
-                # This equation affects our station
-                cumulative_adjustment += eq['adjustment']
+            if station < eq['staBack']:
+                # Station is before this equation, no adjustment needed
+                break
+            elif station >= eq['staAhead']:
+                # Station is after this equation
+                # Convert to internal by removing the adjustment
+                # internal = staInternal + (station - staAhead)
+                internal = eq['staInternal'] + (station - eq['staAhead'])
             else:
-                # Haven't reached this equation yet
+                # Station is in the gap between staBack and staAhead
+                # This shouldn't happen in valid data, but handle it
+                # Assume the station maps to staInternal
+                internal = eq['staInternal']
                 break
         
-        return station - cumulative_adjustment
-    
+        return internal
+
     def internal_to_station(self, internal_station: float) -> float:
         """
         Convert internal station to displayed station.
@@ -328,19 +337,22 @@ class Alignment:
         if not self.station_equations:
             return internal_station
         
-        # Find applicable station equations
-        cumulative_adjustment = 0.0
+        # Start with the input internal station
+        station = internal_station
         
+        # Find the last equation that affects this internal station
         for eq in self.station_equations:
-            if internal_station >= eq['staInternal']:
-                # This equation affects our station
-                cumulative_adjustment += eq['adjustment']
-            else:
-                # Haven't reached this equation yet
+            if internal_station < eq['staInternal']:
+                # Internal station is before this equation, no adjustment needed
                 break
+            else:
+                # Internal station is at or after this equation
+                # Convert to displayed by applying the adjustment
+                # station = staAhead + (internal - staInternal)
+                station = eq['staAhead'] + (internal_station - eq['staInternal'])
         
-        return internal_station + cumulative_adjustment
-    
+        return station
+
     def get_element_at_station(self, station: float) -> Optional[Union[Line, Curve, Spiral]]:
         """
         Find geometry element at given displayed station.
@@ -638,13 +650,20 @@ class Alignment:
         # Always add start station
         stations.append(start_station)
         
+        # Track the carry-over distance from previous element's last INCREMENT station
+        carry_over = 0.0
+        
+        # Track last generated INCREMENT station (internal coordinates)
+        # This does NOT include geometry points or start/end
+        last_increment_internal = None
+        
         # Iterate through alignment elements
         for element in self.elements:
             elem_type = element.get_type()
             elem_start = element.sta_start
             elem_length = element.get_length()
             
-            # Calculate element end station
+            # Calculate element start/end in internal coordinates
             elem_start_internal = self.station_to_internal(elem_start)
             elem_end_internal = elem_start_internal + elem_length
             elem_end = self.internal_to_station(elem_end_internal)
@@ -657,19 +676,39 @@ class Alignment:
             increment = increment_dict.get(elem_type, 10.0)
             
             # Add geometry point at element start if requested
+            # This does NOT affect carry-over or last_increment_internal
             if at_geometry_points:
                 if start_station <= elem_start <= end_station:
                     stations.append(elem_start)
             
-            # Generate intermediate stations along element
-            # Start from first station after element start
-            current_internal = elem_start_internal
-            
-            while True:
-                current_internal += increment
+            # Calculate where to start generating INCREMENT stations in this element
+            if last_increment_internal is None or last_increment_internal < elem_start_internal:
+                # No previous increment station, or it was before this element
+                # Start from element beginning with carry-over
+                current_internal = elem_start_internal + carry_over
+            else:
+                # Last increment station was in this element or at its start
+                # Calculate remaining distance to next increment
+                remaining_to_increment = increment - carry_over
                 
-                # Check if we've reached element end
+                if remaining_to_increment <= 0:
+                    # Carry-over is larger than increment
+                    carry_over = carry_over - increment
+                    current_internal = last_increment_internal
+                else:
+                    # Normal case: add remaining distance
+                    current_internal = last_increment_internal + remaining_to_increment
+            
+            # Generate intermediate INCREMENT stations along element
+            while True:
+                # Check if we've reached or passed element end
                 if current_internal >= elem_end_internal:
+                    # Calculate carry-over for next element
+                    if last_increment_internal is not None:
+                        carry_over = elem_end_internal - last_increment_internal
+                        # Ensure carry-over doesn't exceed increment
+                        while carry_over >= increment:
+                            carry_over -= increment
                     break
                 
                 # Convert to displayed station
@@ -678,8 +717,16 @@ class Alignment:
                 # Check if within requested range
                 if start_station <= current_sta <= end_station:
                     stations.append(current_sta)
+                    last_increment_internal = current_internal
+                
+                # Reset carry-over since we generated a station
+                carry_over = 0.0
+                
+                # Move to next station
+                current_internal += increment
             
             # Add geometry point at element end if requested
+            # This does NOT affect carry-over or last_increment_internal
             if at_geometry_points:
                 if start_station <= elem_end <= end_station:
                     stations.append(elem_end)
