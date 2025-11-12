@@ -227,7 +227,7 @@ class Parser:
         for p in all_points:
             if p.text:
                 pt = p.text.strip().split(' ')
-                northing, easting, elevation = [float(v)*1000 for v in pt]
+                northing, easting, elevation = [float(v) for v in pt]
                 description = p.get("code") if p.get("code") else ""
 
                 points[p.get("name")] = {"Northing": northing, "Easting": easting,

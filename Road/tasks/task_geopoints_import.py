@@ -117,14 +117,20 @@ class TaskGeoPointsImport(TaskPanel):
             
         cluster.Model = model
 
-    def get_key(model):
+    def get_key(self, model):
+        """Get the next available key for the model."""
+        if not model:
+            return 1
         used = set(model.keys())
-        all_numbers = set(range(1, max(used) + 1))
+        if not used:
+            return 1
+        max_key = max(used)
+        all_numbers = set(range(1, max_key + 1))
         missing = sorted(all_numbers - used)
         if missing:
             return missing[0]
         else:
-            return max(used) + 1
+            return max_key + 1
 
     def preview(self):
         """Preview the selected file."""
