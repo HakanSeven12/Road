@@ -3,7 +3,7 @@
 """Provides the object code for Region objects."""
 import FreeCAD, Part
 from .geo_object import GeoObject
-import copy
+from ..utils.support import  zero_referance
 
 
 class Region(GeoObject):
@@ -131,16 +131,13 @@ class Region(GeoObject):
                     clamped_sta, "left"
                 )
                 
-                coord = FreeCAD.Vector(tuple_coord[0] * 1000, tuple_coord[1] * 1000, 0)
-                vec = FreeCAD.Vector(tuple_vec[0], tuple_vec[1], 0)
-                
-                # Create left and right vectors
-                left_vec = copy.deepcopy(vec)
-                right_vec = copy.deepcopy(vec)
+                coord = zero_referance(alignment_model.get_start_point(), [tuple_coord])
+                left_vec = FreeCAD.Vector(*tuple_vec)
+                right_vec = FreeCAD.Vector(*tuple_vec).negative()
                 
                 # Calculate offset points
-                left_side = coord.add(left_vec.multiply(obj.LeftOffset * 1000))
-                right_side = coord.add(right_vec.negative().multiply(obj.RightOffset * 1000))
+                left_side = coord[0].add(left_vec.multiply(obj.LeftOffset * 1000))
+                right_side = coord[0].add(right_vec.multiply(obj.RightOffset * 1000))
                 
                 lines.append(Part.makePolygon([left_side, coord, right_side]))
                 

@@ -29,7 +29,7 @@ class Line(Geometry):
         """Calculate all missing optional attributes from geometry"""
         
         # Calculate direction if not provided
-        if self.direction is None:
+        if True: #self.direction is None:
             dx = self.end_point[0] - self.start_point[0]
             dy = self.end_point[1] - self.start_point[1]
             self.direction = math.atan2(dy, dx)
