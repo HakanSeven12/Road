@@ -252,6 +252,10 @@ class TaskLandXMLImport(TaskPanel):
             QMessageBox.warning(self.form, 'Warning', 'Please check at least one item!')
             return
             
+        if not self.xml['CgPoints'].get("Groups"):
+            geopoints = make_geopoints.create()
+            geopoints.Model = self.xml['CgPoints']['All_Points']
+        
         for name, ref in self.xml['CgPoints'].get("Groups").items():
             if name not in selected_items: continue
             geopoints = make_geopoints.create(name)
