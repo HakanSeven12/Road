@@ -51,17 +51,50 @@ class GeoPointsAdd:
         event = callback.getEvent()
         position = event.getPosition() #Window position
         view = FreeCADGui.ActiveDocument.ActiveView
-        coordinate = view.getPoint(tuple(position.getValue()))
-        coordinate.z = 0
-
+        coord = view.getPoint(tuple(position.getValue()))
         origin = FreeCAD.ActiveDocument.getObject("GeoOrigin")
-        if origin:
-            coordinate = coordinate.add(origin.Base)
+        coordinate = coord.add(origin.Base)
 
-        geopoint = make_geopoints.create()
-        geopoint.Placement.move(coordinate)
-        self.cluster.addObject(geopoint)
-        FreeCAD.ActiveDocument.recompute()
+        model = self.cluster.Model.copy()
+        key = self.get_key(model)
+        print("test")
+        model[key] = {
+                "Name": 'GeoPoint', 
+                "Easting": coordinate.x/1000, 
+                "Northing": coordinate.y/1000, 
+                "Elevation": coordinate.z/1000, 
+                "Description": ''}
+        print("test2")
+        self.cluster.Model = model
 
+    def get_key(self, model):
+        """Get the next available key as a string, finding the first missing number."""
+        if not model:
+            return "1"
+        
+        # Extract all numeric values from string keys
+        used = set()
+        for key in model.keys():
+            try:
+                # Try to convert string key to integer
+                used.add(int(key))
+            except (ValueError, TypeError):
+                # Skip keys that aren't numeric strings
+                pass
+        
+        if not used:
+            return "1"
+        
+        # Find the first missing number
+        max_key = max(used)
+        all_numbers = set(range(1, max_key + 1))
+        missing = sorted(all_numbers - used)
+        
+        if missing:
+            # Return first missing number as string
+            return str(missing[0])
+        else:
+            # No gaps, return next number as string
+            return str(max_key + 1)
 
 FreeCADGui.addCommand("GeoPoints Add", GeoPointsAdd())
