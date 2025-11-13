@@ -80,8 +80,8 @@ class Terrain(GeoObject):
         """Do something when a data property has changed."""
         super().onChanged(obj, prop)
 
-        if prop in ["Points", "Faces"]:
-            mesh_obj = Mesh.Mesh()
+        if prop in ["Points", "Faces", "Operations"]:
+            mesh = Mesh.Mesh()
             origin = None
 
             for face in obj.Faces["Visible"]:
@@ -91,34 +91,13 @@ class Terrain(GeoObject):
                 c1 = FreeCAD.Vector(obj.Points[face[0]]).sub(origin)
                 c2 = FreeCAD.Vector(obj.Points[face[1]]).sub(origin)
                 c3 = FreeCAD.Vector(obj.Points[face[2]]).sub(origin)
-                mesh_obj.addFacet(c1, c2, c3)
-
-            if mesh_obj.CountFacets > 0:
-                obj.Mesh = mesh_obj
-                obj.Geolocation.Base = origin
-
-        if prop in ["Operations"]:
-            points = obj.Points
-
-            if len(points) < 3:
-                obj.Mesh = Mesh.Mesh()
-                obj.Contour = Part.Shape()
-                obj.Boundary = Part.Shape()
-                return
-
-            obj.Placement.Base = points[0]
-            obj.Placement.Base.z = 0
-
-            tri = Delaunay(numpy.array([[point.x, point.y] for point in points]))
-            tested_tri = test_triangulation(tri, obj.MaxLength, obj.MaxAngle)
-
-            points = [point.sub(obj.Placement.Base) for point in points]
-            mesh = Mesh.Mesh([points[i] for i in tested_tri])
+                mesh.addFacet(c1, c2, c3)
+            
 
             for op in obj.Operations:
                 if op.get("type") == "Add Point":
                     idx = op.get("index")
-                    vec = op.get("vector").add(obj.Placement.Base.negative())
+                    vec = FreeCAD.Vector(op.get("vector")).sub(obj.Geolocation.Base)
                     mesh.insertVertex(idx, vec)
 
                 if op.get("type") == "Delete Triangle":
@@ -129,15 +108,15 @@ class Terrain(GeoObject):
                     idx = op.get("index")
                     other = op.get("other")
                     print(idx,other)
-                    """
                     try:
                         mesh.swapEdge(idx, other)
 
                     except Exception:
                         print("The edge between these triangles cannot be swappable")
-                    """
 
-            obj.Mesh = mesh
+            if mesh.CountFacets > 0:
+                obj.Mesh = mesh
+                obj.Geolocation.Base = origin
         
         elif prop == "Mesh":
             mesh = obj.getPropertyByName(prop)
