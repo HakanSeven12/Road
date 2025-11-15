@@ -8,7 +8,6 @@ from .view_geo_object import ViewProviderGeoObject
 import math
 
 
-
 class ViewProviderGeoPoints(ViewProviderGeoObject):
     """This class is about Cluster Object view features."""
 
@@ -111,12 +110,17 @@ class ViewProviderGeoPoints(ViewProviderGeoObject):
         self.vertices = coin.SoCoordinate3()
         self.line = coin.SoIndexedLineSet()
 
+        # Create a hidden template for the marker geometry
+        # This prevents the origin geometry from affecting bounding box
+        marker_template = coin.SoSeparator()
+        marker_template.addChild(self.marker_color)
+        marker_template.addChild(self.marker_scale)
+        marker_template.addChild(self.vertices)
+        marker_template.addChild(self.line)
+        marker_template.addChild(self.frame)
+
         self.marker_copy = coin.SoMultipleCopy()
-        self.marker_copy.addChild(self.marker_color)
-        self.marker_copy.addChild(self.marker_scale)
-        self.marker_copy.addChild(self.vertices)
-        self.marker_copy.addChild(self.line)
-        self.marker_copy.addChild(self.frame)
+        self.marker_copy.addChild(marker_template)
 
         #-------------------------------------------------------------
         # Labels
@@ -195,7 +199,7 @@ class ViewProviderGeoPoints(ViewProviderGeoObject):
             for i, pt in enumerate(points):
                 matrix = coin.SbMatrix()
                 matrix.setTransform(
-                    coin.SbVec3f(*pt), 
+                    coin.SbVec3f(pt), 
                     coin.SbRotation(), 
                     coin.SbVec3f(1.0, 1.0, 1.0))
                 matrices.append(matrix)
@@ -215,7 +219,6 @@ class ViewProviderGeoPoints(ViewProviderGeoObject):
                         label_set.append(no)
                     elif isinstance(data.get(label), float):
                         label_set.append(str(round(data.get(label)/1000, 3)))
-                    
                     else:
                         label_set.append(data.get(label))
 
@@ -257,51 +260,52 @@ class ViewProviderGeoPoints(ViewProviderGeoObject):
             horizontal = FreeCAD.Vector(1, 0, 0)
             vertical = FreeCAD.Vector(0, 1, 0)
 
+            vertices=[]
+            indices = []
             if type == "Point": 
-                self.vertices.point.values = [FreeCAD.Vector()]
+                vertices = [FreeCAD.Vector()]
 
             elif type == "Plus": 
-                self.vertices.point.values = [
+                vertices = [
                     vertical, 
                     vertical.negative(), 
                     horizontal, 
                     horizontal.negative()]
 
-                self.line.coordIndex.values = [0, 1, -1, 2, 3, -1]
+                indices = [0, 1, -1, 2, 3, -1]
 
             elif type == "Cross": 
-                self.vertices.point.values = [
+                vertices = [
                     vertical.add(horizontal), 
                     vertical.negative().add(horizontal.negative()), 
                     vertical.negative().add(horizontal), 
                     vertical.add(horizontal.negative())]
 
-                self.line.coordIndex.values = [0, 1, -1, 2, 3, -1]
+                indices = [0, 1, -1, 2, 3, -1]
 
             elif type == "Line": 
-                self.vertices.point.values = [
+                vertices = [
                     vertical.multiply(.5), 
                     FreeCAD.Vector()]
 
-                self.line.coordIndex.values = [0, 1, -1]
-
-            elif type == "None": 
-                self.vertices.point.values = []
+                indices = [0, 1, -1]
+            
+            self.vertices.point.values = vertices
+            self.line.coordIndex.values = indices
 
         elif prop == "MarkerFrame":
             frame = vobj.getPropertyByName(prop)
+
+            vertices=[]
             if frame == "Circle":
                 radius = 0.5
                 num_points = 16
-                points = []
                 for i in range(num_points):
                     angle = math.radians((360 / num_points) * i)
                     x = radius * math.cos(angle)
                     y = radius * math.sin(angle)
-                    points.append(FreeCAD.Vector(x, y))
-                points.append(points[0])
-
-                self.frame_coordinate.point.values = points
+                    vertices.append(FreeCAD.Vector(x, y))
+                vertices.append(vertices[0])
 
             elif frame == "Square":
                 horizontal = FreeCAD.Vector(0.5, 0, 0)
@@ -312,8 +316,8 @@ class ViewProviderGeoPoints(ViewProviderGeoObject):
                     vertical.negative().add(horizontal.negative()), 
                     vertical.negative().add(horizontal), 
                     vertical.add(horizontal)]
-            else:
-                self.frame_coordinate.point.values = []
+
+            self.frame_coordinate.point.values = vertices
 
         elif prop == "MarkerColor":
             color = vobj.getPropertyByName(prop)
