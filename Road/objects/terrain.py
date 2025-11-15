@@ -73,8 +73,29 @@ class Terrain(GeoObject):
         obj.Proxy = self
 
     def execute(self, obj):
-        """Do something when doing a recomputation."""
-        pass
+        if not obj.Clusters: return
+        points = {}
+        idx = 0
+        for geopoints in obj.Clusters:
+            for point in geopoints.Model.values():
+                points[str(idx)] = [point['Easting']*1000, point['Northing']*1000, point['Elevation']*1000]
+                idx += 1
+
+        if len(points) < 3:
+            obj.Mesh = Mesh.Mesh()
+            obj.Contour = Part.Shape()
+            obj.Boundary = Part.Shape()
+            return
+
+        if obj.Points == points: return
+
+        tri = Delaunay(numpy.array(list(points.values()))[:, :-1])
+        tested_tri = test_triangulation(tri, obj.MaxLength, obj.MaxAngle)
+
+        faces = [[str(x) for x in f] for f in tri.simplices.tolist()]
+
+        obj.Points = points
+        obj.Faces = {"Visible": faces, "Invisible": []}
 
     def onChanged(self, obj, prop):
         """Do something when a data property has changed."""
@@ -92,7 +113,6 @@ class Terrain(GeoObject):
                 c2 = FreeCAD.Vector(obj.Points[face[1]]).sub(origin)
                 c3 = FreeCAD.Vector(obj.Points[face[2]]).sub(origin)
                 mesh.addFacet(c1, c2, c3)
-            
 
             for op in obj.Operations:
                 if op.get("type") == "Add Point":

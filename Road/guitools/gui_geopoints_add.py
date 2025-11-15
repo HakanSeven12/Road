@@ -66,6 +66,7 @@ class GeoPointsAdd:
                 "Description": ''}
         print("test2")
         self.cluster.Model = model
+        FreeCAD.ActiveDocument.recompute()
 
     def get_key(self, model):
         """Get the next available key as a string, finding the first missing number."""
