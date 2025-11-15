@@ -117,14 +117,35 @@ class TaskGeoPointsImport(TaskPanel):
             
         cluster.Model = model
 
-    def get_key(model):
-        used = set(model.keys())
-        all_numbers = set(range(1, max(used) + 1))
+    def get_key(self, model):
+        """Get the next available key as a string, finding the first missing number."""
+        if not model:
+            return "1"
+        
+        # Extract all numeric values from string keys
+        used = set()
+        for key in model.keys():
+            try:
+                # Try to convert string key to integer
+                used.add(int(key))
+            except (ValueError, TypeError):
+                # Skip keys that aren't numeric strings
+                pass
+        
+        if not used:
+            return "1"
+        
+        # Find the first missing number
+        max_key = max(used)
+        all_numbers = set(range(1, max_key + 1))
         missing = sorted(all_numbers - used)
+        
         if missing:
-            return missing[0]
+            # Return first missing number as string
+            return str(missing[0])
         else:
-            return max(used) + 1
+            # No gaps, return next number as string
+            return str(max_key + 1)
 
     def preview(self):
         """Preview the selected file."""

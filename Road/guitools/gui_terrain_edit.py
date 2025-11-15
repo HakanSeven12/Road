@@ -40,9 +40,9 @@ class TerrainAddPoint:
                 vector = FreeCAD.Vector(*point)
 
                 origin = FreeCAD.ActiveDocument.getObject("GeoOrigin")
-                if origin: vector = vector.add(origin.Base)
+                vector = vector.add(origin.Base)
                 operations = self.terrain.Operations
-                operations.append({"type":"Add Point", "index":index, "vector":vector})
+                operations.append({"type":"Add Point", "index":index, "vector":[*vector]})
                 self.terrain.Operations = operations
 
 

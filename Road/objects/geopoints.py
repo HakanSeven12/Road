@@ -50,7 +50,7 @@ class GeoPoints(GeoObject):
                 easting = point.get("Easting", 0.0)
                 northing = point.get("Northing", 0.0)
                 elevation = point.get("Elevation", 0.0)
-                pt = FreeCAD.Vector(easting, northing, elevation)
+                pt = FreeCAD.Vector(easting, northing, elevation).multiply(1000)
                 if origin is None: origin = pt
                 points.append(pt.sub(origin))
             

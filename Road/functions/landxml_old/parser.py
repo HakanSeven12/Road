@@ -227,7 +227,7 @@ class Parser:
         for p in all_points:
             if p.text:
                 pt = p.text.strip().split(' ')
-                northing, easting, elevation = [float(v)*1000 for v in pt]
+                northing, easting, elevation = [float(v) for v in pt]
                 description = p.get("code") if p.get("code") else ""
 
                 points[p.get("name")] = {"Northing": northing, "Easting": easting,
@@ -242,7 +242,7 @@ class Parser:
 
         points = {}
         for p in pts:
-            id = int(p.get("id"))
+            id = p.get("id")
             pt = p.text.strip().split(' ')
             pt = [float(v)*1000 for v in pt]
             points[id] = [pt[1], pt[0], pt[2]]
@@ -252,7 +252,6 @@ class Parser:
         for f in fcs:
             invisible = bool(int(f.get("i",0)))
             fc = f.text.strip().split(' ')
-            fc = [int(v) for v in fc]
             faces_invisible.append(fc) if invisible else faces_visible.append(fc)
 
         return points, {"Visible":faces_visible, "Invisible":faces_invisible}
