@@ -260,14 +260,14 @@ class Curve(Geometry):
         mid_point = self.get_point_at_distance(self.length / 2)
         
         return self.start_point, mid_point, self.end_point
-    
+
     def get_orthogonal(self, s: float, side: str = 'left') -> Tuple[Tuple[float, float], Tuple[float, float]]:
         """
         Get orthogonal vector at distance s along the arc.
         
         Args:
             s: Distance along the arc from start point
-            side: Direction of orthogonal vector - 'left' (toward center) or 'right' (away from center)
+            side: Direction of orthogonal vector - 'left' or 'right'
             
         Returns:
             Tuple containing:
@@ -280,24 +280,34 @@ class Curve(Geometry):
         
         point = self.get_point_at_distance(s)
         
-        # Calculate vector from point to center
-        dx = self.center_point[0] - point[0]
-        dy = self.center_point[1] - point[1]
+        # Calculate angle at current point
+        angle_traversed = s / self.radius
+        start_angle = math.atan2(
+            self.start_point[1] - self.center_point[1],
+            self.start_point[0] - self.center_point[0]
+        )
         
-        distance = math.sqrt(dx**2 + dy**2)
+        if self.rotation == 'cw':
+            current_angle = start_angle - angle_traversed
+        else:
+            current_angle = start_angle + angle_traversed
         
-        if distance < 1e-10:
-            raise ValueError("Point coincides with center")
+        # Calculate tangent direction at current point
+        # Tangent is perpendicular to radius
+        if self.rotation == 'cw':
+            tangent_direction = current_angle - math.pi / 2
+        else:
+            tangent_direction = current_angle + math.pi / 2
         
-        # Normalize vector
-        center_vector_x = dx / distance
-        center_vector_y = dy / distance
+        # Calculate orthogonal direction based on side
+        if side == 'left':
+            # Left is 90 degrees counterclockwise from tangent
+            orthogonal_direction = tangent_direction + math.pi / 2
+        else:  # right
+            # Right is 90 degrees clockwise from tangent
+            orthogonal_direction = tangent_direction - math.pi / 2
         
-        # Choose orthogonal direction based on side
-        if side == 'left':  # toward center
-            orthogonal = (center_vector_x, center_vector_y)
-        else:  # right - away from center
-            orthogonal = (-center_vector_x, -center_vector_y)
+        orthogonal = (math.cos(orthogonal_direction), math.sin(orthogonal_direction))
         
         return point, orthogonal
 

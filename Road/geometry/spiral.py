@@ -2,7 +2,7 @@
 
 import math
 from scipy.special import fresnel
-from typing import Dict, Tuple
+from typing import Dict, Tuple, Optional, List
 from .geometry import Geometry
 
 
@@ -98,13 +98,51 @@ class Spiral(Geometry):
         if self.chord is None:
             self.chord = math.sqrt(end_x ** 2 + end_y ** 2)
 
-    # LOCAL CLOTHOID
     def get_point_at_distance(self, s: float) -> Tuple[float, float]:
+        """
+        Get point coordinates at distance s along the spiral from start point.
+        Handles reversed spirals automatically.
+        
+        Args:
+            s: Distance along spiral from alignment start point
+            
+        Returns:
+            (x, y) coordinates in global coordinate system
+        """
         if s < 0 or s > self.length:
             raise ValueError(f"Distance {s} outside spiral length {self.length}")
+        
+        # Check if spiral is reversed
+        is_reversed = self.radius_end > self.radius_start
+        
+        # For reversed spirals, calculate from the opposite end
+        if is_reversed:
+            s_local = self.length - s
+        else:
+            s_local = s
+        
+        # Get local coordinates
         if self.radius_start != float('inf') and self.radius_end != float('inf'):
-            return self._compound_clothoid_point(s)
-        return self._clothoid_point(s)
+            xl, yl = self._compound_clothoid_point(s_local)
+        else:
+            xl, yl = self._clothoid_point(s_local)
+        
+        # Determine transformation parameters
+        start = self.start_point
+        dir_angle = self.dir_start
+        
+        if is_reversed:
+            start = self.end_point
+            dir_angle = self.dir_end + math.pi
+        
+        # Transform to global coordinates
+        cos_a = math.cos(dir_angle)
+        sin_a = math.sin(dir_angle)
+        
+        x = start[0] + xl * cos_a - yl * sin_a
+        y = start[1] + xl * sin_a + yl * cos_a
+        
+        return (x, y)
 
     def _clothoid_point(self, L: float) -> Tuple[float, float]:
         sign = 1 if self.rotation == 'ccw' else -1
@@ -152,46 +190,43 @@ class Spiral(Geometry):
 
         return xr, yr
 
-    # POINT GENERATION WITH INLINE ROTATION AND TRANSLATION
-    def generate_points(self, step: float):
+    def generate_points(self, step: float) -> List[Tuple[float, float]]:
+        """
+        Generate points along the spiral at regular intervals.
+        Uses get_point_at_distance which handles reversed spirals automatically.
+        
+        Args:
+            step: Distance interval between points
+            
+        Returns:
+            List of (x, y) coordinate tuples in global coordinate system
+        """
         if step <= 0:
             raise ValueError("Step must be positive")
 
-        start = self.start_point
-        dir = self.dir_start
-
-        if self.radius_end > self.radius_start:
-            start = self.end_point
-            dir = self.dir_end + math.pi
-
-        pts = []
+        points = []
         s = 0.0
 
-        cos_a = math.cos(dir)
-        sin_a = math.sin(dir)
-        sx, sy = start[0], start[1]
-
+        # Generate points at regular intervals
         while s < self.length:
-            xl, yl = self.get_point_at_distance(s)
-            X = sx + xl * cos_a - yl * sin_a
-            Y = sy + xl * sin_a + yl * cos_a
-            pts.append((X, Y))
+            point = self.get_point_at_distance(s)
+            points.append(point)
             s += step
 
-        xl, yl = self.get_point_at_distance(self.length)
-        X = sx + xl * cos_a - yl * sin_a
-        Y = sy + xl * sin_a + yl * cos_a
-        pts.append((X, Y))
+        # Add final end point
+        end_point = self.get_point_at_distance(self.length)
+        points.append(end_point)
 
-        return pts
+        return points
 
     def get_orthogonal(self, s: float, side: str = 'left') -> Tuple[Tuple[float, float], Tuple[float, float]]:
         """
         Get both the point and orthogonal vector at distance s along the spiral.
+        Handles reversed spirals automatically.
         
         Args:
-            s: Distance along the spiral from start point
-            side: Direction of orthogonal vector - 'left' or 'right' (relative to spiral direction)
+            s: Distance along the spiral from alignment start point
+            side: Direction of orthogonal vector - 'left' or 'right'
             
         Returns:
             Tuple containing:
@@ -202,16 +237,30 @@ class Spiral(Geometry):
         if side not in ['left', 'right']:
             raise ValueError("side must be 'left' or 'right'")
         
-        # Get the local point coordinates at distance s
-        xl, yl = self.get_point_at_distance(s)
+        # Check if spiral is reversed
+        is_reversed = self.radius_end > self.radius_start
+        
+        # For reversed spirals, calculate from the opposite end
+        if is_reversed:
+            s_local = self.length - s
+        else:
+            s_local = s
+        
+        # Get the local point coordinates
+        if self.radius_start != float('inf') and self.radius_end != float('inf'):
+            xl, yl = self._compound_clothoid_point(s_local)
+        else:
+            xl, yl = self._clothoid_point(s_local)
         
         # Determine start point and rotation for transformation
         start = self.start_point
         dir_angle = self.dir_start
+        sign = 1
         
-        if self.radius_end > self.radius_start:
+        if is_reversed:
             start = self.end_point
             dir_angle = self.dir_end + math.pi
+            sign = -1
         
         # Transform local coordinates to global coordinates
         cos_a = math.cos(dir_angle)
@@ -224,17 +273,23 @@ class Spiral(Geometry):
         # Calculate tangent direction using numerical differentiation
         delta = 1e-6
         
-        if s - delta >= 0:
-            xl_before, yl_before = self.get_point_at_distance(s - delta)
+        if s_local - delta >= 0:
+            if self.radius_start != float('inf') and self.radius_end != float('inf'):
+                xl_before, yl_before = self._compound_clothoid_point(s_local - delta)
+            else:
+                xl_before, yl_before = self._clothoid_point(s_local - delta)
         else:
-            xl_before, yl_before = self.get_point_at_distance(0)
+            xl_before, yl_before = xl, yl
         
-        if s + delta <= self.length:
-            xl_after, yl_after = self.get_point_at_distance(s + delta)
+        if s_local + delta <= self.length:
+            if self.radius_start != float('inf') and self.radius_end != float('inf'):
+                xl_after, yl_after = self._compound_clothoid_point(s_local + delta)
+            else:
+                xl_after, yl_after = self._clothoid_point(s_local + delta)
         else:
-            xl_after, yl_after = self.get_point_at_distance(self.length)
+            xl_after, yl_after = xl, yl
         
-        # Local tangent
+        # Local tangent (in local coordinate system)
         dx_local = xl_after - xl_before
         dy_local = yl_after - yl_before
         
@@ -253,23 +308,33 @@ class Spiral(Geometry):
         
         # Orthogonal vector based on side
         if side == 'left':  # 90 degrees counterclockwise from tangent
-            orthogonal = (-tangent_y_global, tangent_x_global)
+            orthogonal = (-tangent_y_global * sign, tangent_x_global * sign)
         else:  # right - 90 degrees clockwise from tangent
-            orthogonal = (tangent_y_global, -tangent_x_global)
-    
+            orthogonal = (tangent_y_global * sign, -tangent_x_global * sign)
+
         return point, orthogonal
 
-    def project_point(self, point):
+    def project_point(self, point: Tuple[float, float]) -> Optional[float]:
         """
         Project a point onto the spiral and return distance along spiral.
+        Handles reversed spirals automatically.
         Uses a robust 1D parabolic search over arc length.
+        
+        Args:
+            point: (x, y) coordinates to project
+            
+        Returns:
+            Distance along spiral from alignment start point, or None if outside bounds
         """
 
+        # Check if spiral is reversed
+        is_reversed = self.radius_end > self.radius_start
+        
         # Transform to local system
         start = self.start_point
         dir_angle = self.dir_start
 
-        if self.radius_end > self.radius_start:
+        if is_reversed:
             start = self.end_point
             dir_angle = self.dir_end + math.pi
 
@@ -283,8 +348,11 @@ class Spiral(Geometry):
         local_y = -dx * sin_a + dy * cos_a
 
         # Distance-squared function in local coords
-        def f(s):
-            xl, yl = self.get_point_at_distance(s)
+        def f(s_loc):
+            if self.radius_start != float('inf') and self.radius_end != float('inf'):
+                xl, yl = self._compound_clothoid_point(s_loc)
+            else:
+                xl, yl = self._clothoid_point(s_loc)
             return (xl - local_x)**2 + (yl - local_y)**2
 
         # Initial coarse search (samples)
@@ -324,10 +392,16 @@ class Spiral(Geometry):
             if b - a < tol:
                 break
 
-        distance = (a + b) / 2
+        distance_local = (a + b) / 2
 
-        if distance < 0 or distance > self.length:
+        if distance_local < 0 or distance_local > self.length:
             return None
+        
+        # Convert back to alignment distance
+        if is_reversed:
+            distance = self.length - distance_local
+        else:
+            distance = distance_local
         
         return distance
 

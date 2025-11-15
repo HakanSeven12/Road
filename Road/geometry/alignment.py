@@ -645,25 +645,35 @@ class Alignment:
             if inc <= 0:
                 raise ValueError(f"Increment for {elem_type} must be positive, got {inc}")
         
-        stations = []
+        stations = set()
         
-        # Always add start station
-        stations.append(start_station)
+        # Always add start and end stations
+        stations.add(start_station)
+        stations.add(end_station)
         
-        # Track the carry-over distance from previous element's last INCREMENT station
-        carry_over = 0.0
+        # Add geometry points if requested
+        if at_geometry_points:
+            for element in self.elements:
+                elem_start = element.sta_start
+                elem_length = element.get_length()
+                elem_start_internal = self.station_to_internal(elem_start)
+                elem_end_internal = elem_start_internal + elem_length
+                elem_end = self.internal_to_station(elem_end_internal)
+                
+                # Add element start and end if within range
+                if start_station <= elem_start <= end_station:
+                    stations.add(elem_start)
+                if start_station <= elem_end <= end_station:
+                    stations.add(elem_end)
         
-        # Track last generated INCREMENT station (internal coordinates)
-        # This does NOT include geometry points or start/end
-        last_increment_internal = None
-        
-        # Iterate through alignment elements
+        # Generate regular increment stations
+        # Find the first increment station >= start_station
         for element in self.elements:
             elem_type = element.get_type()
+            increment = increment_dict.get(elem_type, 10.0)
+            
             elem_start = element.sta_start
             elem_length = element.get_length()
-            
-            # Calculate element start/end in internal coordinates
             elem_start_internal = self.station_to_internal(elem_start)
             elem_end_internal = elem_start_internal + elem_length
             elem_end = self.internal_to_station(elem_end_internal)
@@ -672,80 +682,27 @@ class Alignment:
             if elem_end < start_station or elem_start > end_station:
                 continue
             
-            # Get increment for this element type
-            increment = increment_dict.get(elem_type, 10.0)
+            # Find first increment station in this element
+            # Round start_station up to nearest increment
+            first_increment = math.ceil(start_station / increment) * increment
             
-            # Add geometry point at element start if requested
-            # This does NOT affect carry-over or last_increment_internal
-            if at_geometry_points:
-                if start_station <= elem_start <= end_station:
-                    stations.append(elem_start)
+            # Generate stations at increment intervals
+            current_station = first_increment
             
-            # Calculate where to start generating INCREMENT stations in this element
-            if last_increment_internal is None or last_increment_internal < elem_start_internal:
-                # No previous increment station, or it was before this element
-                # Start from element beginning with carry-over
-                current_internal = elem_start_internal + carry_over
-            else:
-                # Last increment station was in this element or at its start
-                # Calculate remaining distance to next increment
-                remaining_to_increment = increment - carry_over
+            while current_station <= end_station:
+                # Check if this station is within this element's range
+                current_internal = self.station_to_internal(current_station)
                 
-                if remaining_to_increment <= 0:
-                    # Carry-over is larger than increment
-                    carry_over = carry_over - increment
-                    current_internal = last_increment_internal
-                else:
-                    # Normal case: add remaining distance
-                    current_internal = last_increment_internal + remaining_to_increment
-            
-            # Generate intermediate INCREMENT stations along element
-            while True:
-                # Check if we've reached or passed element end
-                if current_internal >= elem_end_internal:
-                    # Calculate carry-over for next element
-                    if last_increment_internal is not None:
-                        carry_over = elem_end_internal - last_increment_internal
-                        # Ensure carry-over doesn't exceed increment
-                        while carry_over >= increment:
-                            carry_over -= increment
-                    break
+                # Check if within element bounds
+                if elem_start_internal <= current_internal <= elem_end_internal:
+                    stations.add(current_station)
                 
-                # Convert to displayed station
-                current_sta = self.internal_to_station(current_internal)
-                
-                # Check if within requested range
-                if start_station <= current_sta <= end_station:
-                    stations.append(current_sta)
-                    last_increment_internal = current_internal
-                
-                # Reset carry-over since we generated a station
-                carry_over = 0.0
-                
-                # Move to next station
-                current_internal += increment
-            
-            # Add geometry point at element end if requested
-            # This does NOT affect carry-over or last_increment_internal
-            if at_geometry_points:
-                if start_station <= elem_end <= end_station:
-                    stations.append(elem_end)
+                current_station += increment
         
-        # Always add end station
-        stations.append(end_station)
+        # Convert to sorted list
+        stations_list = sorted(list(stations))
         
-        # Remove duplicates and sort
-        stations = sorted(list(set(stations)))
-        
-        # Final filter to ensure all stations are within range
-        # (with small tolerance for floating point errors)
-        tolerance = 1e-9
-        stations = [
-            sta for sta in stations 
-            if start_station - tolerance <= sta <= end_station + tolerance
-        ]
-        
-        return stations
+        return stations_list
 
     def get_align_pis(self) -> List[Dict]:
         """Return list of all alignment PI points"""
