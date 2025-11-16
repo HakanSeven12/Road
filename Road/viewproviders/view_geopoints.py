@@ -218,7 +218,7 @@ class ViewProviderGeoPoints(ViewProviderGeoObject):
                     if label == "Number": 
                         label_set.append(no)
                     elif isinstance(data.get(label), float):
-                        label_set.append(str(round(data.get(label)/1000, 3)))
+                        label_set.append(str(round(data.get(label), 3)))
                     else:
                         label_set.append(data.get(label))
 
