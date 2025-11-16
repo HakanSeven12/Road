@@ -134,6 +134,7 @@ class Spiral(Geometry):
         """
         Get point coordinates at distance s along the spiral from start point.
         Handles reversed spirals automatically.
+        Tolerates millimeter-precision overflow.
         
         Args:
             s: Distance along spiral from alignment start point
@@ -141,9 +142,16 @@ class Spiral(Geometry):
         Returns:
             (x, y) coordinates in global coordinate system
         """
-        if s < 0 or s > self.length:
-            raise ValueError(f"Distance {s} outside spiral length {self.length}")
+        # Tolerance for distance check
+        tolerance = 0.001
         
+        # If distance exceeds length by small amount, clamp to end point
+        if s > self.length:
+            if s - self.length <= tolerance:
+                return self.end_point
+            else:
+                raise ValueError(f"Distance {s:.6f} exceeds spiral length {self.length:.6f} by {s - self.length:.6f}m")
+
         # Check if spiral is reversed
         is_reversed = self._is_reversed()
         

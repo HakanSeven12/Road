@@ -42,19 +42,28 @@ class Line(Geometry):
         
         if self.length < 0:
             raise ValueError("Length must be positive")
-    
+
     def get_point_at_distance(self, s: float) -> Tuple[float, float]:
-        """Get point coordinates at distance s along the line from start point"""
+        """
+        Get point coordinates at distance s along the line from start point.
+        Tolerates millimeter-precision overflow.
+        """
+        # Tolerance for distance check
+        tolerance = 0.001
         
-        if s < 0 or s > self.length:
-            raise ValueError(f"Distance {s} outside line length {self.length}")
+        # If distance exceeds length by small amount, clamp to end point
+        if s > self.length:
+            if s - self.length <= tolerance:
+                return self.end_point
+            else:
+                raise ValueError(f"Distance {s:.6f} exceeds line length {self.length:.6f} by {s - self.length:.6f}m")
         
         # Calculate point using direction and distance
         x = self.start_point[0] + s * math.cos(self.direction)
         y = self.start_point[1] + s * math.sin(self.direction)
         
         return x, y
-    
+
     def generate_points(self, step: float) -> list:
         """Generate points along the line at regular intervals"""
         
