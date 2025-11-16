@@ -109,11 +109,11 @@ class TaskGeoPointsImport(TaskPanel):
         for row in reader:
             key = self.get_key(model)
             model[key] = {
-                "Name": row[indices[0]] if indices[0] else "GeoPoint", 
-                "Easting": float(row[indices[1]]), 
-                "Northing": float(row[indices[2]]), 
-                "Elevation": float(row[indices[3]]) if indices[3] else 0.00, 
-                "Description": row[indices[4]] if indices[4] else ""}
+                "Name": row[indices[0]] if indices[0] is not None and indices[0] < len(row) else "GeoPoint", 
+                "Easting": float(row[indices[1]]) if indices[1] is not None and indices[1] < len(row) else 0.0, 
+                "Northing": float(row[indices[2]]) if indices[2] is not None and indices[2] < len(row) else 0.0, 
+                "Elevation": float(row[indices[3]]) if indices[3] is not None and indices[3] < len(row) else 0.0, 
+                "Description": row[indices[4]] if indices[4] is not None and indices[4] < len(row) else ""}
             
         cluster.Model = model
 
