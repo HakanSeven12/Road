@@ -89,6 +89,42 @@ STATION_EQUATION_CONFIG = {
     'required_fields': ['staAhead', 'staBack']
 }
 
+# CgPoint configuration
+CGPOINT_CONFIG = {
+    'attr_map': {
+        'name': ('name', str),
+        'desc': ('desc', str),
+        'code': ('code', str),
+        'state': ('state', str),
+        'pntRef': ('pntRef', str),
+        'featureRef': ('featureRef', str),
+        'pointGeometry': ('pointGeometry', str),
+        'DTMAttribute': ('DTMAttribute', str),
+        'timeStamp': ('timeStamp', str)
+    },
+    'required_fields': ['name']  # At least name should be present
+}
+
+# Surface configuration
+SURFACE_CONFIG = {
+    'attr_map': {
+        'name': ('name', str),
+        'desc': ('desc', str),
+        'state': ('state', str),
+        'surfType': ('surfType', str),
+        'area2DSurf': ('area2DSurf', 'float'),
+        'area3DSurf': ('area3DSurf', 'float'),
+        'elevMin': ('elevMin', 'float'),
+        'elevMax': ('elevMax', 'float')
+    },
+    'required_fields': ['name']
+}
+
+# Face configuration (for TIN surfaces)
+FACE_CONFIG = {
+    'required_fields': []  # Faces are defined by their point references
+}
+
 # LandXML namespaces
 LANDXML_NAMESPACES = {
     'landxml': 'http://www.landxml.org/schema/LandXML-1.2',
