@@ -558,13 +558,15 @@ class LandXMLReader:
         alignments_elem = self._find_element(self.root, 'Alignments')
         
         if alignments_elem is None:
-            raise ValueError("No Alignments element found in LandXML file")
+            print("Warning: No Alignments elements found in LandXML file")
+            return alignments
         
         # Find all Alignment elements
         alignment_elements = self._find_all_elements(alignments_elem, 'Alignment')
         
         if not alignment_elements:
-            raise ValueError("No Alignment elements found in LandXML file")
+            print("Warning: No Alignment elements found in LandXML file")
+            return alignments
         
         # Parse each alignment
         for align_elem in alignment_elements:
