@@ -659,9 +659,9 @@ class TaskLandXMLImport(TaskPanel):
                     # Format: List of (X, Y, Z) tuples where X=Easting, Y=Northing, Z=Elevation
                     terrain_points = []
                     for point in points:
-                        easting = point.get('easting', 0)
-                        northing = point.get('northing', 0)
-                        elevation = point.get('elevation', 0)
+                        easting = point.get('easting', 0)*1000
+                        northing = point.get('northing', 0)*1000
+                        elevation = point.get('elevation', 0)*1000
                         terrain_points.append((easting, northing, elevation))
                     
                     # Build Faces list for Terrain API
@@ -683,7 +683,7 @@ class TaskLandXMLImport(TaskPanel):
                     # Create Terrain object using the make_terrain API
                     terrain = make_terrain.create(label=surface_name)
                     terrain.Points = terrain_points
-                    terrain.Faces = terrain_faces
+                    terrain.Faces = {"Visible":terrain_faces, "Invisible":[]}
                     
                     surface_created += 1
                     print(f"Created terrain '{surface_name}' with {len(terrain_points)} points and {len(terrain_faces)} faces")

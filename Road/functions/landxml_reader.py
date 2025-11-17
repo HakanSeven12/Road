@@ -362,8 +362,13 @@ class LandXMLReader:
         """
         points = []
         
-        # Find all P elements
-        p_elements = self._find_all_elements(surface_elem, 'P')
+        # First find the Pnts container element
+        pnts_elem = self._find_element(surface_elem, 'Pnts')
+        if pnts_elem is None:
+            return points
+        
+        # Find all P elements within Pnts
+        p_elements = self._find_all_elements(pnts_elem, 'P')
         
         for p_elem in p_elements:
             try:
@@ -409,8 +414,13 @@ class LandXMLReader:
         """
         faces = []
         
-        # Find all F elements
-        f_elements = self._find_all_elements(surface_elem, 'F')
+        # First find the Faces container element
+        faces_elem = self._find_element(surface_elem, 'Faces')
+        if faces_elem is None:
+            return faces
+        
+        # Find all F elements within Faces
+        f_elements = self._find_all_elements(faces_elem, 'F')
         
         for f_elem in f_elements:
             try:
@@ -451,7 +461,7 @@ class LandXMLReader:
         attributes = self._parse_attributes(surface_elem, config['attr_map'])
         surface_data.update(attributes)
         
-        # Find Definition element (contains P and F elements)
+        # Find Definition element (contains Pnts and Faces elements)
         definition_elem = self._find_element(surface_elem, 'Definition')
         
         if definition_elem is not None:
@@ -459,12 +469,12 @@ class LandXMLReader:
             surf_type = definition_elem.attrib.get('surfType', 'TIN')
             surface_data['surfType'] = surf_type
             
-            # Parse points (P elements)
+            # Parse points (P elements within Pnts)
             points = self._parse_surface_points(definition_elem)
             if points:
                 surface_data['points'] = points
             
-            # Parse faces (F elements) - for TIN surfaces
+            # Parse faces (F elements within Faces) - for TIN surfaces
             faces = self._parse_surface_faces(definition_elem)
             if faces:
                 surface_data['faces'] = faces
@@ -749,117 +759,3 @@ class LandXMLReader:
             'cgpoints': self.cgpoints_data,
             'surfaces': self.surfaces_data
         }
-
-
-# Example usage function
-def read_landxml_file(filepath: str):
-    """
-    Example function showing how to use LandXMLReader.
-    
-    Args:
-        filepath: Path to LandXML file
-    
-    Returns:
-        Dictionary with alignments, CgPoints, and Surfaces
-    """
-    # Create reader instance
-    reader = LandXMLReader(filepath)
-    
-    # Read all alignments
-    alignments = reader.read_alignments()
-    print(f"Found {len(alignments)} alignment(s) in file")
-    
-    # Print alignment info
-    for i, alignment in enumerate(alignments):
-        name = alignment.get('name', 'Unnamed')
-        length = alignment.get('length', 'Unknown')
-        geom_count = len(alignment.get('CoordGeom', []))
-        
-        print(f"\nAlignment {i+1}: {name}")
-        print(f"  Length: {length}")
-        print(f"  Geometry elements: {geom_count}")
-        
-        # Print geometry types
-        if 'CoordGeom' in alignment:
-            geom_types = [geom['Type'] for geom in alignment['CoordGeom']]
-            print(f"  Types: {', '.join(geom_types)}")
-    
-    # Read all CgPoints
-    cgpoints = reader.read_cgpoints()
-    print(f"\nFound {len(cgpoints)} CgPoint(s) in file")
-    
-    # Print first 5 points as example
-    for i, point in enumerate(cgpoints[:5]):
-        name = point.get('name', 'Unnamed')
-        northing = point.get('northing', 'N/A')
-        easting = point.get('easting', 'N/A')
-        elevation = point.get('elevation', 'N/A')
-        code = point.get('code', 'N/A')
-        
-        print(f"\nPoint {i+1}: {name}")
-        print(f"  Northing: {northing}")
-        print(f"  Easting: {easting}")
-        print(f"  Elevation: {elevation}")
-        print(f"  Code: {code}")
-    
-    if len(cgpoints) > 5:
-        print(f"\n... and {len(cgpoints) - 5} more points")
-    
-    # Read all Surfaces
-    surfaces = reader.read_surfaces()
-    print(f"\nFound {len(surfaces)} Surface(s) in file")
-    
-    # Print surface info
-    for i, surface in enumerate(surfaces):
-        name = surface.get('name', 'Unnamed')
-        surf_type = surface.get('surfType', 'Unknown')
-        point_count = len(surface.get('points', []))
-        face_count = len(surface.get('faces', []))
-        
-        print(f"\nSurface {i+1}: {name}")
-        print(f"  Type: {surf_type}")
-        print(f"  Points: {point_count}")
-        print(f"  Faces: {face_count}")
-        
-        # Print elevation range if available
-        elev_min = surface.get('elevMin')
-        elev_max = surface.get('elevMax')
-        if elev_min is not None and elev_max is not None:
-            print(f"  Elevation range: {elev_min:.2f} to {elev_max:.2f}")
-    
-    return {
-        'alignments': alignments,
-        'cgpoints': cgpoints,
-        'surfaces': surfaces
-    }
-
-
-# Example: Create Alignment objects from parsed data
-def create_alignment_objects(filepath: str):
-    """
-    Example showing how to read LandXML and create Alignment objects.
-    
-    Args:
-        filepath: Path to LandXML file
-    
-    Returns:
-        List of Alignment objects
-    """
-    
-    # Read LandXML file
-    reader = LandXMLReader(filepath)
-    alignments_data = reader.read_alignments()
-    
-    # Create Alignment objects
-    alignment_objects = []
-    
-    for align_data in alignments_data:
-        try:
-            alignment = Alignment(align_data)
-            alignment_objects.append(alignment)
-            print(f"Created alignment: {alignment}")
-        except Exception as e:
-            print(f"Error creating alignment: {str(e)}")
-            continue
-    
-    return alignment_objects
