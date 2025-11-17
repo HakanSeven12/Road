@@ -49,14 +49,10 @@ class Geometry(ABC):
         """Project point onto line and return distance along geometry from start."""
         pass
 
+    @abstractmethod
     def get_type(self) -> str:
-        """
-        Get geometry element type.
-        
-        Returns:
-            Class Name string identifier
-        """
-        return __class__.__name__
+        """Get geometry element type."""
+        pass
 
     @abstractmethod
     def to_dict(self) -> Dict:

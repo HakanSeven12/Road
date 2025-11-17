@@ -401,6 +401,15 @@ class Spiral(Geometry):
         
         return distance
 
+    def get_type(self) -> str:
+        """
+        Get geometry element type.
+        
+        Returns:
+            Class Name string identifier
+        """
+        return __class__.__name__
+
     def to_dict(self) -> Dict:
         return {
             'Type': 'Spiral',
