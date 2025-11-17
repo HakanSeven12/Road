@@ -20,6 +20,7 @@ class ViewProviderTerrain(ViewProviderGeoObject):
     def __init__(self, vobj):
         """Set view properties."""
         super().__init__(vobj,"Terrain")
+        vobj.PlacementUpdate = False
 
         (r, g, b) = (random.random(), random.random(), random.random())
 

@@ -11,6 +11,10 @@ class ViewProviderGeoObject:
     def __init__(self, vobj, icon_name):
         self.icon = icons_path + f"/{icon_name}.svg"
 
+        vobj.addProperty(
+            "App::PropertyBool", "PlacementUpdate", "Base",
+            "Placement").PlacementUpdate = True
+
     def attach(self, vobj):
         """Create Object visuals in 3D view."""
         self.flat_lines = coin.SoGeoSeparator()
@@ -52,7 +56,7 @@ class ViewProviderGeoObject:
             self.standard.geoSystem.setValues(geo_system)
             self.standard.geoCoords.setValue(*base)
 
-        if prop == "Placement":
+        if prop == "Placement" and obj.ViewObject.PlacementUpdate:
             base = obj.Placement.Base
             self.root.translation.setValue(*base.negative())
  
