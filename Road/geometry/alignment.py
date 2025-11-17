@@ -463,7 +463,93 @@ class Alignment:
                 return element.get_orthogonal(distance, side)
         
         raise ValueError(f"No element found at station {station}")
-    
+
+    def get_station_offset(self, point: Tuple[float, float]) -> Optional[Tuple[float, float]]:
+        """
+        Calculates the station and offset of a point relative to the alignment.
+        
+        Finds the closest point on the alignment (projection) and returns
+        its displayed station and the perpendicular offset distance.
+
+        Args:
+            point: (x, y) coordinates of the point to query.
+
+        Returns:
+            A tuple (station, offset) if a valid projection is found, None otherwise.
+            - station: Displayed station value of the closest point on the alignment.
+            - offset: Perpendicular offset distance from the alignment.
+                      Convention:
+                      - Negative (-) value means the point is to the LEFT of the alignment.
+                      - Positive (+) value means the point is to the RIGHT of the alignment.
+        """
+        
+        min_offset_dist = float('inf')
+        best_station = None
+        best_signed_offset = None
+
+        for element in self.elements:
+            try:
+                # 1. Project the point onto the element's geometry.
+                # This should return the distance along the element
+                # from its start point to the closest projected point.
+                distance_along = element.project_point(point)
+
+                if distance_along is None:
+                    # The projection does not fall on this element segment
+                    continue
+
+                # 2. Get the coordinates of the projected point
+                projected_point = element.get_point_at_distance(distance_along)
+
+                # 3. Calculate the magnitude of the offset distance
+                dx = point[0] - projected_point[0]
+                dy = point[1] - projected_point[1]
+                current_offset_dist = math.sqrt(dx**2 + dy**2)
+
+                # 4. Check if this is the closest projection found so far
+                if current_offset_dist < min_offset_dist:
+                    min_offset_dist = current_offset_dist
+
+                    # 5. Calculate the station value
+                    elem_sta_start_internal = self.station_to_internal(element.sta_start)
+                    internal_station = elem_sta_start_internal + distance_along
+                    displayed_station = self.internal_to_station(internal_station)
+                    best_station = displayed_station
+
+                    # 6. Determine the sign of the offset (left/right)
+                    if current_offset_dist < 1e-3: 
+                        # Point is effectively on the alignment (within tolerance)
+                        best_signed_offset = 0.0
+                    else:
+                        # Get the 'left' orthogonal vector at the projected point
+                        _, left_ortho_vec = element.get_orthogonal(distance_along, 'left')
+                        
+                        # Create the vector from the projected point to the query point
+                        vector_to_point = (dx, dy) 
+                        
+                        # Calculate the dot product
+                        # If vector_to_point and left_ortho_vec are in the same direction
+                        # (dot_product > 0), the point is to the LEFT.
+                        dot_product = (vector_to_point[0] * left_ortho_vec[0]) + \
+                                      (vector_to_point[1] * left_ortho_vec[1])
+                        
+                        if dot_product > 0:
+                            # Point is to the LEFT (Convention: Left = Negative)
+                            best_signed_offset = -current_offset_dist
+                        else:
+                            # Point is to the RIGHT (Convention: Right = Positive)
+                            best_signed_offset = current_offset_dist
+            
+            except Exception:
+                # Ignore any element that fails projection
+                continue
+        
+        if best_station is not None:
+            return (best_station, best_signed_offset)
+        else:
+            # No valid projection found on any alignment element
+            return None
+
     def generate_points(self, step: float) -> List[Tuple[float, float, float]]:
         """
         Generate points along entire alignment at regular station intervals.
