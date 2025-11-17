@@ -666,7 +666,8 @@ class TaskLandXMLImport(TaskPanel):
                     
                     # Build Faces list for Terrain API
                     # Format: List of (v1, v2, v3) tuples with vertex indices
-                    terrain_faces = []
+                    visible_faces = []
+                    invisible_faces = []
                     for face in faces:
                         point_ids = face.get('points', [])
                         if len(point_ids) >= 3:
@@ -675,7 +676,12 @@ class TaskLandXMLImport(TaskPanel):
                                 v1 = point_id_map[point_ids[0]]
                                 v2 = point_id_map[point_ids[1]]
                                 v3 = point_id_map[point_ids[2]]
-                                terrain_faces.append((v1, v2, v3))
+
+                                if face.get('invisible'):
+                                    invisible_faces.append((v1, v2, v3))
+                                else:
+                                    visible_faces.append((v1, v2, v3))
+
                             except KeyError:
                                 # Skip faces with missing point references
                                 continue
@@ -683,10 +689,10 @@ class TaskLandXMLImport(TaskPanel):
                     # Create Terrain object using the make_terrain API
                     terrain = make_terrain.create(label=surface_name)
                     terrain.Points = terrain_points
-                    terrain.Faces = {"Visible":terrain_faces, "Invisible":[]}
+                    terrain.Faces = {"Visible":visible_faces, "Invisible":invisible_faces}
                     
                     surface_created += 1
-                    print(f"Created terrain '{surface_name}' with {len(terrain_points)} points and {len(terrain_faces)} faces")
+                    print(f"Created terrain '{surface_name}' with {len(visible_faces)} visible faces, {len(invisible_faces)} visible faces and {len(terrain_points)} points")
                     
                 except Exception as e:
                     error_msg = f"Failed to create terrain '{surface_name}': {str(e)}"

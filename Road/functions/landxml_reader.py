@@ -424,26 +424,32 @@ class LandXMLReader:
         
         for f_elem in f_elements:
             try:
-                # Get face text (space-separated point IDs)
                 face_text = f_elem.text
                 if not face_text:
                     continue
                 
                 # Parse point IDs (typically 3 for triangular faces)
                 point_ids = face_text.strip().split()
-                
-                if len(point_ids) >= 3:
-                    face_data = {
-                        'points': point_ids
-                    }
-                    faces.append(face_data)
-                    
+                if len(point_ids) < 3:
+                    continue
+
+                # Check invisible flag
+                is_invisible = (f_elem.attrib.get('i') == "1")
+
+                face_data = {
+                    "points": point_ids,
+                    "n": f_elem.attrib.get("n"),
+                    "invisible": is_invisible
+                }
+
+                faces.append(face_data)
+
             except Exception as e:
                 print(f"Warning: Failed to parse surface face: {str(e)}")
                 continue
-        
+
         return faces
-    
+
     def _parse_surface(self, surface_elem: ET.Element) -> Dict:
         """
         Parse single Surface element.
