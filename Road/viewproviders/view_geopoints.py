@@ -72,8 +72,8 @@ class ViewProviderGeoPoints(ViewProviderGeoObject):
             "Line spacing between point labels").LineSpacing = 1
 
         vobj.addProperty(
-            "App::PropertyPlacement", "LabelOffset", "Label Placement",
-            "Placement").LabelOffset = FreeCAD.Placement()
+            "App::PropertyPlacement", "Transformation", "Label Placement",
+            "Placement").Transformation = FreeCAD.Placement()
 
         vobj.addProperty(
             "App::PropertyPythonObject", "LabelDisplay", "Label Style", 
@@ -128,12 +128,13 @@ class ViewProviderGeoPoints(ViewProviderGeoObject):
 
         self.label_color = coin.SoBaseColor()
         self.font = coin.SoFont()
-        self.offset = coin.SoTranslation()
+        self.transformation = coin.SoTransform()
         self.label_data = coin.SoGroup()
 
         labels = coin.SoSeparator()
         labels.addChild(self.label_color)
         labels.addChild(self.font)
+        labels.addChild(self.transformation)
         labels.addChild(self.label_data)
 
         #-------------------------------------------------------------
@@ -341,8 +342,8 @@ class ViewProviderGeoPoints(ViewProviderGeoObject):
         elif prop == "FontName":
             self.font.name = vobj.getPropertyByName(prop).encode("utf8")
 
-        elif prop == "LabelOffset":
-            self.offset.translation = vobj.LabelOffset.Base
+        elif prop == "Transformation":
+            self.transformation.translation = vobj.Transformation.Base
 
         elif prop in ["Justification", "LineSpacing", "LabelDisplay"]:
             self.updateData(vobj.Object, "Points")

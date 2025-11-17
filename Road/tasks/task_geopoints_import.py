@@ -175,6 +175,7 @@ class TaskGeoPointsImport(TaskPanel):
 
         FreeCADGui.Control.closeDialog()
         FreeCAD.ActiveDocument.recompute()
+        FreeCADGui.SendMsgToActiveView("ViewFit")
 
     def needsFullSpace(self):
         return True

@@ -718,6 +718,7 @@ class TaskLandXMLImport(TaskPanel):
         # Close dialog and recompute
         FreeCADGui.Control.closeDialog()
         FreeCAD.ActiveDocument.recompute()
+        FreeCADGui.SendMsgToActiveView("ViewFit")
 
     def needsFullSpace(self):
         return True
