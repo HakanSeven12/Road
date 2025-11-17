@@ -20,7 +20,6 @@ class ViewProviderTerrain(ViewProviderGeoObject):
     def __init__(self, vobj):
         """Set view properties."""
         super().__init__(vobj,"Terrain")
-        vobj.PlacementUpdate = False
 
         (r, g, b) = (random.random(), random.random(), random.random())
 
@@ -240,6 +239,7 @@ class ViewProviderTerrain(ViewProviderGeoObject):
 
         if prop == "Mesh":
             mesh = obj.getPropertyByName(prop)
+            print(mesh.Topology[0])
             self.terrain_coords.point.values = mesh.Topology[0]
             self.triangles.coordIndex.values = [x for i in mesh.Topology[1] for x in (*i, -1)]
 
