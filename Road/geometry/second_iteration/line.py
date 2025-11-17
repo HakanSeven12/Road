@@ -7,8 +7,8 @@ Line generation tools
 import FreeCAD
 import math
 
-from ... import support
-from ....utils.tuple_math import TupleMath
+from ...functions import support
+from ...utils.tuple_math import TupleMath
 
 
 class Line():

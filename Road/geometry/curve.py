@@ -16,7 +16,7 @@ class Curve(Geometry):
     def __init__(self, data: Dict):
         # Required attributes
         super().__init__(data)
-        self.rotation = 'ccw' if data['Direction'] == -1 else 'cw'
+        self.rotation = data['rot']
         
         # Geometry control points
         self.center_point = data.get('Center', None)
@@ -207,10 +207,19 @@ class Curve(Geometry):
         return (pi_x, pi_y)
 
     def get_point_at_distance(self, s: float) -> Tuple[float, float]:
-        """Get point coordinates at distance s along the arc from start point"""
+        """
+        Get point coordinates at distance s along the arc from start point.
+        Tolerates millimeter-precision overflow.
+        """
+        # Tolerance for distance check
+        tolerance = 0.001
         
-        if s < 0 or s > self.length:
-            raise ValueError(f"Distance {s} outside arc length {self.length}")
+        # If distance exceeds length by small amount, clamp to end point
+        if s > self.length:
+            if s - self.length <= tolerance:
+                return self.end_point
+            else:
+                raise ValueError(f"Distance {s:.6f} exceeds curve length {self.length:.6f} by {s - self.length:.6f}m")
         
         # Calculate angle traversed at distance s
         angle_traversed = s / self.radius
@@ -232,7 +241,7 @@ class Curve(Geometry):
         y = self.center_point[1] + self.radius * math.sin(current_angle)
         
         return x, y
-    
+
     def generate_points(self, step: float) -> list:
         """Generate points along the arc at regular intervals"""
         
@@ -260,14 +269,14 @@ class Curve(Geometry):
         mid_point = self.get_point_at_distance(self.length / 2)
         
         return self.start_point, mid_point, self.end_point
-    
+
     def get_orthogonal(self, s: float, side: str = 'left') -> Tuple[Tuple[float, float], Tuple[float, float]]:
         """
         Get orthogonal vector at distance s along the arc.
         
         Args:
             s: Distance along the arc from start point
-            side: Direction of orthogonal vector - 'left' (toward center) or 'right' (away from center)
+            side: Direction of orthogonal vector - 'left' or 'right'
             
         Returns:
             Tuple containing:
@@ -280,24 +289,34 @@ class Curve(Geometry):
         
         point = self.get_point_at_distance(s)
         
-        # Calculate vector from point to center
-        dx = self.center_point[0] - point[0]
-        dy = self.center_point[1] - point[1]
+        # Calculate angle at current point
+        angle_traversed = s / self.radius
+        start_angle = math.atan2(
+            self.start_point[1] - self.center_point[1],
+            self.start_point[0] - self.center_point[0]
+        )
         
-        distance = math.sqrt(dx**2 + dy**2)
+        if self.rotation == 'cw':
+            current_angle = start_angle - angle_traversed
+        else:
+            current_angle = start_angle + angle_traversed
         
-        if distance < 1e-10:
-            raise ValueError("Point coincides with center")
+        # Calculate tangent direction at current point
+        # Tangent is perpendicular to radius
+        if self.rotation == 'cw':
+            tangent_direction = current_angle - math.pi / 2
+        else:
+            tangent_direction = current_angle + math.pi / 2
         
-        # Normalize vector
-        center_vector_x = dx / distance
-        center_vector_y = dy / distance
+        # Calculate orthogonal direction based on side
+        if side == 'left':
+            # Left is 90 degrees counterclockwise from tangent
+            orthogonal_direction = tangent_direction + math.pi / 2
+        else:  # right
+            # Right is 90 degrees clockwise from tangent
+            orthogonal_direction = tangent_direction - math.pi / 2
         
-        # Choose orthogonal direction based on side
-        if side == 'left':  # toward center
-            orthogonal = (center_vector_x, center_vector_y)
-        else:  # right - away from center
-            orthogonal = (-center_vector_x, -center_vector_y)
+        orthogonal = (math.cos(orthogonal_direction), math.sin(orthogonal_direction))
         
         return point, orthogonal
 
@@ -365,9 +384,50 @@ class Curve(Geometry):
             'external': self.external,
             'dirStart': self.dir_start,
             'dirEnd': self.dir_end,
-            'start': self.start_point,
-            'center': self.center_point,
-            'end': self.end_point,
-            'pi': self.pi_point,
+            'Start': self.start_point,
+            'Center': self.center_point,
+            'End': self.end_point,
+            'PI': self.pi_point,
             'pi_points': self.pi_points  # All PI points for large arcs
         }
+
+    def __repr__(self) -> str:
+        """String representation of curve"""
+        return (
+            f"Curve(radius={self.radius:.2f}, length={self.length:.2f}, "
+            f"delta={math.degrees(self.delta):.2f}°, rot='{self.rotation}')"
+        )
+
+    def __str__(self) -> str:
+        """Human-readable string representation"""
+        return (
+            f"Curve: R={self.radius:.2f}m, L={self.length:.2f}m, "
+            f"Δ={math.degrees(self.delta):.2f}°, {self.rotation.upper()}"
+        )
+
+    def __eq__(self, other) -> bool:
+        """Check equality between two curves"""
+        if not isinstance(other, Curve):
+            return False
+        
+        return (
+            self.start_point == other.start_point and
+            self.end_point == other.end_point and
+            self.center_point == other.center_point and
+            abs(self.radius - other.radius) < 1e-6 and
+            abs(self.length - other.length) < 1e-6 and
+            abs(self.delta - other.delta) < 1e-6 and
+            self.rotation == other.rotation
+        )
+
+    def __hash__(self) -> int:
+        """Make curve objects hashable"""
+        return hash((
+            'Curve',
+            self.start_point,
+            self.end_point,
+            self.center_point,
+            round(self.radius, 6),
+            round(self.delta, 6),
+            self.rotation
+        ))

@@ -5,9 +5,9 @@
 import FreeCAD, FreeCADGui
 
 from .task_panel import TaskPanel
-from ..functions.xml.parser import Parser
-from ..make import make_terrain, make_alignment, make_geopoints, make_geopoints
-from ..functions.alignment.alignment_model import AlignmentModel
+from ..functions.landxml_reader import LandXMLReader
+from ..geometry.alignment import Alignment
+from ..make import make_terrain, make_alignment, make_geopoints
 
 from PySide.QtWidgets import (QWidget, QVBoxLayout, 
                              QHBoxLayout, QPushButton, QLabel, QTreeWidget, 
@@ -19,8 +19,9 @@ class TaskLandXMLImport(TaskPanel):
     def __init__(self):
         super().__init__()
         self.form = QWidget()
-        self.parser = Parser()
+        self.landxml_reader = None
         self.selected_file = None
+        self.parsed_data = {}
         self.errors = []
         self.initUI()
         
@@ -42,7 +43,7 @@ class TaskLandXMLImport(TaskPanel):
         
         # Middle TreeView
         self.tree = QTreeWidget()
-        self.tree.setHeaderLabels(['Item'])  # Only one column now
+        self.tree.setHeaderLabels(['Item', 'Details'])
         self.tree.setSelectionMode(QTreeWidget.NoSelection)
         self.tree.itemChanged.connect(self.on_item_changed)
         main_layout.addWidget(self.tree)
@@ -64,107 +65,330 @@ class TaskLandXMLImport(TaskPanel):
             
     def load_landxml(self, file_path):
         """Loads LandXML file and populates the tree."""
-        self.xml = self.parser.load_file(file_path)
-        if self.parser.errors:
-            for error in self.parser.errors:
-                print(error)
-            return
-        
-        self.tree.clear()
-        self._populate_tree(self.xml)
+        try:
+            self.landxml_reader = LandXMLReader(file_path)
+            self.parsed_data = self.landxml_reader.export_to_dict()
             
-    def _populate_tree(self, tree_data):
-        """Populates tree with data from parser."""
+            self.tree.clear()
+            self._populate_tree()
+            
+        except Exception as e:
+            self.errors.append(f"Error loading LandXML file: {str(e)}")
+            QMessageBox.critical(
+                self.form, 
+                'Error', 
+                f'Failed to load LandXML file:\n{str(e)}'
+            )
+            
+    def _populate_tree(self):
+        """Populates tree with data from LandXML reader."""
         root_item = QTreeWidgetItem(self.tree)
         root_item.setText(0, 'LandXML')
+        root_item.setText(1, self.parsed_data['filepath'].split('/')[-1])
         root_item.setExpanded(True)
         root_item.setCheckState(0, Qt.Unchecked)
         root_item.setFlags(root_item.flags() | Qt.ItemIsUserCheckable)
         
-        #self._add_metadata_items(root_item, tree_data['metadata'])
-        self._add_cogo_points_items(root_item, tree_data['CgPoints'])
-        self._add_surfaces_items(root_item, tree_data['Surfaces'])
-        self._add_alignments_items(root_item, tree_data['Alignments'])
+        # Add alignments
+        self._add_alignments_items(root_item)
         
-    def _add_metadata_items(self, root_item, metadata):
-        """Adds metadata items to the tree."""
-        if metadata['units']:
-            units_item = QTreeWidgetItem(root_item)
-            units_item.setText(0, 'Units')
-            units_item.setExpanded(False)
-            
-            for attr, value in metadata['units'].items():
-                attr_item = QTreeWidgetItem(units_item)
-                attr_item.setText(0, f"{attr}: {value}")
-                attr_item.setFlags(attr_item.flags() & ~Qt.ItemIsSelectable)
-                
-        if metadata['project']:
-            proj_item = QTreeWidgetItem(root_item)
-            proj_item.setText(0, f"Project: {metadata['project']['name']}")
-            proj_item.setExpanded(False)
-            proj_item.setFlags(proj_item.flags() & ~Qt.ItemIsSelectable)
-            
-        if metadata['application']:
-            app_item = QTreeWidgetItem(root_item)
-            app_name = metadata['application']['name']
-            app_desc = metadata['application']['description']
-            app_item.setText(0, f"Application: {app_name} {app_desc}")
-            app_item.setExpanded(False)
-            app_item.setFlags(app_item.flags() & ~Qt.ItemIsSelectable)
-            
-    def _add_cogo_points_items(self, root_item, cogo_points):
-        """Adds CogoPoints items to the tree."""
-        if not cogo_points:
-            return
-            
-        cogo_points_item = QTreeWidgetItem(root_item)
-        cogo_points_item.setText(0, 'CogoPoints')
-        cogo_points_item.setExpanded(False)
-        cogo_points_item.setCheckState(0, Qt.Unchecked)
-        cogo_points_item.setFlags(cogo_points_item.flags() | Qt.ItemIsUserCheckable)
+        # Add CgPoints
+        self._add_cgpoints_items(root_item)
         
-        for group in cogo_points["Groups"].keys():
-            group_item = QTreeWidgetItem(cogo_points_item)
-            group_item.setText(0, group)
-            group_item.setData(0, Qt.UserRole, group)
-            group_item.setCheckState(0, Qt.Unchecked)
-            group_item.setFlags(group_item.flags() | Qt.ItemIsUserCheckable)
-            
-    def _add_surfaces_items(self, root_item, surfaces):
-        """Adds surface items to the tree."""
-        if not surfaces:
-            return
-            
-        surfaces_item = QTreeWidgetItem(root_item)
-        surfaces_item.setText(0, 'Surfaces')
-        surfaces_item.setExpanded(False)
-        surfaces_item.setCheckState(0, Qt.Unchecked)
-        surfaces_item.setFlags(surfaces_item.flags() | Qt.ItemIsUserCheckable)
+        # Add Surfaces
+        self._add_surfaces_items(root_item)
         
-        for surface in surfaces.keys():
-            surf_item = QTreeWidgetItem(surfaces_item)
-            surf_item.setText(0, surface)
-            surf_item.setData(0, Qt.UserRole, surface)
-            surf_item.setCheckState(0, Qt.Unchecked)
-            surf_item.setFlags(surf_item.flags() | Qt.ItemIsUserCheckable)
-            
-    def _add_alignments_items(self, root_item, alignments):
+    def _add_alignments_items(self, root_item):
         """Adds alignment items to the tree."""
-        if not alignments:
+        alignments_data = self.parsed_data.get('alignments', [])
+        
+        if not alignments_data:
             return
             
         alignments_item = QTreeWidgetItem(root_item)
         alignments_item.setText(0, 'Alignments')
-        alignments_item.setExpanded(False)
+        alignments_item.setText(1, f'({len(alignments_data)} items)')
+        alignments_item.setExpanded(True)
         alignments_item.setCheckState(0, Qt.Unchecked)
         alignments_item.setFlags(alignments_item.flags() | Qt.ItemIsUserCheckable)
         
-        for alignment in alignments.keys():
+        for align_data in alignments_data:
+            align_name = align_data.get('name', 'Unnamed')
+            align_length = align_data.get('length', 0)
+            elem_count = len(align_data.get('CoordGeom', []))
+            
             align_item = QTreeWidgetItem(alignments_item)
-            align_item.setText(0, alignment)
-            align_item.setData(0, Qt.UserRole, alignment)
+            align_item.setText(0, align_name)
+            align_item.setText(1, f'Length: {align_length:.2f}, Elements: {elem_count}')
+            align_item.setData(0, Qt.UserRole, {'type': 'alignment', 'data': align_data})
             align_item.setCheckState(0, Qt.Unchecked)
             align_item.setFlags(align_item.flags() | Qt.ItemIsUserCheckable)
+            align_item.setExpanded(False)
+            
+            # Add geometry elements as children
+            self._add_geometry_elements(align_item, align_data.get('CoordGeom', []))
+            
+            # Add station equations if present
+            if 'StaEquation' in align_data and align_data['StaEquation']:
+                self._add_station_equations(align_item, align_data['StaEquation'])
+            
+            # Add PI points if present
+            if 'AlignPIs' in align_data and align_data['AlignPIs']:
+                self._add_pi_points(align_item, align_data['AlignPIs'])
+    
+    def _add_geometry_elements(self, parent_item, geom_elements):
+        """Adds geometry elements as children."""
+        if not geom_elements:
+            return
+        
+        geom_group = QTreeWidgetItem(parent_item)
+        geom_group.setText(0, 'Geometry')
+        geom_group.setText(1, f'({len(geom_elements)} elements)')
+        geom_group.setExpanded(False)
+        geom_group.setFlags(geom_group.flags() & ~Qt.ItemIsSelectable)
+        
+        for i, geom in enumerate(geom_elements):
+            geom_type = geom.get('Type', 'Unknown')
+            geom_length = geom.get('length', geom.get('Length', 0))
+            
+            geom_item = QTreeWidgetItem(geom_group)
+            geom_item.setText(0, f'{i+1}. {geom_type}')
+            geom_item.setText(1, f'Length: {geom_length:.2f}')
+            geom_item.setFlags(geom_item.flags() & ~Qt.ItemIsSelectable)
+            
+            # Add specific attributes based on type
+            if geom_type == 'Curve':
+                radius = geom.get('radius', 0)
+                delta = geom.get('delta', 0)
+                geom_item.setText(1, f'R={radius:.2f}, Δ={delta:.4f} rad')
+            elif geom_type == 'Spiral':
+                r_start = geom.get('StartRadius', float('inf'))
+                r_end = geom.get('EndRadius', float('inf'))
+                r_start_str = 'INF' if r_start == float('inf') else f'{r_start:.2f}'
+                r_end_str = 'INF' if r_end == float('inf') else f'{r_end:.2f}'
+                geom_item.setText(1, f'Rs={r_start_str}, Re={r_end_str}, L={geom_length:.2f}')
+    
+    def _add_station_equations(self, parent_item, equations):
+        """Adds station equations as children."""
+        eq_group = QTreeWidgetItem(parent_item)
+        eq_group.setText(0, 'Station Equations')
+        eq_group.setText(1, f'({len(equations)} equations)')
+        eq_group.setExpanded(False)
+        eq_group.setFlags(eq_group.flags() & ~Qt.ItemIsSelectable)
+        
+        for i, eq in enumerate(equations):
+            sta_back = eq.get('staBack', 0)
+            sta_ahead = eq.get('staAhead', 0)
+            adjustment = sta_ahead - sta_back
+            
+            eq_item = QTreeWidgetItem(eq_group)
+            eq_item.setText(0, f'{i+1}. {sta_back:.2f} = {sta_ahead:.2f}')
+            eq_item.setText(1, f'Adjustment: {adjustment:+.2f}')
+            eq_item.setFlags(eq_item.flags() & ~Qt.ItemIsSelectable)
+    
+    def _add_pi_points(self, parent_item, pi_points):
+        """Adds PI points as children."""
+        pi_group = QTreeWidgetItem(parent_item)
+        pi_group.setText(0, 'PI Points')
+        pi_group.setText(1, f'({len(pi_points)} points)')
+        pi_group.setExpanded(False)
+        pi_group.setFlags(pi_group.flags() & ~Qt.ItemIsSelectable)
+        
+        for i, pi in enumerate(pi_points):
+            point = pi.get('point', (0, 0))
+            station = pi.get('station', None)
+            
+            pi_item = QTreeWidgetItem(pi_group)
+            pi_item.setText(0, f'{i+1}. PI')
+            
+            if station is not None:
+                pi_item.setText(1, f'Sta: {station:.2f}, ({point[0]:.2f}, {point[1]:.2f})')
+            else:
+                pi_item.setText(1, f'({point[0]:.2f}, {point[1]:.2f})')
+            
+            pi_item.setFlags(pi_item.flags() & ~Qt.ItemIsSelectable)
+    
+    def _add_cgpoints_items(self, root_item):
+        """Adds CgPoints items to the tree."""
+        cgpoints_data = self.parsed_data.get('cgpoints', [])
+        
+        if not cgpoints_data:
+            return
+        
+        cgpoints_item = QTreeWidgetItem(root_item)
+        cgpoints_item.setText(0, 'CgPoints')
+        cgpoints_item.setText(1, f'({len(cgpoints_data)} points)')
+        cgpoints_item.setExpanded(False)
+        cgpoints_item.setCheckState(0, Qt.Unchecked)
+        cgpoints_item.setFlags(cgpoints_item.flags() | Qt.ItemIsUserCheckable)
+        
+        # Group points by code for better organization
+        points_by_code = {}
+        points_no_code = []
+        
+        for point in cgpoints_data:
+            code = point.get('code', None)
+            if code:
+                if code not in points_by_code:
+                    points_by_code[code] = []
+                points_by_code[code].append(point)
+            else:
+                points_no_code.append(point)
+        
+        # Add points grouped by code
+        for code in sorted(points_by_code.keys()):
+            code_group = QTreeWidgetItem(cgpoints_item)
+            code_group.setText(0, f'Code: {code}')
+            code_group.setText(1, f'({len(points_by_code[code])} points)')
+            code_group.setExpanded(False)
+            code_group.setCheckState(0, Qt.Unchecked)
+            code_group.setFlags(code_group.flags() | Qt.ItemIsUserCheckable)
+            
+            for point in points_by_code[code]:
+                self._add_cgpoint_item(code_group, point)
+        
+        # Add points without code
+        if points_no_code:
+            no_code_group = QTreeWidgetItem(cgpoints_item)
+            no_code_group.setText(0, 'No Code')
+            no_code_group.setText(1, f'({len(points_no_code)} points)')
+            no_code_group.setExpanded(False)
+            no_code_group.setCheckState(0, Qt.Unchecked)
+            no_code_group.setFlags(no_code_group.flags() | Qt.ItemIsUserCheckable)
+            
+            for point in points_no_code:
+                self._add_cgpoint_item(no_code_group, point)
+    
+    def _add_cgpoint_item(self, parent_item, point_data):
+        """Adds a single CgPoint item to the tree."""
+        point_name = point_data.get('name', 'Unnamed')
+        northing = point_data.get('northing', 0)
+        easting = point_data.get('easting', 0)
+        elevation = point_data.get('elevation', None)
+        
+        point_item = QTreeWidgetItem(parent_item)
+        point_item.setText(0, point_name)
+        
+        # Format coordinates display
+        if elevation is not None:
+            coord_str = f'N: {northing:.3f}, E: {easting:.3f}, Z: {elevation:.3f}'
+        else:
+            coord_str = f'N: {northing:.3f}, E: {easting:.3f}'
+        
+        point_item.setText(1, coord_str)
+        point_item.setData(0, Qt.UserRole, {'type': 'cgpoint', 'data': point_data})
+        point_item.setCheckState(0, Qt.Unchecked)
+        point_item.setFlags(point_item.flags() | Qt.ItemIsUserCheckable)
+        
+        # Add description as child if present
+        desc = point_data.get('desc', None)
+        if desc:
+            desc_item = QTreeWidgetItem(point_item)
+            desc_item.setText(0, 'Description')
+            desc_item.setText(1, desc)
+            desc_item.setFlags(desc_item.flags() & ~Qt.ItemIsSelectable)
+    
+    def _add_surfaces_items(self, root_item):
+        """Adds surface items to the tree."""
+        surfaces_data = self.parsed_data.get('surfaces', [])
+        
+        if not surfaces_data:
+            return
+        
+        surfaces_item = QTreeWidgetItem(root_item)
+        surfaces_item.setText(0, 'Surfaces')
+        surfaces_item.setText(1, f'({len(surfaces_data)} surfaces)')
+        surfaces_item.setExpanded(False)
+        surfaces_item.setCheckState(0, Qt.Unchecked)
+        surfaces_item.setFlags(surfaces_item.flags() | Qt.ItemIsUserCheckable)
+        
+        for surface_data in surfaces_data:
+            surface_name = surface_data.get('name', 'Unnamed')
+            surf_type = surface_data.get('surfType', 'Unknown')
+            point_count = len(surface_data.get('points', []))
+            face_count = len(surface_data.get('faces', []))
+            
+            surface_item = QTreeWidgetItem(surfaces_item)
+            surface_item.setText(0, surface_name)
+            surface_item.setText(1, f'Type: {surf_type}, Points: {point_count}, Faces: {face_count}')
+            surface_item.setData(0, Qt.UserRole, {'type': 'surface', 'data': surface_data})
+            surface_item.setCheckState(0, Qt.Unchecked)
+            surface_item.setFlags(surface_item.flags() | Qt.ItemIsUserCheckable)
+            surface_item.setExpanded(False)
+            
+            # Add surface details as children
+            self._add_surface_details(surface_item, surface_data)
+    
+    def _add_surface_details(self, parent_item, surface_data):
+        """Adds surface details as children."""
+        # Add description if present
+        desc = surface_data.get('desc', None)
+        if desc:
+            desc_item = QTreeWidgetItem(parent_item)
+            desc_item.setText(0, 'Description')
+            desc_item.setText(1, desc)
+            desc_item.setFlags(desc_item.flags() & ~Qt.ItemIsSelectable)
+        
+        # Add elevation range if present
+        elev_min = surface_data.get('elevMin')
+        elev_max = surface_data.get('elevMax')
+        if elev_min is not None and elev_max is not None:
+            elev_item = QTreeWidgetItem(parent_item)
+            elev_item.setText(0, 'Elevation Range')
+            elev_item.setText(1, f'{elev_min:.2f} to {elev_max:.2f}')
+            elev_item.setFlags(elev_item.flags() & ~Qt.ItemIsSelectable)
+        
+        # Add area if present
+        area_2d = surface_data.get('area2DSurf')
+        area_3d = surface_data.get('area3DSurf')
+        if area_2d is not None:
+            area_item = QTreeWidgetItem(parent_item)
+            area_item.setText(0, '2D Area')
+            area_item.setText(1, f'{area_2d:.2f}')
+            area_item.setFlags(area_item.flags() & ~Qt.ItemIsSelectable)
+        if area_3d is not None:
+            area_item = QTreeWidgetItem(parent_item)
+            area_item.setText(0, '3D Area')
+            area_item.setText(1, f'{area_3d:.2f}')
+            area_item.setFlags(area_item.flags() & ~Qt.ItemIsSelectable)
+        
+        # Add points summary
+        points = surface_data.get('points', [])
+        if points:
+            points_group = QTreeWidgetItem(parent_item)
+            points_group.setText(0, 'Points')
+            points_group.setText(1, f'({len(points)} points)')
+            points_group.setExpanded(False)
+            points_group.setFlags(points_group.flags() & ~Qt.ItemIsSelectable)
+            
+            # Show first 5 points as example
+            for i, point in enumerate(points[:5]):
+                point_id = point.get('id', 'Unknown')
+                northing = point.get('northing', 0)
+                easting = point.get('easting', 0)
+                elevation = point.get('elevation', 'N/A')
+                
+                point_item = QTreeWidgetItem(points_group)
+                point_item.setText(0, f'ID: {point_id}')
+                if elevation != 'N/A':
+                    point_item.setText(1, f'N:{northing:.2f}, E:{easting:.2f}, Z:{elevation:.2f}')
+                else:
+                    point_item.setText(1, f'N:{northing:.2f}, E:{easting:.2f}')
+                point_item.setFlags(point_item.flags() & ~Qt.ItemIsSelectable)
+            
+            if len(points) > 5:
+                more_item = QTreeWidgetItem(points_group)
+                more_item.setText(0, f'... and {len(points) - 5} more points')
+                more_item.setFlags(more_item.flags() & ~Qt.ItemIsSelectable)
+        
+        # Add faces summary
+        faces = surface_data.get('faces', [])
+        if faces:
+            faces_group = QTreeWidgetItem(parent_item)
+            faces_group.setText(0, 'Faces')
+            faces_group.setText(1, f'({len(faces)} triangles)')
+            faces_group.setExpanded(False)
+            faces_group.setFlags(faces_group.flags() & ~Qt.ItemIsSelectable)
 
     def on_item_changed(self, item, column):
         """Handles checkbox state changes."""
@@ -185,7 +409,7 @@ class TaskLandXMLImport(TaskPanel):
     def _is_group_header(self, item):
         """Checks if the item is a group header."""
         item_text = item.text(0)
-        return item_text in ['LandXML', 'Surfaces', 'Alignments', 'CogoPoints']
+        return item_text in ['LandXML', 'Surfaces', 'Alignments', 'CgPoints'] or item_text.startswith('Code:') or item_text == 'No Code'
     
     def _update_children_checkboxes(self, parent_item, state):
         """Updates the checkboxes of child items based on the parent's state."""
@@ -224,60 +448,274 @@ class TaskLandXMLImport(TaskPanel):
         
         self._update_parent_checkbox(parent)
         
-    def _collect_checked_items(self, parent_item, items_list):
-        """Recursively collects checked items."""
+    def _collect_checked_alignment_data(self, parent_item, alignments_list):
+        """Recursively collects checked alignment data."""
         for i in range(parent_item.childCount()):
             child = parent_item.child(i)
+            
+            # Check if this is an alignment item (has data stored)
+            item_data = child.data(0, Qt.UserRole)
+            
             if (child.checkState(0) == Qt.Checked and 
-                child.data(0, Qt.UserRole) is not None):
-                items_list.append(child.data(0, Qt.UserRole))
-            self._collect_checked_items(child, items_list)
+                item_data is not None and 
+                isinstance(item_data, dict) and
+                item_data.get('type') == 'alignment'):
+                alignments_list.append(item_data['data'])
+            
+            # Recursively check children
+            self._collect_checked_alignment_data(child, alignments_list)
+    
+    def _collect_checked_cgpoint_data(self, parent_item, cgpoints_list):
+        """Recursively collects checked CgPoint data."""
+        for i in range(parent_item.childCount()):
+            child = parent_item.child(i)
+            
+            # Check if this is a CgPoint item
+            item_data = child.data(0, Qt.UserRole)
+            
+            if (child.checkState(0) == Qt.Checked and 
+                item_data is not None and 
+                isinstance(item_data, dict) and
+                item_data.get('type') == 'cgpoint'):
+                cgpoints_list.append(item_data['data'])
+            
+            # Recursively check children
+            self._collect_checked_cgpoint_data(child, cgpoints_list)
+    
+    def _collect_checked_surface_data(self, parent_item, surfaces_list):
+        """Recursively collects checked Surface data."""
+        for i in range(parent_item.childCount()):
+            child = parent_item.child(i)
+            
+            # Check if this is a Surface item
+            item_data = child.data(0, Qt.UserRole)
+            
+            if (child.checkState(0) == Qt.Checked and 
+                item_data is not None and 
+                isinstance(item_data, dict) and
+                item_data.get('type') == 'surface'):
+                surfaces_list.append(item_data['data'])
+            
+            # Recursively check children
+            self._collect_checked_surface_data(child, surfaces_list)
+    
+    def _get_next_key(self, model):
+        """Get the next available key as a string, finding the first missing number."""
+        if not model:
+            return "1"
+        
+        # Extract all numeric values from string keys
+        used = set()
+        for key in model.keys():
+            try:
+                # Try to convert string key to integer
+                used.add(int(key))
+            except (ValueError, TypeError):
+                # Skip keys that aren't numeric strings
+                pass
+        
+        if not used:
+            return "1"
+        
+        # Find the first missing number
+        max_key = max(used)
+        all_numbers = set(range(1, max_key + 1))
+        missing = sorted(all_numbers - used)
+        
+        if missing:
+            # Return first missing number as string
+            return str(missing[0])
+        else:
+            # No gaps, return next number as string
+            return str(max_key + 1)
 
     def accept(self):
-        """
-        Accept the task parameters
-        """
+        """Accept the task parameters and create FreeCAD objects."""
         if self.errors:
-
             print('Errors encountered during import:\n')
             for err in self.errors:
                 print(err)
 
-        if not self.xml: return
-
-        selected_items = []
-        self._collect_checked_items(self.tree.invisibleRootItem(), selected_items)
-        
-        if not selected_items:
-            QMessageBox.warning(self.form, 'Warning', 'Please check at least one item!')
+        if not self.landxml_reader:
+            QMessageBox.warning(self.form, 'Warning', 'No LandXML file loaded!')
             return
-            
-        if not self.xml['CgPoints'].get("Groups"):
-            geopoints = make_geopoints.create()
-            geopoints.Model = self.xml['CgPoints']['All_Points']
+
+        # Collect checked alignments
+        selected_alignments = []
+        self._collect_checked_alignment_data(
+            self.tree.invisibleRootItem(), 
+            selected_alignments
+        )
         
-        for name, ref in self.xml['CgPoints'].get("Groups").items():
-            if name not in selected_items: continue
-            geopoints = make_geopoints.create(name)
-
-            points = {}
-            for name in ref:
-                if name in self.xml['CgPoints'].get("All_Points").keys():
-                    points[name] = self.xml['CgPoints']['All_Points'][name]
-            geopoints.Model = points
-
-        for name, data in self.xml['Surfaces'].items():
-            if name not in selected_items: continue
-
-            terrain = make_terrain.create(label=name)
-            terrain.Points = data['Points']
-            terrain.Faces = data['Faces']
-
-        for name, data in self.xml['Alignments'].items():
-            if name not in selected_items: continue
-            alignment = make_alignment.create(name)
-            alignment.Model = AlignmentModel(data)
-
+        # Collect checked CgPoints
+        selected_cgpoints = []
+        self._collect_checked_cgpoint_data(
+            self.tree.invisibleRootItem(),
+            selected_cgpoints
+        )
+        
+        # Collect checked Surfaces
+        selected_surfaces = []
+        self._collect_checked_surface_data(
+            self.tree.invisibleRootItem(),
+            selected_surfaces
+        )
+        
+        if not selected_alignments and not selected_cgpoints and not selected_surfaces:
+            QMessageBox.warning(
+                self.form, 
+                'Warning', 
+                'Please check at least one item to import!'
+            )
+            return
+        
+        # Create alignment objects in FreeCAD
+        alignment_created = 0
+        alignment_failed = 0
+        
+        for align_data in selected_alignments:
+            try:
+                align_name = align_data.get('name', 'Unnamed Alignment')
+                alignment = make_alignment.create(align_name)
+                alignment.Model = Alignment(align_data)
+                
+                print(f"Created alignment: {align_name}")
+                alignment_created += 1
+                
+            except Exception as e:
+                error_msg = f"Failed to create alignment '{align_name}': {str(e)}"
+                self.errors.append(error_msg)
+                print(error_msg)
+                alignment_failed += 1
+        
+        # Create CgPoint objects in FreeCAD - grouped by code
+        cgpoint_created = 0
+        cgpoint_failed = 0
+        geopoints_created = 0
+        
+        if selected_cgpoints:
+            # Group points by code
+            points_by_code = {}
+            for point_data in selected_cgpoints:
+                code = point_data.get('code', 'NoCode')
+                if code not in points_by_code:
+                    points_by_code[code] = []
+                points_by_code[code].append(point_data)
+            
+            # Create separate GeoPoints object for each code group
+            for code, points_list in points_by_code.items():
+                try:
+                    # Create a new GeoPoints object with code as name
+                    geopoints = make_geopoints.create(code)
+                    
+                    # Get the current model (should be empty for new object)
+                    model = geopoints.Model.copy()
+                    
+                    # Add all points in this code group to the model
+                    for point_data in points_list:
+                        key = self._get_next_key(model)
+                        
+                        model[key] = {
+                            "Name": point_data.get('name', 'Unnamed'),
+                            "Northing": float(point_data.get('northing', 0)),
+                            "Easting": float(point_data.get('easting', 0)),
+                            "Elevation": float(point_data.get('elevation', 0)),
+                            "Description": point_data.get('desc', '')
+                        }
+                    
+                    # Update the GeoPoints object with the new model
+                    geopoints.Model = model
+                    
+                    cgpoint_created += len(points_list)
+                    geopoints_created += 1
+                    print(f"Created GeoPoints '{code}' with {len(points_list)} points")
+                    
+                except Exception as e:
+                    error_msg = f"Failed to create CgPoints group '{code}': {str(e)}"
+                    self.errors.append(error_msg)
+                    print(error_msg)
+                    cgpoint_failed += len(points_list)
+        
+        # Create Surface objects in FreeCAD as Terrain
+        surface_created = 0
+        surface_failed = 0
+        
+        if selected_surfaces:
+            for surface_data in selected_surfaces:
+                try:
+                    surface_name = surface_data.get('name', 'Unnamed Surface')
+                    
+                    # Get points and faces
+                    points = surface_data.get('points', [])
+                    faces = surface_data.get('faces', [])
+                    
+                    if not points or not faces:
+                        raise ValueError("Surface has no points or faces")
+                    
+                    # Create point ID to index mapping
+                    point_id_map = {pt['id']: idx for idx, pt in enumerate(points)}
+                    
+                    # Build Points list for Terrain API
+                    # Format: List of (X, Y, Z) tuples where X=Easting, Y=Northing, Z=Elevation
+                    terrain_points = []
+                    for point in points:
+                        easting = point.get('easting', 0)*1000
+                        northing = point.get('northing', 0)*1000
+                        elevation = point.get('elevation', 0)*1000
+                        terrain_points.append((easting, northing, elevation))
+                    
+                    # Build Faces list for Terrain API
+                    # Format: List of (v1, v2, v3) tuples with vertex indices
+                    terrain_faces = []
+                    for face in faces:
+                        point_ids = face.get('points', [])
+                        if len(point_ids) >= 3:
+                            # Convert point IDs to vertex indices
+                            try:
+                                v1 = point_id_map[point_ids[0]]
+                                v2 = point_id_map[point_ids[1]]
+                                v3 = point_id_map[point_ids[2]]
+                                terrain_faces.append((v1, v2, v3))
+                            except KeyError:
+                                # Skip faces with missing point references
+                                continue
+                    
+                    # Create Terrain object using the make_terrain API
+                    terrain = make_terrain.create(label=surface_name)
+                    terrain.Points = terrain_points
+                    terrain.Faces = {"Visible":terrain_faces, "Invisible":[]}
+                    
+                    surface_created += 1
+                    print(f"Created terrain '{surface_name}' with {len(terrain_points)} points and {len(terrain_faces)} faces")
+                    
+                except Exception as e:
+                    error_msg = f"Failed to create terrain '{surface_name}': {str(e)}"
+                    self.errors.append(error_msg)
+                    print(error_msg)
+                    surface_failed += 1
+        
+        # Show summary
+        summary_msg = f"Import completed:\n"
+        if alignment_created > 0:
+            summary_msg += f"  Alignments created: {alignment_created}\n"
+        if alignment_failed > 0:
+            summary_msg += f"  Alignments failed: {alignment_failed}\n"
+        if cgpoint_created > 0:
+            summary_msg += f"  GeoPoints groups created: {geopoints_created}\n"
+            summary_msg += f"  Total CgPoints imported: {cgpoint_created}\n"
+        if cgpoint_failed > 0:
+            summary_msg += f"  CgPoints failed: {cgpoint_failed}\n"
+        if surface_created > 0:
+            summary_msg += f"  Terrains created: {surface_created}\n"
+        if surface_failed > 0:
+            summary_msg += f"  Terrains failed: {surface_failed}\n"
+        
+        if alignment_created > 0 or cgpoint_created > 0 or surface_created > 0:
+            QMessageBox.information(self.form, 'Import Complete', summary_msg)
+        else:
+            QMessageBox.warning(self.form, 'Import Failed', summary_msg)
+        
+        # Close dialog and recompute
         FreeCADGui.Control.closeDialog()
         FreeCAD.ActiveDocument.recompute()
         FreeCADGui.SendMsgToActiveView("ViewFit")

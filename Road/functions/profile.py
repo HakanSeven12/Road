@@ -7,9 +7,9 @@ import MeshPart, Part
 
 import math
 
-from ..geoutils.parabola import makeParabola
-from ..geoutils.tangent import makeTangent
-from ..geoutils.curve import makeCurve
+from ..geometry.parabola import makeParabola
+from ..geometry.first_iteration.tangent import makeTangent
+from ..geometry.first_iteration.curve import makeCurve
 
 def flatten_profile(points, horizon):
     flatten =[]
