@@ -69,7 +69,7 @@ class Section(GeoObject):
                 
                 offset_elevation = []
                 for point in projected_points:
-                    point = point.add(terrain.Geolocation.Base).sub(terrain.Placement.Base)
+                    point = point.add(terrain.Geolocation.Base).sub(terrain.Placement.Base).multiply(0.001)
                     station, offset = alignment.Model.get_station_offset([*point])
                     if offset: offset_elevation.append([offset, point.z])
                     if horizon==0 or point.z < horizon: horizon = point.z
@@ -79,7 +79,7 @@ class Section(GeoObject):
                 obj.Model[sta]['sections'][terrain.Label] = offset_elevation
 
             # Set horizon
-            obj.Model[sta]["horizon"] = math.floor(horizon / 5000) * 5000
+            obj.Model[sta]["horizon"] = math.floor(horizon / 5) * 5
 
         # Calculate grid dimensions (equal rows and columns)
         total_items = len(obj.Model)
@@ -106,7 +106,7 @@ class Section(GeoObject):
                 point_list = []
                 for offset, elevation in values:
                     if offset is None or elevation is None: continue
-                    pt = FreeCAD.Vector(offset, elevation - data.get("horizon"), 0)
+                    pt = FreeCAD.Vector(offset, elevation - data.get("horizon"), 0).multiply(1000)
                     point_list.append(origin.add(pt))
                 
                 if len(point_list) > 1:

@@ -548,7 +548,7 @@ class Alignment:
             return (best_station, best_signed_offset)
         else:
             # No valid projection found on any alignment element
-            return None
+            return None, None
 
     def generate_points(self, step: float) -> List[Tuple[float, float, float]]:
         """
