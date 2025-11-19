@@ -99,9 +99,6 @@ class Terrain(GeoObject):
 
     def onChanged(self, obj, prop):
         """Do something when a data property has changed."""
-        print(prop)
-        if prop=='Placement': print(obj.Placement.Base)
-        if prop=='Geolocation': print(obj.Geolocation.Base)
         super().onChanged(obj, prop)
 
         if prop in ["Points", "Faces", "Operations"]:
