@@ -99,6 +99,9 @@ class Terrain(GeoObject):
 
     def onChanged(self, obj, prop):
         """Do something when a data property has changed."""
+        print(prop)
+        if prop=='Placement': print(obj.Placement.Base)
+        if prop=='Geolocation': print(obj.Geolocation.Base)
         super().onChanged(obj, prop)
 
         if prop in ["Points", "Faces", "Operations"]:
@@ -127,7 +130,6 @@ class Terrain(GeoObject):
                 if op.get("type") == "Swap Edge":
                     idx = op.get("index")
                     other = op.get("other")
-                    print(idx,other)
                     try:
                         mesh.swapEdge(idx, other)
 
@@ -135,8 +137,9 @@ class Terrain(GeoObject):
                         print("The edge between these triangles cannot be swappable")
 
             if mesh.CountFacets > 0:
-                obj.Mesh = mesh
                 obj.Geolocation.Base = origin
+                mesh.Placement = obj.Placement
+                obj.Mesh = mesh
         
         elif prop == "Mesh":
             mesh = obj.getPropertyByName(prop)
