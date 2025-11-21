@@ -209,55 +209,41 @@ class TaskLandXMLImport(TaskPanel):
             pi_item.setFlags(pi_item.flags() & ~Qt.ItemIsSelectable)
     
     def _add_cgpoints_items(self, root_item):
-        """Adds CgPoints items to the tree."""
-        cgpoints_data = self.parsed_data.get('cgpoints', [])
+        """Adds CgPoints items to the tree organized by groups."""
+        cgpoint_groups = self.parsed_data.get('cgpoint_groups', [])
         
-        if not cgpoints_data:
+        if not cgpoint_groups:
             return
+        
+        total_points = sum(len(g.get('points', [])) for g in cgpoint_groups)
         
         cgpoints_item = QTreeWidgetItem(root_item)
         cgpoints_item.setText(0, 'CgPoints')
-        cgpoints_item.setText(1, f'({len(cgpoints_data)} points)')
+        cgpoints_item.setText(1, f'({total_points} points in {len(cgpoint_groups)} groups)')
         cgpoints_item.setExpanded(False)
         cgpoints_item.setCheckState(0, Qt.Unchecked)
         cgpoints_item.setFlags(cgpoints_item.flags() | Qt.ItemIsUserCheckable)
         
-        # Group points by code for better organization
-        points_by_code = {}
-        points_no_code = []
-        
-        for point in cgpoints_data:
-            code = point.get('code', None)
-            if code:
-                if code not in points_by_code:
-                    points_by_code[code] = []
-                points_by_code[code].append(point)
-            else:
-                points_no_code.append(point)
-        
-        # Add points grouped by code
-        for code in sorted(points_by_code.keys()):
-            code_group = QTreeWidgetItem(cgpoints_item)
-            code_group.setText(0, f'Code: {code}')
-            code_group.setText(1, f'({len(points_by_code[code])} points)')
-            code_group.setExpanded(False)
-            code_group.setCheckState(0, Qt.Unchecked)
-            code_group.setFlags(code_group.flags() | Qt.ItemIsUserCheckable)
+        # Add each group
+        for group_data in cgpoint_groups:
+            group_name = group_data.get('name', 'Unnamed Group')
+            points_list = group_data.get('points', [])
             
-            for point in points_by_code[code]:
-                self._add_cgpoint_item(code_group, point)
-        
-        # Add points without code
-        if points_no_code:
-            no_code_group = QTreeWidgetItem(cgpoints_item)
-            no_code_group.setText(0, 'No Code')
-            no_code_group.setText(1, f'({len(points_no_code)} points)')
-            no_code_group.setExpanded(False)
-            no_code_group.setCheckState(0, Qt.Unchecked)
-            no_code_group.setFlags(no_code_group.flags() | Qt.ItemIsUserCheckable)
+            if not points_list:
+                continue
             
-            for point in points_no_code:
-                self._add_cgpoint_item(no_code_group, point)
+            # Create group item
+            group_item = QTreeWidgetItem(cgpoints_item)
+            group_item.setText(0, group_name)
+            group_item.setText(1, f'({len(points_list)} points)')
+            group_item.setExpanded(False)
+            group_item.setCheckState(0, Qt.Unchecked)
+            group_item.setFlags(group_item.flags() | Qt.ItemIsUserCheckable)
+            group_item.setData(0, Qt.UserRole, {'type': 'cgpoint_group', 'data': group_data})
+            
+            # Add individual points
+            for point_data in points_list:
+                self._add_cgpoint_item(group_item, point_data)
     
     def _add_cgpoint_item(self, parent_item, point_data):
         """Adds a single CgPoint item to the tree."""
@@ -409,7 +395,18 @@ class TaskLandXMLImport(TaskPanel):
     def _is_group_header(self, item):
         """Checks if the item is a group header."""
         item_text = item.text(0)
-        return item_text in ['LandXML', 'Surfaces', 'Alignments', 'CgPoints'] or item_text.startswith('Code:') or item_text == 'No Code'
+        item_data = item.data(0, Qt.UserRole)
+        
+        # Check if it's a predefined group or a data group
+        if item_text in ['LandXML', 'Surfaces', 'Alignments', 'CgPoints']:
+            return True
+        
+        # Check if it's a CgPoint group
+        if item_data and isinstance(item_data, dict):
+            if item_data.get('type') == 'cgpoint_group':
+                return True
+        
+        return False
     
     def _update_children_checkboxes(self, parent_item, state):
         """Updates the checkboxes of child items based on the parent's state."""
@@ -465,22 +462,22 @@ class TaskLandXMLImport(TaskPanel):
             # Recursively check children
             self._collect_checked_alignment_data(child, alignments_list)
     
-    def _collect_checked_cgpoint_data(self, parent_item, cgpoints_list):
-        """Recursively collects checked CgPoint data."""
+    def _collect_checked_cgpoint_data(self, parent_item, cgpoint_groups_list):
+        """Recursively collects checked CgPoint group data."""
         for i in range(parent_item.childCount()):
             child = parent_item.child(i)
             
-            # Check if this is a CgPoint item
+            # Check if this is a CgPoint group item
             item_data = child.data(0, Qt.UserRole)
             
             if (child.checkState(0) == Qt.Checked and 
                 item_data is not None and 
                 isinstance(item_data, dict) and
-                item_data.get('type') == 'cgpoint'):
-                cgpoints_list.append(item_data['data'])
+                item_data.get('type') == 'cgpoint_group'):
+                cgpoint_groups_list.append(item_data['data'])
             
             # Recursively check children
-            self._collect_checked_cgpoint_data(child, cgpoints_list)
+            self._collect_checked_cgpoint_data(child, cgpoint_groups_list)
     
     def _collect_checked_surface_data(self, parent_item, surfaces_list):
         """Recursively collects checked Surface data."""
@@ -547,13 +544,12 @@ class TaskLandXMLImport(TaskPanel):
             selected_alignments
         )
         
-        # Collect checked CgPoints
-        selected_cgpoints = []
+        # Collect checked CgPoint groups
+        selected_cgpoint_groups = []
         self._collect_checked_cgpoint_data(
             self.tree.invisibleRootItem(),
-            selected_cgpoints
+            selected_cgpoint_groups
         )
-        
         # Collect checked Surfaces
         selected_surfaces = []
         self._collect_checked_surface_data(
@@ -561,7 +557,7 @@ class TaskLandXMLImport(TaskPanel):
             selected_surfaces
         )
         
-        if not selected_alignments and not selected_cgpoints and not selected_surfaces:
+        if not selected_alignments and not selected_cgpoint_groups and not selected_surfaces:
             QMessageBox.warning(
                 self.form, 
                 'Warning', 
@@ -587,31 +583,28 @@ class TaskLandXMLImport(TaskPanel):
                 self.errors.append(error_msg)
                 print(error_msg)
                 alignment_failed += 1
-        
-        # Create CgPoint objects in FreeCAD - grouped by code
+
+        # Create CgPoint objects in FreeCAD - one GeoPoints object per group
         cgpoint_created = 0
         cgpoint_failed = 0
         geopoints_created = 0
-        
-        if selected_cgpoints:
-            # Group points by code
-            points_by_code = {}
-            for point_data in selected_cgpoints:
-                code = point_data.get('code', 'NoCode')
-                if code not in points_by_code:
-                    points_by_code[code] = []
-                points_by_code[code].append(point_data)
-            
-            # Create separate GeoPoints object for each code group
-            for code, points_list in points_by_code.items():
+
+        if selected_cgpoint_groups:
+            for group_data in selected_cgpoint_groups:
+                group_name = group_data.get('name', 'Unnamed Group')
+                points_list = group_data.get('points', [])
+                
+                if not points_list:
+                    continue
+                
                 try:
-                    # Create a new GeoPoints object with code as name
-                    geopoints = make_geopoints.create(code)
+                    # Create a new GeoPoints object with group name
+                    geopoints = make_geopoints.create(group_name)
                     
                     # Get the current model (should be empty for new object)
                     model = geopoints.Model.copy()
                     
-                    # Add all points in this code group to the model
+                    # Add all points in this group to the model
                     for point_data in points_list:
                         key = self._get_next_key(model)
                         
@@ -628,10 +621,10 @@ class TaskLandXMLImport(TaskPanel):
                     
                     cgpoint_created += len(points_list)
                     geopoints_created += 1
-                    print(f"Created GeoPoints '{code}' with {len(points_list)} points")
+                    print(f"Created GeoPoints '{group_name}' with {len(points_list)} points")
                     
                 except Exception as e:
-                    error_msg = f"Failed to create CgPoints group '{code}': {str(e)}"
+                    error_msg = f"Failed to create CgPoints group '{group_name}': {str(e)}"
                     self.errors.append(error_msg)
                     print(error_msg)
                     cgpoint_failed += len(points_list)

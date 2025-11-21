@@ -335,6 +335,11 @@ class LandXMLReader:
         attributes = self._parse_attributes(cgpoint_elem, config['attr_map'])
         cgpoint_data.update(attributes)
         
+        # Move 'code' to 'desc' if present (code is actually the description)
+        if 'code' in cgpoint_data and 'desc' not in cgpoint_data:
+            cgpoint_data['desc'] = cgpoint_data['code']
+            del cgpoint_data['code']
+        
         # Get point coordinates from element text
         point_text = cgpoint_elem.text
         if point_text:
@@ -349,7 +354,7 @@ class LandXMLReader:
                     cgpoint_data['northing'] = coords[1]
         
         return cgpoint_data
-    
+
     def _parse_surface_points(self, surface_elem: ET.Element) -> List[Dict]:
         """
         Parse P (Point) elements within a Surface Definition element.
@@ -489,41 +494,85 @@ class LandXMLReader:
     
     def read_cgpoints(self) -> List[Dict]:
         """
-        Read all CgPoints from LandXML file.
+        Read all CgPoints from LandXML file, organized by groups.
+        Groups can be defined by <CgPoints name="..."> containers with pntRef references.
         
         Returns:
-            List of CgPoint data dictionaries
+            List of group dictionaries, each containing group name and list of points
         """
-        cgpoints = []
+        groups = []
         
         # Find CgPoints container
-        cgpoints_elem = self._find_element(self.root, 'CgPoints')
+        cgpoints_elements = self._find_all_elements(self.root, 'CgPoints')
         
-        if cgpoints_elem is None:
+        if not cgpoints_elements:
             print("Warning: No CgPoints element found in LandXML file")
-            return cgpoints
+            return groups
         
-        # Find all CgPoint elements
-        cgpoint_elements = self._find_all_elements(cgpoints_elem, 'CgPoint')
+        # First, parse all individual CgPoint elements to create a lookup dictionary
+        # Only parse direct children that are actual points (not nested groups)
+        all_points = {}
         
-        if not cgpoint_elements:
-            print("Warning: No CgPoint elements found in LandXML file")
-            return cgpoints
+        for cgpoints_elem in cgpoints_elements:
+            for child in cgpoints_elem:
+                tag = child.tag
+                if '}' in tag:
+                    tag = tag.split('}')[1]
+                
+                # Only parse CgPoint elements that are NOT CgPoints groups
+                if tag == 'CgPoint' and 'name' in child.attrib:
+                    try:
+                        cgpoint_data = self._parse_cgpoint(child)
+                        if 'name' in cgpoint_data:
+                            all_points[cgpoint_data['name']] = cgpoint_data
+                    except Exception as e:
+                        print(f"Warning: Failed to parse CgPoint: {str(e)}")
+                        continue
+            
+        # Track which points are referenced by groups
+        referenced_points = set()
         
-        # Parse each CgPoint
-        for cgpoint_elem in cgpoint_elements:
-            try:
-                cgpoint_data = self._parse_cgpoint(cgpoint_elem)
-                # Only add if point has at least name and coordinates
-                if 'name' in cgpoint_data and ('northing' in cgpoint_data or 'easting' in cgpoint_data):
-                    cgpoints.append(cgpoint_data)
-            except Exception as e:
-                print(f"Warning: Failed to parse CgPoint: {str(e)}")
-                continue
+        # Find all CgPoints group (nested <CgPoints name="...">)
+        for cgpoints_elem in cgpoints_elements:
+            tag = cgpoints_elem.tag
+            if '}' in tag:
+                tag = tag.split('}')[1]
+            
+            # Check if this is a CgPoints group container (has 'name' attribute)
+            if tag == 'CgPoints' and 'name' in cgpoints_elem.attrib:
+                group_name = cgpoints_elem.attrib['name']
+                group_points = []
+                
+                # Find all point references in this group
+                point_refs = self._find_all_elements(cgpoints_elem, 'CgPoint')
+                
+                for point_ref in point_refs:
+                    pnt_ref = point_ref.attrib.get('pntRef')
+                    if pnt_ref and pnt_ref in all_points:
+                        group_points.append(all_points[pnt_ref])
+                        referenced_points.add(pnt_ref)
+                
+                if group_points:
+                    groups.append({
+                        'name': group_name,
+                        'points': group_points
+                    })
+            
+        # Create a group for unreferenced points
+        unreferenced_points = []
+        for point_name, point_data in all_points.items():
+            if point_name not in referenced_points:
+                unreferenced_points.append(point_data)
         
-        self.cgpoints_data = cgpoints
-        return cgpoints
-    
+        if unreferenced_points:
+            groups.append({
+                'name': 'Ungrouped Points',
+                'points': unreferenced_points
+            })
+        
+        self.cgpoints_data = groups
+        return groups
+
     def read_surfaces(self) -> List[Dict]:
         """
         Read all Surfaces from LandXML file.
@@ -628,27 +677,44 @@ class LandXMLReader:
         if not self.cgpoints_data:
             self.read_cgpoints()
         
-        for cgpoint in self.cgpoints_data:
-            if cgpoint.get('name') == name:
-                return cgpoint
+        for group in self.cgpoints_data:
+            for cgpoint in group.get('points', []):
+                if cgpoint.get('name') == name:
+                    return cgpoint
         
         return None
-    
-    def get_cgpoints_by_code(self, code: str) -> List[Dict]:
+
+    def get_cgpoints_by_group(self, group_name: str) -> List[Dict]:
         """
-        Get all CgPoints with specified code.
+        Get all CgPoints in a specified group.
         
         Args:
-            code: Point code to filter by
+            group_name: Group name to filter by
             
         Returns:
-            List of CgPoint data dictionaries matching the code
+            List of CgPoint data dictionaries in the group
         """
         if not self.cgpoints_data:
             self.read_cgpoints()
         
-        return [pt for pt in self.cgpoints_data if pt.get('code') == code]
-    
+        for group in self.cgpoints_data:
+            if group.get('name') == group_name:
+                return group.get('points', [])
+        
+        return []
+
+    def get_cgpoint_group_names(self) -> List[str]:
+        """
+        Get list of all CgPoint group names in the file.
+        
+        Returns:
+            List of group names
+        """
+        if not self.cgpoints_data:
+            self.read_cgpoints()
+        
+        return [group.get('name', 'Unnamed') for group in self.cgpoints_data]
+
     def get_surface_by_name(self, name: str) -> Optional[Dict]:
         """
         Get Surface data by name.
@@ -690,8 +756,13 @@ class LandXMLReader:
         if not self.cgpoints_data:
             self.read_cgpoints()
         
-        return [pt.get('name', 'Unnamed') for pt in self.cgpoints_data]
-    
+        names = []
+        for group in self.cgpoints_data:
+            for pt in group.get('points', []):
+                names.append(pt.get('name', 'Unnamed'))
+        
+        return names
+
     def get_surface_names(self) -> List[str]:
         """
         Get list of all Surface names in the file.
@@ -718,10 +789,26 @@ class LandXMLReader:
     
     def get_cgpoint_count(self) -> int:
         """
-        Get number of CgPoints in the file.
+        Get total number of CgPoints in all groups.
         
         Returns:
             Count of points
+        """
+        if not self.cgpoints_data:
+            self.read_cgpoints()
+        
+        total = 0
+        for group in self.cgpoints_data:
+            total += len(group.get('points', []))
+        
+        return total
+
+    def get_cgpoint_group_count(self) -> int:
+        """
+        Get number of CgPoint groups in the file.
+        
+        Returns:
+            Count of groups
         """
         if not self.cgpoints_data:
             self.read_cgpoints()
@@ -755,13 +842,13 @@ class LandXMLReader:
         
         if not self.surfaces_data:
             self.read_surfaces()
-        
         return {
             'filepath': str(self.filepath),
             'alignment_count': len(self.alignments_data),
-            'cgpoint_count': len(self.cgpoints_data),
+            'cgpoint_group_count': len(self.cgpoints_data),
+            'cgpoint_count': sum(len(g.get('points', [])) for g in self.cgpoints_data),
             'surface_count': len(self.surfaces_data),
             'alignments': self.alignments_data,
-            'cgpoints': self.cgpoints_data,
+            'cgpoint_groups': self.cgpoints_data,
             'surfaces': self.surfaces_data
         }
