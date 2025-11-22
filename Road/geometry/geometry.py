@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
 
 from abc import ABC, abstractmethod
-from typing import Dict, Tuple, List, Optional
+from typing import Dict, Tuple, List, Optional, Union
 
 
 class Geometry(ABC):
@@ -21,6 +21,9 @@ class Geometry(ABC):
         self.start_point = data.get('Start', None)
         self.end_point = data.get('End', None)
         
+        # Reference to coordinate system (set by parent alignment)
+        self._coordinate_system = None
+
         if self.start_point is None or self.end_point is None:
             raise ValueError("Start and End coordinates must be provided")
     
@@ -28,6 +31,38 @@ class Geometry(ABC):
     def compute_missing_values(self):
         """Calculate all missing optional attributes from geometry"""
         pass
+    
+    @abstractmethod
+    def get_key_points(self) -> Union[Tuple, List]:
+        """Get key points in raw coordinates (no transformation)"""
+        pass
+
+    def get_key_points_transformed(self) -> Union[Tuple, List]:
+        """
+        Get key points with coordinate transformation applied.
+        Uses parent alignment's coordinate system if available.
+        
+        Returns:
+            Transformed key points
+        """
+        raw_points = self.get_key_points()
+        
+        if self._coordinate_system is None:
+            return raw_points
+        
+        # Transform based on return type
+        if isinstance(raw_points, tuple):
+            return tuple(
+                self._coordinate_system.transform_to_system(pt) 
+                for pt in raw_points
+            )
+        elif isinstance(raw_points, list):
+            return [
+                self._coordinate_system.transform_to_system(pt) 
+                for pt in raw_points
+            ]
+        
+        return raw_points
     
     @abstractmethod
     def get_point_at_distance(self, s: float) -> Tuple[float, float]:

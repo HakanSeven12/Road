@@ -126,17 +126,17 @@ class Alignment(GeoObject):
         edges = []
         for el in elements:
             if isinstance(el, Line):
-                _pts = el.get_key_points()
+                _pts = el.get_key_points_transformed()
                 points = zero_referance(model.start_point, _pts)
                 edges.append(Part.LineSegment(*points).toShape())
 
             elif isinstance(el, Curve):
-                _pts = el.get_key_points()
+                _pts = el.get_key_points_transformed()
                 points = zero_referance(model.start_point, _pts)
                 edges.append(Part.Arc(*points).toShape())
 
             elif isinstance(el, Spiral):
-                _pts = el.generate_points(1)
+                _pts = el.get_key_points_transformed()
                 points = zero_referance(model.start_point, _pts)
                 bspline = Part.BSplineCurve()
                 bspline.interpolate(points)

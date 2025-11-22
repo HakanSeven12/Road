@@ -3,7 +3,6 @@
 import xml.etree.ElementTree as ET
 from typing import Dict, List, Optional, Union
 from pathlib import Path
-from ..geometry.alignment import Alignment
 from .landxml_config import (
     GEOMETRY_CONFIG,
     ALIGNMENT_CONFIG,
@@ -124,9 +123,9 @@ class LandXMLReader:
         
         # Return (northing, easting) or (northing, easting, elevation)
         if len(coords) >= 3:
-            return (float(coords[1]), float(coords[0]), float(coords[2]))
+            return (float(coords[0]), float(coords[1]), float(coords[2]))
         else:
-            return (float(coords[1]), float(coords[0]))
+            return (float(coords[0]), float(coords[1]))
     
     def _parse_align_pis(self, alignment_elem: ET.Element) -> List[Dict]:
         """Parse alignment PI points"""
@@ -346,12 +345,12 @@ class LandXMLReader:
             coords = self._parse_point(point_text.strip())
             if coords:
                 if len(coords) == 3:
-                    cgpoint_data['easting'] = coords[0]
-                    cgpoint_data['northing'] = coords[1]
+                    cgpoint_data['easting'] = coords[1]
+                    cgpoint_data['northing'] = coords[0]
                     cgpoint_data['elevation'] = coords[2]
                 else:
-                    cgpoint_data['easting'] = coords[0]
-                    cgpoint_data['northing'] = coords[1]
+                    cgpoint_data['easting'] = coords[1]
+                    cgpoint_data['northing'] = coords[0]
         
         return cgpoint_data
 
@@ -391,8 +390,8 @@ class LandXMLReader:
                 if coords:
                     point_data = {
                         'id': point_id,
-                        'easting': coords[0],
-                        'northing': coords[1]
+                        'easting': coords[1],
+                        'northing': coords[0]
                     }
                     
                     # Add elevation if present

@@ -67,7 +67,7 @@ class Curve(Geometry):
             delta = end_angle - start_angle
             
             # Normalize delta based on rotation
-            if self.rotation == 'cw':
+            if self.rotation == 'ccw':
                 if delta > 0:
                     delta -= 2 * math.pi
             else:
@@ -86,14 +86,14 @@ class Curve(Geometry):
                 self.start_point[1] - self.center_point[1],
                 self.start_point[0] - self.center_point[0]
             )
-            if self.rotation == 'cw':
+            if self.rotation == 'ccw':
                 self.dir_start = start_angle - math.pi / 2
             else:
                 self.dir_start = start_angle + math.pi / 2
         
         # Calculate end direction
         if self.dir_end is None:
-            sign = 1 if self.rotation == 'ccw' else -1
+            sign = -1 if self.rotation == 'ccw' else 1
             self.dir_end = self.dir_start + self.delta * sign
         
         # Calculate PI point(s) - handle large arcs by subdividing
@@ -173,7 +173,7 @@ class Curve(Geometry):
         )
         
         # Tangent directions at both points (perpendicular to radius)
-        if self.rotation == 'cw':
+        if self.rotation == 'ccw':
             tangent1 = angle1 - math.pi / 2
             tangent2 = angle2 - math.pi / 2
         else:
@@ -231,7 +231,7 @@ class Curve(Geometry):
         )
         
         # Calculate current angle based on rotation
-        if self.rotation == 'cw':
+        if self.rotation == 'ccw':
             current_angle = start_angle - angle_traversed
         else:
             current_angle = start_angle + angle_traversed
@@ -296,14 +296,14 @@ class Curve(Geometry):
             self.start_point[0] - self.center_point[0]
         )
         
-        if self.rotation == 'cw':
+        if self.rotation == 'ccw':
             current_angle = start_angle - angle_traversed
         else:
             current_angle = start_angle + angle_traversed
         
         # Calculate tangent direction at current point
         # Tangent is perpendicular to radius
-        if self.rotation == 'cw':
+        if self.rotation == 'ccw':
             tangent_direction = current_angle - math.pi / 2
         else:
             tangent_direction = current_angle + math.pi / 2
@@ -345,7 +345,7 @@ class Curve(Geometry):
         angle_diff = point_angle - start_angle
         
         # Normalize based on rotation
-        if self.rotation == 'cw':
+        if self.rotation == 'ccw':
             # Clockwise rotation
             if angle_diff > 0:
                 angle_diff -= 2 * math.pi

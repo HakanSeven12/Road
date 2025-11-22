@@ -25,10 +25,10 @@ class ViewProviderGeoObject:
                       "Points": self.points,
                       "Standard": self.standard}
         
-        self.root = coin.SoTranslation()
+        self.placement = coin.SoTranslation()
 
         for name, node in self.modes.items():
-            node.addChild(self.root)
+            node.addChild(self.placement)
             vobj.addDisplayMode(node, name)
 
     def updateData(self, obj, prop):
@@ -54,7 +54,7 @@ class ViewProviderGeoObject:
 
         if prop == "Placement":
             base = obj.Placement.Base
-            self.root.translation.setValue(*base.negative())
+            self.placement.translation.setValue(*base.negative())
  
     def getDisplayModes(self,vobj):
         """Return a list of display modes."""
