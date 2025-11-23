@@ -9,9 +9,6 @@ class Line(Geometry):
     """
     LandXML 1.2 line element reader & geometry generator.
     Supports straight line segments and auto-computes all missing optional attributes.
-    
-    Note: LandXML uses azimuth (degrees, clockwise from north)
-          Internal calculations use mathematical angle (radians, counter-clockwise from east)
     """
 
     def __init__(self, data: Dict):
@@ -22,15 +19,7 @@ class Line(Geometry):
             raise ValueError("Start and End coordinates must be provided")
         
         # Optional attributes
-        # Convert LandXML azimuth (degrees) to mathematical angle (radians)
-        if 'dir' in data:
-            azimuth_deg = float(data['dir'])
-            # Convert azimuth to mathematical angle: math_angle = 90° - azimuth
-            math_angle_deg = 90.0 - azimuth_deg
-            self.direction = math.radians(math_angle_deg)
-        else:
-            self.direction = None
-            
+        self.direction = float(data['dir']) if 'dir' in data else None
         self.length = float(data['length']) if 'length' in data else None
         
         # Auto compute missing values
@@ -165,31 +154,8 @@ class Line(Geometry):
         """
         return __class__.__name__
 
-    def _direction_to_azimuth(self) -> float:
-        """
-        Convert internal mathematical angle (radians) to azimuth (degrees).
-        Azimuth: clockwise from north (0-360°)
-        Math angle: counter-clockwise from east
-        
-        Returns:
-            Azimuth in degrees
-        """
-        # Convert to degrees first
-        math_angle_deg = math.degrees(self.direction)
-        
-        # Convert to azimuth: azimuth = 90° - math_angle
-        azimuth = 90.0 - math_angle_deg
-        
-        # Normalize to 0-360 range
-        azimuth = azimuth % 360.0
-        
-        return azimuth
-
     def to_dict(self) -> Dict:
-        """
-        Export line properties as dictionary.
-        Direction is converted back to azimuth (degrees) for LandXML compatibility.
-        """
+        """Export line properties as dictionary"""
         
         return {
             'Type': 'Line',
@@ -197,17 +163,16 @@ class Line(Geometry):
             'description': self.description,
             'staStart': self.sta_start,
             'length': self.length,
-            'dir': self._direction_to_azimuth(),
+            'dir': self.direction,
             'Start': self.start_point,
             'End': self.end_point
         }
 
     def __repr__(self) -> str:
         """String representation of line"""
-        azimuth = self._direction_to_azimuth()
         return (
             f"Line(start={self.start_point}, end={self.end_point}, "
-            f"length={self.length:.2f}, azimuth={azimuth:.2f}°)"
+            f"length={self.length:.2f}, direction={self.direction:.2f})"
         )
 
     def __str__(self) -> str:

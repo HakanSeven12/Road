@@ -1,17 +1,20 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
 
+import math
 import xml.etree.ElementTree as ET
 from typing import Dict, List, Optional, Union
 from pathlib import Path
 from .landxml_config import (
+    LANDXML_NAMESPACES,
+    UNITS_CONFIG,
+    ANGULAR_UNITS,
     GEOMETRY_CONFIG,
     ALIGNMENT_CONFIG,
     ALIGN_PI_CONFIG,
     STATION_EQUATION_CONFIG,
     CGPOINT_CONFIG,
     SURFACE_CONFIG,
-    FACE_CONFIG,
-    LANDXML_NAMESPACES
+    FACE_CONFIG
 )
 
 
@@ -42,8 +45,14 @@ class LandXMLReader:
         self.cgpoints_data = []
         self.surfaces_data = []
         
-        # Parse the XML file
+        self.angular_unit = 'decimal degrees'  # Default
+        self.direction_unit = 'decimal degrees'  # Default
+        self.angular_conversion_factor = ANGULAR_UNITS['decimal degrees']
+        self.direction_conversion_factor = ANGULAR_UNITS['decimal degrees']
+    
+        # Parse the XML file and parse units
         self._parse_xml()
+        self._parse_units()
     
     def _parse_xml(self):
         """Parse XML file and get root element"""
@@ -101,6 +110,108 @@ class LandXMLReader:
             elems = parent.findall(tag)
         
         return elems
+    
+    def _parse_units(self):
+        """
+        Parse Units element to determine angular unit system.
+        Sets conversion factors for angle/direction attributes.
+        """
+        units_elem = self._find_element(self.root, 'Units')
+        
+        if units_elem is None:
+            print("Warning: No Units element found, using default (decimal degrees)")
+            return
+        
+        # Check for Metric or Imperial units
+        metric_elem = self._find_element(units_elem, 'Metric')
+        imperial_elem = self._find_element(units_elem, 'Imperial')
+        
+        units_data = None
+        if metric_elem is not None:
+            units_data = self._parse_attributes(metric_elem, UNITS_CONFIG['Metric']['attr_map'])
+        elif imperial_elem is not None:
+            units_data = self._parse_attributes(imperial_elem, UNITS_CONFIG['Imperial']['attr_map'])
+        
+        if units_data:
+            # Get angular unit
+            if 'angularUnit' in units_data:
+                self.angular_unit = units_data['angularUnit']
+                if self.angular_unit in ANGULAR_UNITS:
+                    self.angular_conversion_factor = ANGULAR_UNITS[self.angular_unit]
+                else:
+                    print(f"Warning: Unknown angular unit '{self.angular_unit}', using decimal degrees")
+            
+            # Get direction unit (for azimuth/bearing)
+            if 'directionUnit' in units_data:
+                self.direction_unit = units_data['directionUnit']
+                if self.direction_unit in ANGULAR_UNITS:
+                    self.direction_conversion_factor = ANGULAR_UNITS[self.direction_unit]
+                else:
+                    print(f"Warning: Unknown direction unit '{self.direction_unit}', using decimal degrees")
+
+    def _parse_attributes(self, element: ET.Element, attr_map: Dict) -> Dict:
+        """
+        Parse element attributes based on mapping.
+        
+        Args:
+            element: XML element
+            attr_map: Dict mapping {xml_attr_name: (output_key, converter_func)}
+                    converter_func can be: float, int, str, 'angle', 'radius', or custom function
+        
+        Returns:
+            Dictionary with parsed attributes
+        """
+        result = {}
+        
+        for xml_attr, (output_key, converter) in attr_map.items():
+            if xml_attr in element.attrib:
+                value = element.attrib[xml_attr]
+                
+                try:
+                    if converter == 'float':
+                        result[output_key] = float(value)
+                    elif converter == 'int':
+                        result[output_key] = int(value)
+                    elif converter == 'radius':
+                        result[output_key] = float('inf') if value == 'INF' else float(value)
+                    elif converter == 'angle':
+                        # Convert angle to radians
+                        if 'dir' in xml_attr.lower():
+                            # This is a direction/azimuth attribute
+                            dir_value = float(value)
+                            
+                            if self.direction_unit == 'radians':
+                                # Already in radians and already math angle (Quadri format)
+                                result[output_key] = dir_value
+                            else:
+                                # In degrees and it's azimuth (Civil3D, standard LandXML)
+                                # Convert azimuth to math angle
+                                azimuth_deg = dir_value
+                                math_angle_deg = 90.0 - azimuth_deg
+                                result[output_key] = math.radians(math_angle_deg)
+                        else:
+                            # Other angles (delta, theta) - just convert based on unit
+                            result[output_key] = float(value) * self.angular_conversion_factor
+                    else:
+                        result[output_key] = value
+                except (ValueError, AttributeError):
+                    continue
+        
+        return result
+    
+    def get_units_info(self) -> Dict:
+        """
+        Get information about the unit system used in the LandXML file.
+        
+        Returns:
+            Dictionary containing unit information
+        """
+        return {
+            'angular_unit': self.angular_unit,
+            'direction_unit': self.direction_unit,
+            'angular_conversion_factor': self.angular_conversion_factor,
+            'direction_conversion_factor': self.direction_conversion_factor
+        }
     
     def _parse_point(self, point_text: str) -> tuple:
         """
@@ -175,39 +286,6 @@ class LandXMLReader:
                 eq_list.append(eq_data)
         
         return eq_list
-    
-    def _parse_attributes(self, element: ET.Element, attr_map: Dict) -> Dict:
-        """
-        Parse element attributes based on mapping.
-        
-        Args:
-            element: XML element
-            attr_map: Dict mapping {xml_attr_name: (output_key, converter_func)}
-                     converter_func can be: float, int, str, or custom function
-        
-        Returns:
-            Dictionary with parsed attributes
-        """
-        result = {}
-        
-        for xml_attr, (output_key, converter) in attr_map.items():
-            if xml_attr in element.attrib:
-                value = element.attrib[xml_attr]
-                
-                try:
-                    if converter == 'float':
-                        result[output_key] = float(value)
-                    elif converter == 'int':
-                        result[output_key] = int(value)
-                    elif converter == 'radius':
-                        # Handle INF radius
-                        result[output_key] = float('inf') if value == 'INF' else float(value)
-                    else:
-                        result[output_key] = value
-                except (ValueError, AttributeError):
-                    continue
-        
-        return result
     
     def _parse_child_points(self, element: ET.Element, point_tags: List[str]) -> Dict:
         """

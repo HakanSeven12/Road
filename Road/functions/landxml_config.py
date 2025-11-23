@@ -5,6 +5,71 @@ LandXML Parser Configuration
 Contains all mapping configurations for parsing LandXML elements.
 """
 
+# LandXML namespaces
+LANDXML_NAMESPACES = {
+    'landxml': 'http://www.landxml.org/schema/LandXML-1.2',
+    '': 'http://www.landxml.org/schema/LandXML-1.2'
+}
+
+import math
+
+# Units configuration
+UNITS_CONFIG = {
+    'Metric': {
+        'attr_map': {
+            'areaUnit': ('areaUnit', str),
+            'linearUnit': ('linearUnit', str),
+            'volumeUnit': ('volumeUnit', str),
+            'temperatureUnit': ('temperatureUnit', str),
+            'pressureUnit': ('pressureUnit', str),
+            'diameterUnit': ('diameterUnit', str),
+            'widthUnit': ('widthUnit', str),
+            'heightUnit': ('heightUnit', str),
+            'elevationUnit': ('elevationUnit', str),
+            'angularUnit': ('angularUnit', str),
+            'directionUnit': ('directionUnit', str),
+            'latLongAngularUnit': ('latLongAngularUnit', str)
+        }
+    },
+    'Imperial': {
+        'attr_map': {
+            'areaUnit': ('areaUnit', str),
+            'linearUnit': ('linearUnit', str),
+            'volumeUnit': ('volumeUnit', str),
+            'temperatureUnit': ('temperatureUnit', str),
+            'pressureUnit': ('pressureUnit', str),
+            'diameterUnit': ('diameterUnit', str),
+            'widthUnit': ('widthUnit', str),
+            'heightUnit': ('heightUnit', str),
+            'elevationUnit': ('elevationUnit', str),
+            'angularUnit': ('angularUnit', str),
+            'directionUnit': ('directionUnit', str),
+            'latLongAngularUnit': ('latLongAngularUnit', str)
+        }
+    }
+}
+
+# Supported angular units and their conversion to radians
+ANGULAR_UNITS = {
+    'radians': 1.0,
+    'decimal degrees': math.pi / 180,   # π/180
+    'degrees': math.pi / 180,           # π/180
+    'decimal dd.mmss': math.pi / 180,   # Convert to decimal degrees first
+    'dd.mmss': math.pi / 180,           # Convert to decimal degrees first
+    'grads': math.pi / 200,             # π/200
+    'mils': math.pi / 3200              # π/3200
+}
+
+# Converter function types
+CONVERTER_TYPES = {
+    'float': 'float',
+    'int': 'int',
+    'str': str,
+    'rotation': 'rotation',  # Converts 'cw'/'ccw' to 1/-1
+    'radius': 'radius',      # Converts 'INF' to float('inf')
+    'angle': 'angle'         # Converts angle to radians based on unit system
+}
+
 # Geometry element configurations
 GEOMETRY_CONFIG = {
     'Line': {
@@ -13,7 +78,7 @@ GEOMETRY_CONFIG = {
             'name': ('name', str),
             'desc': ('desc', str),
             'length': ('length', 'float'),
-            'dir': ('dir', 'float'),
+            'dir': ('dir', 'angle'),
             'staStart': ('staStart', 'float')
         }
     },
@@ -26,9 +91,9 @@ GEOMETRY_CONFIG = {
             'radius': ('radius', 'float'),
             'chord': ('chord', 'float'),
             'crvType': ('crvType', str),
-            'delta': ('delta', 'float'),
-            'dirStart': ('dirStart', 'float'),
-            'dirEnd': ('dirEnd', 'float'),
+            'delta': ('delta', 'angle'),
+            'dirStart': ('dirStart', 'angle'),
+            'dirEnd': ('dirEnd', 'angle'),
             'tangent': ('tangent', 'float'),
             'midOrd': ('midOrd', 'float'),
             'external': ('external', 'float'),
@@ -46,10 +111,10 @@ GEOMETRY_CONFIG = {
             'radiusStart': ('radiusStart', 'radius'),
             'rot': ('rot', str),
             'spiType': ('spiType', str),
-            'theta': ('theta', 'float'),
+            'theta': ('theta', 'angle'),
             'constant': ('constant', 'float'),
-            'dirStart': ('dirStart', 'float'),
-            'dirEnd': ('dirEnd', 'float'),
+            'dirStart': ('dirStart', 'angle'),
+            'dirEnd': ('dirEnd', 'angle'),
             'chord': ('chord', 'float'),
             'totalX': ('totalX', 'float'),
             'totalY': ('totalY', 'float'),
@@ -102,7 +167,7 @@ CGPOINT_CONFIG = {
         'DTMAttribute': ('DTMAttribute', str),
         'timeStamp': ('timeStamp', str)
     },
-    'required_fields': ['name']  # At least name should be present
+    'required_fields': ['name']
 }
 
 # Surface configuration
@@ -122,20 +187,5 @@ SURFACE_CONFIG = {
 
 # Face configuration (for TIN surfaces)
 FACE_CONFIG = {
-    'required_fields': []  # Faces are defined by their point references
-}
-
-# LandXML namespaces
-LANDXML_NAMESPACES = {
-    'landxml': 'http://www.landxml.org/schema/LandXML-1.2',
-    '': 'http://www.landxml.org/schema/LandXML-1.2'
-}
-
-# Converter function types
-CONVERTER_TYPES = {
-    'float': 'float',
-    'int': 'int',
-    'str': str,
-    'rotation': 'rotation',  # Converts 'cw'/'ccw' to 1/-1
-    'radius': 'radius'       # Converts 'INF' to float('inf')
+    'required_fields': []
 }

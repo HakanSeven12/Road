@@ -30,15 +30,9 @@ class Spiral(Geometry):
         if self.start_point is None or self.pi_point is None or self.end_point is None:
             raise ValueError("Start, PI and End coordinates must be provided")
 
-        # Optional attributes - NOTE: angles in LandXML are in DEGREES
+        # Optional attributes
         self.spiral_type = data.get('spiType', 'clothoid')
-        
-        # Store theta in radians (convert from degrees if provided)
-        if 'theta' in data:
-            self.theta = math.radians(float(data['theta']))
-        else:
-            self.theta = None
-            
+        self.theta = float(data['theta']) if 'theta' in data else None
         self.total_y = float(data['totalY']) if 'totalY' in data else None
         self.total_x = float(data['totalX']) if 'totalX' in data else None
         self.tan_long = float(data['tanLong']) if 'tanLong' in data else None
@@ -62,8 +56,6 @@ class Spiral(Geometry):
             raise ValueError("Invalid spiral type")
 
     def compute_missing_values(self):
-        # Note: theta, dirStart, dirEnd are already converted to radians in __init__
-        
         # Calculate constant A first if not provided
         if self.constant is None:
             # Entry/Exit spiral (infinite → finite OR finite → infinite)
@@ -448,27 +440,27 @@ class Spiral(Geometry):
 
     def to_dict(self) -> Dict:
         return {
-        'Type': 'Spiral',
-        'name': self.name,
-        'description': self.description,
-        'spiType': self.spiral_type,
-        'staStart': self.sta_start,
-        'Start': self.start_point,
-        'End': self.end_point,
-        'PI': self.pi_point,
-        'length': self.length,
-        'radiusStart': self.radius_start,
-        'radiusEnd': self.radius_end,
-        'rot': self.rotation,
-        'theta': math.degrees(self.theta),
-        'totalX': self.total_x,
-        'totalY': self.total_y,
-        'tanLong': self.tan_long,
-        'tanShort': self.tan_short,
-        'dirStart': math.degrees(self.dir_start),
-        'dirEnd': math.degrees(self.dir_end),
-        'constant': self.constant,
-        'chord': self.chord,
+            'Type': 'Spiral',
+            'name': self.name,
+            'description': self.description,
+            'spiType': self.spiral_type,
+            'staStart': self.sta_start,
+            'Start': self.start_point,
+            'End': self.end_point,
+            'PI': self.pi_point,
+            'length': self.length,
+            'radiusStart': self.radius_start,
+            'radiusEnd': self.radius_end,
+            'rot': self.rotation,
+            'theta': self.theta,
+            'totalX': self.total_x,
+            'totalY': self.total_y,
+            'tanLong': self.tan_long,
+            'tanShort': self.tan_short,
+            'dirStart': self.dir_start,
+            'dirEnd': self.dir_end,
+            'constant': self.constant,
+            'chord': self.chord,
         }
 
     def __repr__(self) -> str:
