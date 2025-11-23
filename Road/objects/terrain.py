@@ -39,8 +39,8 @@ class Terrain(GeoObject):
             "Terrain edit operations").Operations = []
 
         obj.addProperty(
-            "App::PropertyLength", "MaxLength", "Constraint",
-            "Maximum length of triangle edge").MaxLength = 500000
+            "App::PropertyFloat", "MaxLength", "Constraint",
+            "Maximum length of triangle edge").MaxLength = 500
 
         obj.addProperty(
             "App::PropertyAngle","MaxAngle","Constraint",
@@ -63,12 +63,12 @@ class Terrain(GeoObject):
             "Contour Shapes").Contour = Part.Shape()
 
         obj.addProperty(
-            "App::PropertyLength", "MajorInterval", "Contour",
-            "Major contour interval").MajorInterval = 5000
+            "App::PropertyFloat", "MajorInterval", "Contour",
+            "Major contour interval").MajorInterval = 5
 
         obj.addProperty(
-            "App::PropertyLength", "MinorInterval", "Contour",
-            "Minor contour interval").MinorInterval = 1000
+            "App::PropertyFloat", "MinorInterval", "Contour",
+            "Minor contour interval").MinorInterval = 1
 
         obj.Proxy = self
 
@@ -138,10 +138,9 @@ class Terrain(GeoObject):
                 mesh.Placement = obj.Placement
                 obj.Mesh = mesh
         
-        elif prop == "Mesh":
-            mesh = obj.getPropertyByName(prop)
-            obj.Contour = get_contours(mesh, obj.MajorInterval.Value, obj.MinorInterval.Value)
-            obj.Boundary = get_boundary(mesh)
+        elif prop in ["Mesh","MajorInterval"]:
+            obj.Contour = get_contours(obj.Mesh, obj.MajorInterval*1000, obj.MinorInterval*1000)
+            obj.Boundary = get_boundary(obj.Mesh)
 
         elif prop == "MinorInterval":
             obj.MajorInterval = obj.getPropertyByName(prop) * 5
