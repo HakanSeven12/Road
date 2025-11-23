@@ -574,7 +574,7 @@ class TaskLandXMLImport(TaskPanel):
                 align_name = align_data.get('name', 'Unnamed Alignment')
                 alignment = make_alignment.create(align_name)
                 alignment.Model = Alignment(align_data)
-                alignment.Model.coordinate_system.set_swap(True)
+                alignment.Model.coordinate_system.set_system('custom', alignment.Model.start_point, swap=True)
                 
                 print(f"Created alignment: {align_name}")
                 alignment_created += 1

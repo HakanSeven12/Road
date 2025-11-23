@@ -68,12 +68,12 @@ class Alignment(GeoObject):
         obj.Shape = self._generate_shape_from_model(obj.Model)
         
         # Extract PI points from alignment
-        obj.PIs = self._get_pi_points(obj.Model)
+        #obj.PIs = self._get_pi_points(obj.Model)
 
         # Update geolocation based on alignment start point
-        start = obj.Model.get_start_point()
+        start = obj.Model.start_point
         if start:
-            vec = FreeCAD.Vector(start[0] * 1000, start[1] * 1000, 0)
+            vec = FreeCAD.Vector(start[1], start[0]).multiply(1000)
             if obj.Geolocation.Base != vec:
                 obj.Geolocation.Base = vec
 
@@ -125,19 +125,16 @@ class Alignment(GeoObject):
         
         edges = []
         for el in elements:
+            _pts = el.get_key_points_transformed()
+            points = [FreeCAD.Vector(*pt).multiply(1000) for pt in _pts]
+
             if isinstance(el, Line):
-                _pts = el.get_key_points_transformed()
-                points = zero_referance(model.start_point, _pts)
                 edges.append(Part.LineSegment(*points).toShape())
 
             elif isinstance(el, Curve):
-                _pts = el.get_key_points_transformed()
-                points = zero_referance(model.start_point, _pts)
                 edges.append(Part.Arc(*points).toShape())
 
             elif isinstance(el, Spiral):
-                _pts = el.get_key_points_transformed()
-                points = zero_referance(model.start_point, _pts)
                 bspline = Part.BSplineCurve()
                 bspline.interpolate(points)
                 edges.append(bspline.toShape())
@@ -188,7 +185,7 @@ class Alignment(GeoObject):
 
         pi_points.append(model.get_end_point())
         
-        return zero_referance(model.start_point, pi_points)
+        return [FreeCAD.Vector(*pt).multiply(1000) for pt in pi_points]
 
     def generate_offset_alignment(self, obj, parent, offset):
         """

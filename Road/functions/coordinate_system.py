@@ -33,12 +33,12 @@ class CoordinateSystem:
                   LandXML internal: (Northing, Easting)
                   FreeCAD output: (Easting, Northing) when swap_xy=True
         """
-        self.swap = swap
-        self.set_system(system_type, origin, rotation)
+        self.set_system(system_type, origin, rotation, swap)
     
     def set_system(self, system_type: str, 
                    origin: Optional[Tuple[float, float]] = None,
-                   rotation: Optional[float] = None):
+                   rotation: Optional[float] = None,
+                   swap: bool = False):
         """
         Set or change the coordinate system.
         
@@ -51,6 +51,7 @@ class CoordinateSystem:
             raise ValueError(f"system_type must be one of: {[st.value for st in SystemType]}")
         
         self.system_type = system_type
+        self.swap = swap
         
         if system_type == 'global':
             self.origin = (0.0, 0.0)

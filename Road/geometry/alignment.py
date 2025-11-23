@@ -852,24 +852,53 @@ class Alignment:
         return stations_list
 
     def get_align_pis(self) -> List[Dict]:
-        """Return list of all alignment PI points"""
-        return self.align_pis.copy()
-    
+        """
+        Return list of all alignment PI points with coordinates transformed 
+        to current coordinate system.
+        
+        Returns:
+            List of PI dictionaries with point coordinates in current coordinate system
+        """
+        transformed_pis = []
+        
+        for pi in self.align_pis:
+            # Copy PI data
+            pi_copy = pi.copy()
+            
+            # Transform point coordinates to current coordinate system
+            if pi_copy['point'] is not None:
+                global_point = pi_copy['point']
+                pi_copy['point'] = self.coordinate_system.transform_to_system(global_point)
+            
+            transformed_pis.append(pi_copy)
+        
+        return transformed_pis
+
+
     def get_pi_at_station(self, station: float, tolerance: float = 1e-6) -> Optional[Dict]:
         """
-        Find PI point at or near given station.
+        Find PI point at or near given station with coordinates transformed 
+        to current coordinate system.
         
         Args:
             station: Station value to query
             tolerance: Maximum station difference to consider as match
             
         Returns:
-            PI dictionary if found, None otherwise
+            PI dictionary with point coordinates in current coordinate system if found, 
+            None otherwise
         """
-        
         for pi in self.align_pis:
             if pi['station'] is not None and abs(pi['station'] - station) <= tolerance:
-                return pi.copy()
+                # Copy PI data
+                pi_copy = pi.copy()
+                
+                # Transform point coordinates to current coordinate system
+                if pi_copy['point'] is not None:
+                    global_point = pi_copy['point']
+                    pi_copy['point'] = self.coordinate_system.transform_to_system(global_point)
+                
+                return pi_copy
         
         return None
     
@@ -886,19 +915,38 @@ class Alignment:
         return len(self.elements)
     
     def get_start_point(self) -> Tuple[float, float]:
-        """Return alignment start point coordinates"""
+        """
+        Return alignment start point coordinates in current coordinate system.
+        
+        Returns:
+            (x, y) coordinates of alignment start point
+        """
         if self.start_point is not None:
-            return self.start_point
-        if not self.elements:
+            global_point = self.start_point
+        elif self.elements:
+            global_point = self.elements[0].get_start_point()
+        else:
             raise ValueError("Alignment has no elements")
-        return self.elements[0].get_start_point()
-    
+        
+        # Transform to current coordinate system
+        return self.coordinate_system.transform_to_system(global_point)
+
+
     def get_end_point(self) -> Tuple[float, float]:
-        """Return alignment end point coordinates"""
+        """
+        Return alignment end point coordinates in current coordinate system.
+        
+        Returns:
+            (x, y) coordinates of alignment end point
+        """
         if not self.elements:
             raise ValueError("Alignment has no elements")
-        return self.elements[-1].get_end_point()
-    
+        
+        global_point = self.elements[-1].get_end_point()
+        
+        # Transform to current coordinate system
+        return self.coordinate_system.transform_to_system(global_point)
+
     def get_length(self) -> float:
         """Return total alignment length (geometric, not adjusted by equations)"""
         return self.length
@@ -911,14 +959,21 @@ class Alignment:
         """Return alignment end station (displayed, with equation adjustments)"""
         internal_end = self.station_to_internal(self.sta_start) + self.length
         return self.internal_to_station(internal_end)
-    
+        
     def to_dict(self) -> Dict:
         """
         Export alignment properties as dictionary.
+        Note: Coordinates in the dictionary are returned in the GLOBAL coordinate system,
+        regardless of the current coordinate system setting.
         
         Returns:
             Dictionary containing alignment metadata and all geometry elements
         """
+        # Get points in global coordinate system for export
+        global_start = self.start_point if self.start_point is not None else \
+                    (self.elements[0].get_start_point() if self.elements else None)
+        
+        global_end = self.elements[-1].get_end_point() if self.elements else None
         
         return {
             'name': self.name,
@@ -926,8 +981,8 @@ class Alignment:
             'length': self.length,
             'staStart': self.sta_start,
             'staEnd': self.get_sta_end(),
-            'start': self.start_point,
-            'endPoint': self.get_end_point(),
+            'start': global_start,
+            'endPoint': global_end,
             'elementCount': len(self.elements),
             'piCount': len(self.align_pis),
             'stationEquationCount': len(self.station_equations),

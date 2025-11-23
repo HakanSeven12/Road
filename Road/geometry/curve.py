@@ -268,7 +268,7 @@ class Curve(Geometry):
         # Middle point is at half of arc length
         mid_point = self.get_point_at_distance(self.length / 2)
         
-        return self.start_point, mid_point, self.end_point
+        return [self.start_point, mid_point, self.end_point]
 
     def get_orthogonal(self, s: float, side: str = 'left') -> Tuple[Tuple[float, float], Tuple[float, float]]:
         """

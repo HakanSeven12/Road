@@ -87,7 +87,7 @@ class Line(Geometry):
     def get_key_points(self) -> Tuple[Tuple[float, float], Tuple[float, float]]:
         """Return start, middle, and end points of the line"""
         
-        return self.start_point, self.end_point
+        return [self.start_point, self.end_point]
     
     def get_orthogonal(self, s: float, side: str = 'left') -> Tuple[Tuple[float, float], Tuple[float, float]]:
         """

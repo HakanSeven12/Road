@@ -49,20 +49,12 @@ class Geometry(ABC):
         
         if self._coordinate_system is None:
             return raw_points
-        
-        # Transform based on return type
-        if isinstance(raw_points, tuple):
-            return tuple(
-                self._coordinate_system.transform_to_system(pt) 
-                for pt in raw_points
-            )
-        elif isinstance(raw_points, list):
+        else:
             return [
                 self._coordinate_system.transform_to_system(pt) 
                 for pt in raw_points
             ]
         
-        return raw_points
     
     @abstractmethod
     def get_point_at_distance(self, s: float) -> Tuple[float, float]:
