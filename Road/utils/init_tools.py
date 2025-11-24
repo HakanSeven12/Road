@@ -25,6 +25,7 @@ def get_alignment_commands():
     return ["Alignment Create",
             "Alignment Edit",
             "Alignment Offset",
+            "Alignment Object",
             "Profile Frame Create",
             "Profile Create",
             "Profile Edit",

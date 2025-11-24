@@ -20,6 +20,7 @@ from .guitools import (
     gui_alignment_create,
     gui_alignment_edit,
     gui_alignment_offset,
+    gui_alignment_object,
     gui_profile_frame_create,
     gui_profile_create,
     gui_profile_edit,
