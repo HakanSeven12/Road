@@ -30,15 +30,15 @@ class Alignment(GeoObject):
             "Alignment description").Description = ""
 
         obj.addProperty(
-            "App::PropertyLength", "StartStation", "Station",
+            "App::PropertyFloat", "StartStation", "Station",
             "Starting station of the alignment").StartStation = 0.0
 
         obj.addProperty(
-            "App::PropertyLength", "EndStation", "Station",
+            "App::PropertyFloat", "EndStation", "Station",
             "Ending station of the alignment").EndStation = 0.0
 
         obj.addProperty(
-            "App::PropertyLength", "Length", "Station",
+            "App::PropertyFloat", "Length", "Station",
             "Alignment length", 1).Length = 0.0
 
         obj.addProperty(
@@ -50,12 +50,12 @@ class Alignment(GeoObject):
             "Alignment horizontal geometry model").Model = None
 
         obj.addProperty(
-            "App::PropertyLink", "OffsetAlignment", "Offset",
-            "Parent alignment which offset model is referenced").OffsetAlignment
+            "App::PropertyLink", "Parent", "Offset",
+            "Parent alignment which offset model is referenced").Parent
 
         obj.addProperty(
             "App::PropertyFloat", "OffsetLength", "Offset",
-            "Offset length").OffsetLength = 0
+            "Offset length").OffsetLength = 3.5
 
         obj.Proxy = self
 
@@ -86,9 +86,9 @@ class Alignment(GeoObject):
                 return
             
             # Update properties from model
-            obj.Length = obj.Model.get_length() * 1000  # Convert m to mm
-            obj.StartStation = obj.Model.get_sta_start() * 1000  # Convert m to mm
-            obj.EndStation = obj.Model.get_sta_end() * 1000  # Convert m to mm
+            obj.Length = obj.Model.get_length()
+            obj.StartStation = obj.Model.get_sta_start()
+            obj.EndStation = obj.Model.get_sta_end()
             
             # Update description if available
             if obj.Model.description:
@@ -98,14 +98,8 @@ class Alignment(GeoObject):
             if not obj.Status:
                 obj.Status = "existing"
 
-        elif prop == "OffsetLength":
-            if obj.getPropertyByName(prop):
-                self.onChanged(obj, "OffsetAlignment")
-
-        elif prop == "OffsetAlignment":
-            parent = obj.getPropertyByName(prop)
-            if parent and parent.Model:
-                self.generate_offset_alignment(obj, parent)
+        elif prop in ["OffsetLength", "Parent"]:
+            self.generate_offset_alignment(obj, obj.Parent, obj.OffsetLength)
 
     def _generate_shape_from_model(self, model: AlignmentModel) -> Part.Shape:
         """
@@ -233,7 +227,7 @@ class Alignment(GeoObject):
             elif element_type == 'Curve':
                 # Offset curve by adjusting radius
                 radius = element_dict['radius']
-                center = element_dict['center']
+                center = element_dict['Center']
                 
                 # Determine if we're offsetting inward or outward
                 # This depends on curve rotation and offset direction
@@ -274,11 +268,11 @@ class Alignment(GeoObject):
                 
                 new_element = {
                     'Type': 'Curve',
+                    'staStart': element_dict['staStart'],
+                    'rot': element_dict.get('rot', 1),
                     'Start': new_start,
-                    'End': new_end,
                     'Center': center,
-                    'Direction': element_dict.get('Direction', 1),
-                    'staStart': element_dict['staStart']
+                    'End': new_end
                 }
                 elements.append(new_element)
                 
