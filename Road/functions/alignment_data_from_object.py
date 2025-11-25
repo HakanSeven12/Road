@@ -32,7 +32,7 @@ def extract_alignment_data(obj, name, description, start_sta, tolerance, reverse
             element_data = edge_to_geometry(edge, current_station, i)
             if element_data:
                 coord_geom.append(element_data)
-                current_station += element_data.get('length', 0)
+                current_station += edge.Length * 0.001
 
         return {
             'name': name,

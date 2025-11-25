@@ -83,8 +83,8 @@ class Region(GeoObject):
         alignment_model = alignment.Model
         
         # Convert stations from FreeCAD units (mm) to alignment units (m)
-        start = obj.StartStation.Value / 1000.0
-        end = obj.EndStation.Value / 1000.0
+        start = obj.StartStation.Value
+        end = obj.EndStation.Value
         
         # Prepare increment dictionary for different element types
         increments = {
