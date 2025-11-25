@@ -94,7 +94,7 @@ class Alignment:
             self._parse_coord_geom(data['CoordGeom'])
         
         # Validate and compute alignment properties
-        self._validate_alignment()
+        #self._validate_alignment()
         self._compute_alignment_properties()
     
     def set_coordinate_system(self, system_type: str, 

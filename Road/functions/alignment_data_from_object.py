@@ -4,14 +4,6 @@ import FreeCAD, Part
 from ..utils.get_group import georigin
 import math
 
-# =============================
-#  Helper scaling function
-# =============================
-
-def scale2d(pt):
-    """Scale 2D point by /1000"""
-    return (pt[1] / 1000.0, pt[0] / 1000.0)
-
 
 def extract_alignment_data(obj, name, description, start_sta, tolerance, reverse):
     """
@@ -48,19 +40,13 @@ def extract_alignment_data(obj, name, description, start_sta, tolerance, reverse
         # Total length
         total_length = sum(elem.get('length', 0) for elem in coord_geom)
 
-        # Start point (scaled!)
+        # Start point
         if not reverse:
-            sp = (
-                edges[0].Vertexes[0].X,
-                edges[0].Vertexes[0].Y
-            )
+            start_vertex = edges[0].Vertexes[0]
         else:
-            sp = (
-                edges[0].Vertexes[-1].X,
-                edges[0].Vertexes[-1].Y
-            )
+            start_vertex = edges[0].Vertexes[-1]
 
-        start_point = scale2d(sp)
+        start_point = (start_vertex.Y/1000, start_vertex.X/1000)
 
         return {
             'name': name,
@@ -119,11 +105,11 @@ def order_edges(edges, tolerance):
 def edge_to_geometry(edge, station, index):
     """Convert FreeCAD edge to alignment geometry element dictionary."""
     try:
-        curve = edge.CCurve if hasattr(edge, "CCurve") else edge.Curve
+        curve = edge.Curve
 
-        # Scaled start/end points
-        start_point = scale2d((edge.Vertexes[0].X, edge.Vertexes[0].Y))
-        end_point = scale2d((edge.Vertexes[-1].X, edge.Vertexes[-1].Y))
+        # Start and end points as FreeCAD Vectors
+        start_point = FreeCAD.Vector(edge.Vertexes[0].X, edge.Vertexes[0].Y, 0).multiply(0.001)
+        end_point = FreeCAD.Vector(edge.Vertexes[-1].X, edge.Vertexes[-1].Y, 0).multiply(0.001)
 
         # Determine geometry type
         if isinstance(curve, Part.Line) or isinstance(curve, Part.LineSegment):
@@ -148,12 +134,12 @@ def edge_to_geometry(edge, station, index):
 
 
 def line_data(edge, station, start_point, end_point, index):
-    """Create Line geometry dictionary (points already scaled)"""
+    """Create Line geometry dictionary using FreeCAD Vectors"""
     length = edge.Length
 
-    dx = end_point[0] - start_point[0]
-    dy = end_point[1] - start_point[1]
-    direction = math.atan2(dy, dx)
+    # Direction vector
+    direction_vec = end_point.sub(start_point)
+    direction = math.atan2(direction_vec.y, direction_vec.x)
 
     return {
         'Type': 'Line',
@@ -161,54 +147,67 @@ def line_data(edge, station, start_point, end_point, index):
         'staStart': station,
         'length': length,
         'dir': direction,
-        'Start': start_point,
-        'End': end_point
+        'Start': (start_point.y, start_point.x),
+        'End': (end_point.y, end_point.x)
     }
 
 
 def curve_data(edge, station, start_point, end_point, index):
-    """Create Curve geometry dictionary (points scaled)"""
+    """Create Curve geometry dictionary using FreeCAD Vectors"""
     curve = edge.Curve
 
-    # Center scaled
-    center = scale2d((curve.Center.x, curve.Center.y))
+    # Center as FreeCAD Vector
+    center = FreeCAD.Vector(curve.Center.x, curve.Center.y, 0).multiply(0.001)
 
     radius = curve.Radius
     length = edge.Length
 
-    # Determine rotation direction
-    start_vec = FreeCAD.Vector(
-        start_point[0] - center[0],
-        start_point[1] - center[1],
-        0
-    )
-    end_vec = FreeCAD.Vector(
-        end_point[0] - center[0],
-        end_point[1] - center[1],
-        0
-    )
+    # Get a point slightly after start to determine actual travel direction
+    u_start = edge.FirstParameter
+    u_end = edge.LastParameter
+    u_mid = u_start + (u_end - u_start) * 0.01  # 1% along the curve
+    
+    mid_point_3d = edge.valueAt(u_mid)
+    mid_point = FreeCAD.Vector(mid_point_3d.x, mid_point_3d.y, 0)
 
-    cross = start_vec.cross(end_vec)
+    # Calculate rotation using cross product
+    # Vectors from start to mid and start to end
+    vec_to_mid = mid_point.sub(start_point)
+    vec_to_end = end_point.sub(start_point)
+    
+    # Cross product (only Z component matters for 2D)
+    cross = vec_to_mid.cross(vec_to_end)
+    
+    # Positive Z means counter-clockwise
     rotation = 'ccw' if cross.z > 0 else 'cw'
 
+    # Vectors from center to start and end
+    vec_start = start_point.sub(center)
+    vec_end = end_point.sub(center)
+
     # Angles
-    start_angle = math.atan2(start_point[1] - center[1], start_point[0] - center[0])
-    end_angle = math.atan2(end_point[1] - center[1], end_point[0] - center[0])
+    start_angle = math.atan2(vec_start.y, vec_start.x)
+    end_angle = math.atan2(vec_end.y, vec_end.x)
 
     delta = end_angle - start_angle
 
+    # Normalize delta based on rotation direction
     if rotation == 'ccw':
         if delta < 0:
             delta += 2 * math.pi
-    else:
+    else:  # cw
         if delta > 0:
             delta -= 2 * math.pi
 
     delta = abs(delta)
 
-    # Directions
-    dir_start = start_angle + (math.pi / 2 if rotation == 'ccw' else -math.pi / 2)
-    dir_end = end_angle + (math.pi / 2 if rotation == 'ccw' else -math.pi / 2)
+    # Tangent directions at start and end points
+    if rotation == 'ccw':
+        dir_start = start_angle + math.pi / 2
+        dir_end = end_angle + math.pi / 2
+    else:  # cw
+        dir_start = start_angle - math.pi / 2
+        dir_end = end_angle - math.pi / 2
 
     return {
         'Type': 'Curve',
@@ -220,7 +219,7 @@ def curve_data(edge, station, start_point, end_point, index):
         'rot': rotation,
         'dirStart': dir_start,
         'dirEnd': dir_end,
-        'Start': start_point,
-        'Center': center,
-        'End': end_point
+        'Start': (start_point.y, start_point.x),
+        'Center': (center.y, center.x),
+        'End': (end_point.y, end_point.x)
     }
