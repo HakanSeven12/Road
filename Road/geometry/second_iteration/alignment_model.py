@@ -86,7 +86,7 @@ class AlignmentModel:
     def zero_reference_coordinates(self):
         """
         Reference the coordinates to the start point
-        by adjustuing by the datum
+        by adjustment via the datum
         """
         datum = self.get_datum()
         for _geo in self.geometry:
@@ -103,8 +103,8 @@ class AlignmentModel:
     def validate_datum(self):
         """
         Ensure the datum is valid, assuming 0+00 / (0,0,0)
-        for station and coordinate where none is suplpied and it
-        cannot be inferred fromt the starting geometry
+        for station and coordinate where none is supplied and it
+        cannot be inferred from the starting geometry
         """
         _datum = self.meta
         _geo = self.geometry[0]

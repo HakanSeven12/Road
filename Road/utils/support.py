@@ -1,8 +1,8 @@
 import FreeCAD
 
-def zero_referance(referance, points):
+def zero_reference(reference, points):
     #return [FreeCAD.Vector(*p).multiply(1000) for p in points]
-    ref = FreeCAD.Vector(*referance)
+    ref = FreeCAD.Vector(*reference)
     vectors = []
     for i in points:
         vec = FreeCAD.Vector(*i).sub(ref)

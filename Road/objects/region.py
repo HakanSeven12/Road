@@ -3,7 +3,7 @@
 """Provides the object code for Region objects."""
 import FreeCAD, Part
 from .geo_object import GeoObject
-from ..utils.support import  zero_referance
+from ..utils.support import  zero_reference
 
 
 class Region(GeoObject):
@@ -131,7 +131,7 @@ class Region(GeoObject):
                     clamped_sta, "left"
                 )
                 
-                coord = zero_referance(alignment_model.get_start_point(), [tuple_coord])
+                coord = zero_reference(alignment_model.get_start_point(), [tuple_coord])
                 left_vec = FreeCAD.Vector(*tuple_vec)
                 right_vec = FreeCAD.Vector(*tuple_vec).negative()
                 
