@@ -2,8 +2,8 @@
 <package format="1" xmlns="https://wiki.freecad.org/Package_Metadata">
   <name>Road</name>
   <description>Road is the Transportation and Geomatics Engineering workbench for FreeCAD.</description>
-  <version>2025.11.25</version>
-  <date>2025.11.25</date>
+  <version>2025.11.26</version>
+  <date>2025.11.26</date>
   <maintainer email="hakanseven12@gmail.com">Hakan Seven</maintainer>
   <license file="LICENSE-CODE">LGPL-2.1-or-later</license>
   <license file="LICENSE-ICON">CC-BY-SA-4.0</license>
