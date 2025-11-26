@@ -54,12 +54,13 @@ COORDINATE_SYSTEM_CONFIG = {
     'attr_map': {
         'name': ('name', str),
         'desc': ('desc', str),
-        'epsgCode': ('epsgCode', 'int'),
-        'wkt': ('wkt', str),
-        'ogcWktCode': ('ogcWktCode', str),
         'horizontalDatum': ('horizontalDatum', str),
         'verticalDatum': ('verticalDatum', str),
-        'ellipsoidName': ('ellipsoidName', str)
+        'ellipsoidName': ('ellipsoidName', str),
+        'datumName': ('datumName', str),
+        'gridCoordinateSystemName': ('gridCoordinateSystemName', str),
+        'epsgCode': ('epsgCode', str),
+        'ogcWktCode': ('ogcWktCode', str)
     }
 }
 
@@ -68,10 +69,10 @@ HORIZONTAL_COORDINATE_SYSTEM_CONFIG = {
     'attr_map': {
         'name': ('name', str),
         'desc': ('desc', str),
-        'epsgCode': ('epsgCode', 'int'),
-        'datum': ('datum', str),
-        'projection': ('projection', str),
-        'projectionZone': ('projectionZone', str)
+        'epsgCode': ('epsgCode', str),
+        'ogcWktCode': ('ogcWktCode', str),
+        'horizontalDatum': ('horizontalDatum', str),
+        'ellipsoid': ('ellipsoid', str)
     }
 }
 

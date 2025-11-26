@@ -46,6 +46,7 @@ class LandXMLReader:
         self.alignments_data = []
         self.cgpoints_data = []
         self.surfaces_data = []
+        self.coordinate_system = None
         
         self.angular_unit = 'decimal degrees'  # Default
         self.direction_unit = 'decimal degrees'  # Default
@@ -55,23 +56,7 @@ class LandXMLReader:
         # Parse the XML file and parse units
         self._parse_xml()
         self._parse_units()
-    
-    def _parse_xml(self):
-        """Parse XML file and get root element"""
-        try:
-            self.tree = ET.parse(self.filepath)
-            self.root = self.tree.getroot()
-            
-            # Check if namespace is present
-            if self.root.tag.startswith('{'):
-                # Extract namespace from root tag
-                namespace = self.root.tag.split('}')[0] + '}'
-                self.namespace = namespace
-            else:
-                self.namespace = ''
-                
-        except ET.ParseError as e:
-            raise ValueError(f"Failed to parse LandXML file: {str(e)}")
+        self._parse_coordinate_system()
     
     def _find_element(self, parent: ET.Element, tag: str) -> Optional[ET.Element]:
         """
@@ -112,126 +97,6 @@ class LandXMLReader:
             elems = parent.findall(tag)
         
         return elems
-    
-    def _parse_units(self):
-        """
-        Parse Units element to determine angular unit system.
-        Sets conversion factors for angle/direction attributes.
-        """
-        units_elem = self._find_element(self.root, 'Units')
-        
-        if units_elem is None:
-            print("Warning: No Units element found, using default (decimal degrees)")
-            return
-        
-        # Check for Metric or Imperial units
-        metric_elem = self._find_element(units_elem, 'Metric')
-        imperial_elem = self._find_element(units_elem, 'Imperial')
-        
-        units_data = None
-        if metric_elem is not None:
-            units_data = self._parse_attributes(metric_elem, UNITS_CONFIG['Metric']['attr_map'])
-        elif imperial_elem is not None:
-            units_data = self._parse_attributes(imperial_elem, UNITS_CONFIG['Imperial']['attr_map'])
-        
-        if units_data:
-            # Get angular unit
-            if 'angularUnit' in units_data:
-                self.angular_unit = units_data['angularUnit']
-                if self.angular_unit in ANGULAR_UNITS:
-                    self.angular_conversion_factor = ANGULAR_UNITS[self.angular_unit]
-                else:
-                    print(f"Warning: Unknown angular unit '{self.angular_unit}', using decimal degrees")
-            
-            # Get direction unit (for azimuth/bearing)
-            if 'directionUnit' in units_data:
-                self.direction_unit = units_data['directionUnit']
-                if self.direction_unit in ANGULAR_UNITS:
-                    self.direction_conversion_factor = ANGULAR_UNITS[self.direction_unit]
-                else:
-                    print(f"Warning: Unknown direction unit '{self.direction_unit}', using decimal degrees")
-    
-    def _parse_coordinate_system(self):
-        """
-        Parse CoordinateSystem element from LandXML file.
-        Creates a CoordinateSystem object if coordinate system is defined.
-        """
-        coord_sys_elem = self._find_element(self.root, 'CoordinateSystem')
-        
-        if coord_sys_elem is not None:
-            self.coordinate_system = self._parse_attributes(coord_sys_elem, COORDINATE_SYSTEM_CONFIG['attr_map'])
-    
-    def parse_landxml_coordsys(self, xml_element: ET.Element) -> bool:
-        """
-        Parse coordinate system from LandXML CoordinateSystem element
-        
-        Args:
-            xml_element: XML element containing coordinate system definition
-            
-        Returns:
-            True if parsing successful, False otherwise
-        """
-        try:
-            # Get basic attributes
-            self.system_name = xml_element.get('name', '')
-            self.description = xml_element.get('desc', '')
-            
-            # Check for EPSG code
-            epsg_code = xml_element.get('epsgCode')
-            if epsg_code:
-                self.source_crs = CRS.from_epsg(int(epsg_code))
-                return True
-            
-            # Check for horizontal/vertical coordinate system definitions
-            horiz_cs = xml_element.find('HorizontalCoordinateSystem')
-            if horiz_cs is not None:
-                return self._parse_horizontal_cs(horiz_cs)
-            
-            # Check for WKT definition
-            wkt = xml_element.get('wkt')
-            if wkt:
-                self.source_crs = CRS.from_wkt(wkt)
-                return True
-                
-            return False
-            
-        except Exception as e:
-            print(f"Error parsing coordinate system: {e}")
-            return False
-    
-    def _parse_horizontal_cs(self, horiz_elem: ET.Element) -> bool:
-        """
-        Parse horizontal coordinate system element
-        
-        Args:
-            horiz_elem: HorizontalCoordinateSystem XML element
-            
-        Returns:
-            True if parsing successful
-        """
-        try:
-            # Check for EPSG in horizontal CS
-            epsg_code = horiz_elem.get('epsgCode')
-            if epsg_code:
-                self.source_crs = CRS.from_epsg(int(epsg_code))
-                return True
-            
-            # Parse datum and projection
-            datum = horiz_elem.get('datum', '')
-            projection = horiz_elem.get('projection', '')
-            
-            # Try to construct CRS from components
-            if datum and projection:
-                # This is a simplified approach - may need refinement
-                proj_string = f"+proj={projection.lower()} +datum={datum.upper()}"
-                self.source_crs = CRS.from_proj4(proj_string)
-                return True
-                
-            return False
-            
-        except Exception as e:
-            print(f"Error parsing horizontal coordinate system: {e}")
-            return False
     
     def _parse_attributes(self, element: ET.Element, attr_map: Dict) -> Dict:
         """
@@ -282,6 +147,112 @@ class LandXMLReader:
                     continue
         
         return result
+    
+    def _parse_xml(self):
+        """Parse XML file and get root element"""
+        try:
+            self.tree = ET.parse(self.filepath)
+            self.root = self.tree.getroot()
+            
+            # Check if namespace is present
+            if self.root.tag.startswith('{'):
+                # Extract namespace from root tag
+                namespace = self.root.tag.split('}')[0] + '}'
+                self.namespace = namespace
+            else:
+                self.namespace = ''
+                
+        except ET.ParseError as e:
+            raise ValueError(f"Failed to parse LandXML file: {str(e)}")
+    
+    def _parse_units(self):
+        """
+        Parse Units element to determine angular unit system.
+        Sets conversion factors for angle/direction attributes.
+        """
+        units_elem = self._find_element(self.root, 'Units')
+        
+        if units_elem is None:
+            print("Warning: No Units element found, using default (decimal degrees)")
+            return
+        
+        # Check for Metric or Imperial units
+        metric_elem = self._find_element(units_elem, 'Metric')
+        imperial_elem = self._find_element(units_elem, 'Imperial')
+        
+        units_data = None
+        if metric_elem is not None:
+            units_data = self._parse_attributes(metric_elem, UNITS_CONFIG['Metric']['attr_map'])
+        elif imperial_elem is not None:
+            units_data = self._parse_attributes(imperial_elem, UNITS_CONFIG['Imperial']['attr_map'])
+        
+        if units_data:
+            # Get angular unit
+            if 'angularUnit' in units_data:
+                self.angular_unit = units_data['angularUnit']
+                if self.angular_unit in ANGULAR_UNITS:
+                    self.angular_conversion_factor = ANGULAR_UNITS[self.angular_unit]
+                else:
+                    print(f"Warning: Unknown angular unit '{self.angular_unit}', using decimal degrees")
+            
+            # Get direction unit (for azimuth/bearing)
+            if 'directionUnit' in units_data:
+                self.direction_unit = units_data['directionUnit']
+                if self.direction_unit in ANGULAR_UNITS:
+                    self.direction_conversion_factor = ANGULAR_UNITS[self.direction_unit]
+                else:
+                    print(f"Warning: Unknown direction unit '{self.direction_unit}', using decimal degrees")
+    
+    def _parse_coordinate_system(self):
+        """
+        Parse CoordinateSystem element to extract coordinate reference system info.
+        """
+        coord_sys_elem = self._find_element(self.root, 'CoordinateSystem')
+        
+        if coord_sys_elem is None:
+            print("Warning: No CoordinateSystem element found in LandXML file")
+            return
+        
+        # Parse CoordinateSystem attributes
+        coord_sys_data = self._parse_attributes(coord_sys_elem, COORDINATE_SYSTEM_CONFIG['attr_map'])
+        
+        # Parse HorizontalCoordinateSystem if present
+        horiz_cs_elem = self._find_element(coord_sys_elem, 'HorizontalCoordinateSystem')
+        if horiz_cs_elem is not None:
+            horiz_cs_data = self._parse_attributes(horiz_cs_elem, HORIZONTAL_COORDINATE_SYSTEM_CONFIG['attr_map'])
+            coord_sys_data['HorizontalCoordinateSystem'] = horiz_cs_data
+        
+        # Store coordinate system data
+        self.coordinate_system = coord_sys_data
+
+    def get_coordinate_system(self) -> Optional[Dict]:
+        """
+        Get coordinate system information from LandXML file.
+        
+        Returns:
+            Dictionary containing coordinate system data or None if not available
+        """
+        return self.coordinate_system
+
+    def get_epsg_code(self) -> Optional[str]:
+        """
+        Get EPSG code from coordinate system if available.
+        
+        Returns:
+            EPSG code as string or None
+        """
+        if self.coordinate_system:
+            # Check main CoordinateSystem level
+            if 'epsgCode' in self.coordinate_system:
+                return self.coordinate_system['epsgCode']
+            
+            # Check HorizontalCoordinateSystem level
+            if 'HorizontalCoordinateSystem' in self.coordinate_system:
+                horiz_cs = self.coordinate_system['HorizontalCoordinateSystem']
+                if 'epsgCode' in horiz_cs:
+                    return horiz_cs['epsgCode']
+        
+        return None
     
     def get_units_info(self) -> Dict:
         """
@@ -993,7 +964,7 @@ class LandXMLReader:
         Export all parsed data to dictionary.
         
         Returns:
-            Dictionary containing file info, alignments, CgPoints, and Surfaces
+            Dictionary containing file info, coordinate system, alignments, CgPoints, and Surfaces
         """
         if not self.alignments_data:
             self.read_alignments()
@@ -1003,8 +974,10 @@ class LandXMLReader:
         
         if not self.surfaces_data:
             self.read_surfaces()
+        
         return {
             'filepath': str(self.filepath),
+            'coordinate_system': self.coordinate_system,
             'alignment_count': len(self.alignments_data),
             'cgpoint_group_count': len(self.cgpoints_data),
             'cgpoint_count': sum(len(g.get('points', [])) for g in self.cgpoints_data),
