@@ -1,5 +1,7 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
 
+import math
+
 """
 LandXML Parser Configuration
 Contains all mapping configurations for parsing LandXML elements.
@@ -10,8 +12,6 @@ LANDXML_NAMESPACES = {
     'landxml': 'http://www.landxml.org/schema/LandXML-1.2',
     '': 'http://www.landxml.org/schema/LandXML-1.2'
 }
-
-import math
 
 # Units configuration
 UNITS_CONFIG = {
@@ -46,6 +46,32 @@ UNITS_CONFIG = {
             'directionUnit': ('directionUnit', str),
             'latLongAngularUnit': ('latLongAngularUnit', str)
         }
+    }
+}
+
+# CoordinateSystem configuration
+COORDINATE_SYSTEM_CONFIG = {
+    'attr_map': {
+        'name': ('name', str),
+        'desc': ('desc', str),
+        'epsgCode': ('epsgCode', 'int'),
+        'wkt': ('wkt', str),
+        'ogcWktCode': ('ogcWktCode', str),
+        'horizontalDatum': ('horizontalDatum', str),
+        'verticalDatum': ('verticalDatum', str),
+        'ellipsoidName': ('ellipsoidName', str)
+    }
+}
+
+# HorizontalCoordinateSystem configuration
+HORIZONTAL_COORDINATE_SYSTEM_CONFIG = {
+    'attr_map': {
+        'name': ('name', str),
+        'desc': ('desc', str),
+        'epsgCode': ('epsgCode', 'int'),
+        'datum': ('datum', str),
+        'projection': ('projection', str),
+        'projectionZone': ('projectionZone', str)
     }
 }
 

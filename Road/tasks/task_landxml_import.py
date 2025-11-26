@@ -7,6 +7,7 @@ import FreeCAD, FreeCADGui
 from .task_panel import TaskPanel
 from ..functions.landxml_reader import LandXMLReader
 from ..geometry.alignment import Alignment
+from ..utils.coordinate_system import CoordinateSystem
 from ..make import make_terrain, make_alignment, make_geopoints
 
 from PySide.QtWidgets import (QWidget, QVBoxLayout, 

@@ -7,6 +7,8 @@ from pathlib import Path
 from .landxml_config import (
     LANDXML_NAMESPACES,
     UNITS_CONFIG,
+    COORDINATE_SYSTEM_CONFIG,
+    HORIZONTAL_COORDINATE_SYSTEM_CONFIG,
     ANGULAR_UNITS,
     GEOMETRY_CONFIG,
     ALIGNMENT_CONFIG,
@@ -148,7 +150,89 @@ class LandXMLReader:
                     self.direction_conversion_factor = ANGULAR_UNITS[self.direction_unit]
                 else:
                     print(f"Warning: Unknown direction unit '{self.direction_unit}', using decimal degrees")
-
+    
+    def _parse_coordinate_system(self):
+        """
+        Parse CoordinateSystem element from LandXML file.
+        Creates a CoordinateSystem object if coordinate system is defined.
+        """
+        coord_sys_elem = self._find_element(self.root, 'CoordinateSystem')
+        
+        if coord_sys_elem is not None:
+            self.coordinate_system = self._parse_attributes(coord_sys_elem, COORDINATE_SYSTEM_CONFIG['attr_map'])
+    
+    def parse_landxml_coordsys(self, xml_element: ET.Element) -> bool:
+        """
+        Parse coordinate system from LandXML CoordinateSystem element
+        
+        Args:
+            xml_element: XML element containing coordinate system definition
+            
+        Returns:
+            True if parsing successful, False otherwise
+        """
+        try:
+            # Get basic attributes
+            self.system_name = xml_element.get('name', '')
+            self.description = xml_element.get('desc', '')
+            
+            # Check for EPSG code
+            epsg_code = xml_element.get('epsgCode')
+            if epsg_code:
+                self.source_crs = CRS.from_epsg(int(epsg_code))
+                return True
+            
+            # Check for horizontal/vertical coordinate system definitions
+            horiz_cs = xml_element.find('HorizontalCoordinateSystem')
+            if horiz_cs is not None:
+                return self._parse_horizontal_cs(horiz_cs)
+            
+            # Check for WKT definition
+            wkt = xml_element.get('wkt')
+            if wkt:
+                self.source_crs = CRS.from_wkt(wkt)
+                return True
+                
+            return False
+            
+        except Exception as e:
+            print(f"Error parsing coordinate system: {e}")
+            return False
+    
+    def _parse_horizontal_cs(self, horiz_elem: ET.Element) -> bool:
+        """
+        Parse horizontal coordinate system element
+        
+        Args:
+            horiz_elem: HorizontalCoordinateSystem XML element
+            
+        Returns:
+            True if parsing successful
+        """
+        try:
+            # Check for EPSG in horizontal CS
+            epsg_code = horiz_elem.get('epsgCode')
+            if epsg_code:
+                self.source_crs = CRS.from_epsg(int(epsg_code))
+                return True
+            
+            # Parse datum and projection
+            datum = horiz_elem.get('datum', '')
+            projection = horiz_elem.get('projection', '')
+            
+            # Try to construct CRS from components
+            if datum and projection:
+                # This is a simplified approach - may need refinement
+                proj_string = f"+proj={projection.lower()} +datum={datum.upper()}"
+                self.source_crs = CRS.from_proj4(proj_string)
+                return True
+                
+            return False
+            
+        except Exception as e:
+            print(f"Error parsing horizontal coordinate system: {e}")
+            return False
+    
     def _parse_attributes(self, element: ET.Element, attr_map: Dict) -> Dict:
         """
         Parse element attributes based on mapping.
