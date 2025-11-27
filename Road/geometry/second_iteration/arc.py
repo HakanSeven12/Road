@@ -432,7 +432,7 @@ def get_lengths(arc, mat):
 def get_delta(arc, mat):
     """
     Get the delta value from the matrix, if possible,
-    Default to the user-provided parameter if no calculated
+    Default to the user-provided parameter if not calculated
     or values within tolerance
     """
     # Get the delta from the arc data as a default
