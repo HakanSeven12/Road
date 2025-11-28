@@ -80,6 +80,190 @@ class TaskLandXMLImport(TaskPanel):
                 'Error', 
                 f'Failed to load LandXML file:\n{str(e)}'
             )
+            # SPDX-License-Identifier: LGPL-2.1-or-later
+
+"""Provides the task panel code for the LandXML Importer tool."""
+
+import FreeCAD, FreeCADGui
+
+from .task_panel import TaskPanel
+from ..functions.landxml_reader import LandXMLReader
+from ..geometry.alignment import Alignment
+from ..utils.coordinate_system import CoordinateSystem
+from ..make import make_terrain, make_alignment, make_geopoints, make_geo_origin
+
+from PySide.QtWidgets import (QWidget, QVBoxLayout, 
+                             QHBoxLayout, QPushButton, QLabel, QTreeWidget, 
+                             QTreeWidgetItem, QFileDialog, QMessageBox, QCheckBox)
+from PySide.QtCore import Qt
+
+
+class TaskLandXMLImport(TaskPanel):
+    def __init__(self):
+        super().__init__()
+        self.form = QWidget()
+        self.landxml_reader = None
+        self.selected_file = None
+        self.parsed_data = {}
+        self.errors = []
+        self.geo_origin = None
+        self.initUI()
+        
+    def initUI(self):
+        main_layout = QVBoxLayout(self.form)
+        
+        # Top section - File selection
+        top_layout = QHBoxLayout()
+        
+        self.file_label = QLabel('No file selected')
+        top_layout.addWidget(self.file_label)
+        top_layout.addStretch()
+        
+        self.browse_btn = QPushButton('Browse')
+        self.browse_btn.clicked.connect(self.browse_file)
+        top_layout.addWidget(self.browse_btn)
+        
+        main_layout.addLayout(top_layout)
+        
+        # Coordinate system section
+        coord_layout = QHBoxLayout()
+        
+        self.create_georigin_checkbox = QCheckBox('Create GeoOrigin with coordinate system')
+        self.create_georigin_checkbox.setChecked(True)
+        coord_layout.addWidget(self.create_georigin_checkbox)
+        coord_layout.addStretch()
+        
+        main_layout.addLayout(coord_layout)
+        
+        # Coordinate system info label
+        self.coord_info_label = QLabel('')
+        self.coord_info_label.setWordWrap(True)
+        self.coord_info_label.setStyleSheet("QLabel { color: #0066cc; padding: 5px; }")
+        main_layout.addWidget(self.coord_info_label)
+        
+        # Middle TreeView
+        self.tree = QTreeWidget()
+        self.tree.setHeaderLabels(['Item', 'Details'])
+        self.tree.setSelectionMode(QTreeWidget.NoSelection)
+        self.tree.itemChanged.connect(self.on_item_changed)
+        main_layout.addWidget(self.tree)
+        
+    def browse_file(self):
+        """Opens file selection dialog."""
+        file_path, _ = QFileDialog.getOpenFileName(
+            self.form, 
+            'Select LandXML File', 
+            '', 
+            'LandXML Files (*.xml);;All Files (*.*)'
+        )
+        
+        if file_path:
+            self.selected_file = file_path
+            file_name = file_path.split('/')[-1]
+            self.file_label.setText(file_name)
+            self.load_landxml(file_path)
+            
+    def load_landxml(self, file_path):
+        """Loads LandXML file and populates the tree."""
+        try:
+            self.landxml_reader = LandXMLReader(file_path)
+            self.parsed_data = self.landxml_reader.export_to_dict()
+            
+            # Update coordinate system info
+            self._update_coord_system_info()
+            
+            self.tree.clear()
+            self._populate_tree()
+            
+        except Exception as e:
+            self.errors.append(f"Error loading LandXML file: {str(e)}")
+            QMessageBox.critical(
+                self.form, 
+                'Error', 
+                f'Failed to load LandXML file:\n{str(e)}'
+            )
+    
+    def _update_coord_system_info(self):
+        """Update coordinate system information label."""
+        coord_sys_data = self.parsed_data.get('coordinate_system')
+        
+        if coord_sys_data:
+            coord_sys = CoordinateSystem(coord_sys_data)
+            
+            info_text = "Coordinate System: "
+            
+            if coord_sys.is_valid():
+                epsg_code = coord_sys.get_epsg_code()
+                if epsg_code:
+                    info_text += f"EPSG:{epsg_code} - "
+                info_text += coord_sys.get_name()
+                
+                if coord_sys.is_projected():
+                    info_text += " (Projected)"
+                elif coord_sys.is_geographic():
+                    info_text += " (Geographic)"
+                
+                self.coord_info_label.setText(info_text)
+            else:
+                # Show available info even if CRS couldn't be created
+                name = coord_sys_data.get('name', 'Unknown')
+                epsg = coord_sys_data.get('epsgCode', 'N/A')
+                info_text += f"{name} (EPSG:{epsg}) - Could not create valid CRS"
+                self.coord_info_label.setText(info_text)
+                self.coord_info_label.setStyleSheet("QLabel { color: #cc6600; padding: 5px; }")
+        else:
+            self.coord_info_label.setText("No coordinate system information in LandXML file")
+            self.coord_info_label.setStyleSheet("QLabel { color: #cc0000; padding: 5px; }")
+    
+    def _find_or_create_georigin(self):
+        """Find existing GeoOrigin or create a new one."""
+        # Check if GeoOrigin already exists in document
+        for obj in FreeCAD.ActiveDocument.Objects:
+            if hasattr(obj, 'Proxy') and obj.Proxy and \
+               obj.Proxy.__class__.__name__ == 'GeoOrigin':
+                return obj
+        
+        # Create new GeoOrigin if it doesn't exist
+        return make_geo_origin.create("GeoOrigin")
+    
+    def _setup_coordinate_system(self):
+        """Setup GeoOrigin with coordinate system from LandXML."""
+        coord_sys_data = self.parsed_data.get('coordinate_system')
+        if not coord_sys_data:
+            FreeCAD.Console.PrintWarning(
+                "No coordinate system information in LandXML file\n"
+            )
+            return None
+        
+        try:
+            # Find or create GeoOrigin
+            self.geo_origin = self._find_or_create_georigin()
+            
+            # Set coordinate system from LandXML data
+            if hasattr(self.geo_origin, 'Proxy') and self.geo_origin.Proxy:
+                success = self.geo_origin.Proxy.set_coordinate_system_from_landxml(coord_sys_data)
+                
+                if success:
+                    FreeCAD.Console.PrintMessage(
+                        f"GeoOrigin coordinate system configured: {self.geo_origin.CoordinateSystemName}\n"
+                    )
+                    return self.geo_origin
+                else:
+                    FreeCAD.Console.PrintWarning(
+                        "Failed to configure GeoOrigin coordinate system\n"
+                    )
+                    return None
+            else:
+                FreeCAD.Console.PrintWarning(
+                    "GeoOrigin object doesn't have proper Proxy\n"
+                )
+                return None
+                
+        except Exception as e:
+            FreeCAD.Console.PrintError(
+                f"Error setting up GeoOrigin: {str(e)}\n"
+            )
+            return None
             
     def _populate_tree(self):
         """Populates tree with data from LandXML reader."""
@@ -537,6 +721,9 @@ class TaskLandXMLImport(TaskPanel):
         if not self.landxml_reader:
             QMessageBox.warning(self.form, 'Warning', 'No LandXML file loaded!')
             return
+        
+        # Setup GeoOrigin with coordinate system first
+        self._setup_coordinate_system()
 
         # Collect checked alignments
         selected_alignments = []
@@ -551,6 +738,7 @@ class TaskLandXMLImport(TaskPanel):
             self.tree.invisibleRootItem(),
             selected_cgpoint_groups
         )
+        
         # Collect checked Surfaces
         selected_surfaces = []
         self._collect_checked_surface_data(
