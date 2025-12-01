@@ -6,7 +6,7 @@ import FreeCAD
 from pivy import coin
 
 from ..variables import icons_path
-from ..utils.get_group import georigin
+from ..utils.get_group import create_project
 
 
 class ViewProviderRoad:
@@ -67,7 +67,7 @@ class ViewProviderRoad:
         """Update Object visuals when a data property changed."""
         if prop == "Placement":
             placement = obj.getPropertyByName(prop)
-            origin = georigin()
+            origin = create_project()
             geo_system = ["UTM", origin.UtmZone, "FLAT"]
 
             self.road.geoSystem.setValues(geo_system)

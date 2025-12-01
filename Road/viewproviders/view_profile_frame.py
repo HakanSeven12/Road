@@ -6,7 +6,7 @@ import FreeCAD, FreeCADGui
 from pivy import coin
 
 from ..variables import icons_path
-from ..utils.get_group import georigin
+from ..utils.get_group import create_project
 
 
 class ViewProviderProfileFrame:
@@ -143,7 +143,7 @@ class ViewProviderProfileFrame:
             self.elevations.removeAllChildren()
             self.stations.removeAllChildren()
             if shape.Vertexes:
-                origin = georigin()
+                origin = create_project()
                 geo_system = ["UTM", origin.UtmZone, "FLAT"]
                 reference = shape.Vertexes[0].Point
 

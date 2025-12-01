@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
 
 import FreeCAD, Part
-from ..utils.get_group import georigin
+from ..utils.get_group import create_project
 import math
 
 
@@ -12,7 +12,7 @@ def extract_alignment_data(obj, name, description, start_sta, tolerance, reverse
     """
     try:
         shape = obj.Shape.copy()
-        shape.translate(georigin(obj.Placement.Base).Base)
+        shape.translate(create_project(obj.Placement.Base).Base)
 
         # Get ordered edges
         if len(shape.Wires) > 0:

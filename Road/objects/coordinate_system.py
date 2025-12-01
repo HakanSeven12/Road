@@ -5,9 +5,9 @@
 import FreeCAD
 import FreeCADGui
 from ..variables import zone_list
-from ..objects.group import Group
+from .group import Group
 from ..guitools.widgets import GeoWidget
-from ..utils.coordinate_system import CoordinateSystem
+from ..utils.coordinate_system import CoordinateSystem as Model
 
 
 class GeoOrigin(Group):
@@ -31,8 +31,8 @@ class GeoOrigin(Group):
             "EPSG code of the coordinate system").EpsgCode = ""
         
         obj.addProperty(
-            "App::PropertyString", "CoordinateSystemName", "Coordinate System",
-            "Name of the coordinate system").CoordinateSystemName = ""
+            "App::PropertyString", "Name", "Coordinate System",
+            "Name of the coordinate system").Name = ""
         
         obj.addProperty(
             "App::PropertyString", "HorizontalDatum", "Coordinate System",
@@ -51,20 +51,33 @@ class GeoOrigin(Group):
             "True if coordinate system is projected").IsProjected = False
         
         obj.addProperty(
-            "App::PropertyPythonObject", "CoordinateSystemObject", "Internal",
-            "Coordinate system object for transformations").CoordinateSystemObject = CoordinateSystem()
+            "App::PropertyPythonObject", "Model", "Internal",
+            "Coordinate system object for transformations").Model = Model()
 
+    def execute(self, obj):
+        """Update Object when doing a recomputation."""
+        mw = FreeCADGui.getMainWindow()
+        statusbar = mw.statusBar()
+        
+        # Check all widgets in statusbar
+        for widget in statusbar.children():
+            if isinstance(widget, GeoWidget):
+                widget.show()
+                return
+        
+        GeoWidget()
+    
     def onChanged(self, obj, prop):
         """Handle property changes."""
         if prop == "EpsgCode" and obj.EpsgCode:
             # Update coordinate system when EPSG code changes
             try:
-                coord_sys = CoordinateSystem()
+                coord_sys = Model()
                 coord_sys.set_crs_from_epsg(obj.EpsgCode)
                 
                 # Update properties
-                obj.CoordinateSystemObject = coord_sys
-                obj.CoordinateSystemName = coord_sys.get_name()
+                obj.Model = coord_sys
+                obj.Name = coord_sys.get_name()
                 obj.IsGeographic = coord_sys.is_geographic()
                 obj.IsProjected = coord_sys.is_projected()
                 
@@ -135,16 +148,3 @@ class GeoOrigin(Group):
             return (x + base.x, y + base.y, z + base.z)
         else:
             return (x + base.x, y + base.y)
-
-    def execute(self, obj):
-        """Update Object when doing a recomputation."""
-        mw = FreeCADGui.getMainWindow()
-        statusbar = mw.statusBar()
-        
-        # Check all widgets in statusbar
-        for widget in statusbar.children():
-            if isinstance(widget, GeoWidget):
-                widget.show()
-                return
-        
-        GeoWidget()

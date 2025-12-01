@@ -2,7 +2,7 @@
 
 """Provides the object code for Geolocation objects."""
 import FreeCAD
-from ..utils.get_group import georigin
+from ..utils.get_group import create_project
 
 
 class GeoObject:
@@ -18,13 +18,13 @@ class GeoObject:
     def onChanged(self, obj, prop):
         """Do something when a data property has changed."""
         if prop == "Geolocation":
-            origin = georigin(obj.Geolocation.Base.sub(FreeCAD.Vector(1, 1)))
+            origin = create_project(obj.Geolocation.Base.sub(FreeCAD.Vector(1, 1)))
             base = obj.Geolocation.Base.sub(origin.Base)
             if obj.Placement.Base != base:
                 obj.Placement.Base = base
 
         if prop == "Placement":
-            origin = georigin(obj.Geolocation.Base)
+            origin = create_project(obj.Geolocation.Base)
             base = obj.Placement.Base.add(origin.Base)
             if obj.Geolocation.Base != base:
                 obj.Geolocation.Base = base

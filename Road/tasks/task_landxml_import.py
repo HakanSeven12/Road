@@ -9,88 +9,7 @@ from ..functions.landxml_reader import LandXMLReader
 from ..geometry.alignment import Alignment
 from ..utils.coordinate_system import CoordinateSystem
 from ..make import make_terrain, make_alignment, make_geopoints
-
-from PySide.QtWidgets import (QWidget, QVBoxLayout, 
-                             QHBoxLayout, QPushButton, QLabel, QTreeWidget, 
-                             QTreeWidgetItem, QFileDialog, QMessageBox)
-from PySide.QtCore import Qt
-
-
-class TaskLandXMLImport(TaskPanel):
-    def __init__(self):
-        super().__init__()
-        self.form = QWidget()
-        self.landxml_reader = None
-        self.selected_file = None
-        self.parsed_data = {}
-        self.errors = []
-        self.initUI()
-        
-    def initUI(self):
-        main_layout = QVBoxLayout(self.form)
-        
-        # Top section - File selection
-        top_layout = QHBoxLayout()
-        
-        self.file_label = QLabel('No file selected')
-        top_layout.addWidget(self.file_label)
-        top_layout.addStretch()
-        
-        self.browse_btn = QPushButton('Browse')
-        self.browse_btn.clicked.connect(self.browse_file)
-        top_layout.addWidget(self.browse_btn)
-        
-        main_layout.addLayout(top_layout)
-        
-        # Middle TreeView
-        self.tree = QTreeWidget()
-        self.tree.setHeaderLabels(['Item', 'Details'])
-        self.tree.setSelectionMode(QTreeWidget.NoSelection)
-        self.tree.itemChanged.connect(self.on_item_changed)
-        main_layout.addWidget(self.tree)
-        
-    def browse_file(self):
-        """Opens file selection dialog."""
-        file_path, _ = QFileDialog.getOpenFileName(
-            self.form, 
-            'Select LandXML File', 
-            '', 
-            'LandXML Files (*.xml);;All Files (*.*)'
-        )
-        
-        if file_path:
-            self.selected_file = file_path
-            file_name = file_path.split('/')[-1]
-            self.file_label.setText(file_name)
-            self.load_landxml(file_path)
-            
-    def load_landxml(self, file_path):
-        """Loads LandXML file and populates the tree."""
-        try:
-            self.landxml_reader = LandXMLReader(file_path)
-            self.parsed_data = self.landxml_reader.export_to_dict()
-            
-            self.tree.clear()
-            self._populate_tree()
-            
-        except Exception as e:
-            self.errors.append(f"Error loading LandXML file: {str(e)}")
-            QMessageBox.critical(
-                self.form, 
-                'Error', 
-                f'Failed to load LandXML file:\n{str(e)}'
-            )
-            # SPDX-License-Identifier: LGPL-2.1-or-later
-
-"""Provides the task panel code for the LandXML Importer tool."""
-
-import FreeCAD, FreeCADGui
-
-from .task_panel import TaskPanel
-from ..functions.landxml_reader import LandXMLReader
-from ..geometry.alignment import Alignment
-from ..utils.coordinate_system import CoordinateSystem
-from ..make import make_terrain, make_alignment, make_geopoints, make_geo_origin
+from ..utils import get_group
 
 from PySide.QtWidgets import (QWidget, QVBoxLayout, 
                              QHBoxLayout, QPushButton, QLabel, QTreeWidget, 
@@ -106,7 +25,6 @@ class TaskLandXMLImport(TaskPanel):
         self.selected_file = None
         self.parsed_data = {}
         self.errors = []
-        self.geo_origin = None
         self.initUI()
         
     def initUI(self):
@@ -124,16 +42,6 @@ class TaskLandXMLImport(TaskPanel):
         top_layout.addWidget(self.browse_btn)
         
         main_layout.addLayout(top_layout)
-        
-        # Coordinate system section
-        coord_layout = QHBoxLayout()
-        
-        self.create_georigin_checkbox = QCheckBox('Create GeoOrigin with coordinate system')
-        self.create_georigin_checkbox.setChecked(True)
-        coord_layout.addWidget(self.create_georigin_checkbox)
-        coord_layout.addStretch()
-        
-        main_layout.addLayout(coord_layout)
         
         # Coordinate system info label
         self.coord_info_label = QLabel('')
@@ -215,17 +123,6 @@ class TaskLandXMLImport(TaskPanel):
             self.coord_info_label.setText("No coordinate system information in LandXML file")
             self.coord_info_label.setStyleSheet("QLabel { color: #cc0000; padding: 5px; }")
     
-    def _find_or_create_georigin(self):
-        """Find existing GeoOrigin or create a new one."""
-        # Check if GeoOrigin already exists in document
-        for obj in FreeCAD.ActiveDocument.Objects:
-            if hasattr(obj, 'Proxy') and obj.Proxy and \
-               obj.Proxy.__class__.__name__ == 'GeoOrigin':
-                return obj
-        
-        # Create new GeoOrigin if it doesn't exist
-        return make_geo_origin.create("GeoOrigin")
-    
     def _setup_coordinate_system(self):
         """Setup GeoOrigin with coordinate system from LandXML."""
         coord_sys_data = self.parsed_data.get('coordinate_system')
@@ -233,37 +130,19 @@ class TaskLandXMLImport(TaskPanel):
             FreeCAD.Console.PrintWarning(
                 "No coordinate system information in LandXML file\n"
             )
-            return None
+            return 
         
         try:
             # Find or create GeoOrigin
-            self.geo_origin = self._find_or_create_georigin()
+            self.geo_origin = get_group.create_project()
+            self.geo_origin.Model = CoordinateSystem(coord_sys_data)
+
             
-            # Set coordinate system from LandXML data
-            if hasattr(self.geo_origin, 'Proxy') and self.geo_origin.Proxy:
-                success = self.geo_origin.Proxy.set_coordinate_system_from_landxml(coord_sys_data)
-                
-                if success:
-                    FreeCAD.Console.PrintMessage(
-                        f"GeoOrigin coordinate system configured: {self.geo_origin.CoordinateSystemName}\n"
-                    )
-                    return self.geo_origin
-                else:
-                    FreeCAD.Console.PrintWarning(
-                        "Failed to configure GeoOrigin coordinate system\n"
-                    )
-                    return None
-            else:
-                FreeCAD.Console.PrintWarning(
-                    "GeoOrigin object doesn't have proper Proxy\n"
-                )
-                return None
-                
         except Exception as e:
             FreeCAD.Console.PrintError(
                 f"Error setting up GeoOrigin: {str(e)}\n"
             )
-            return None
+            return 
             
     def _populate_tree(self):
         """Populates tree with data from LandXML reader."""

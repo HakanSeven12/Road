@@ -6,7 +6,7 @@ from pivy import coin
 import random
 
 from ..variables import icons_path
-from ..utils.get_group import georigin
+from ..utils.get_group import create_project
 
 
 class ViewProviderVolume:
@@ -66,7 +66,7 @@ class ViewProviderVolume:
             shape = obj.getPropertyByName("Shape")
 
             # Set System.
-            origin = georigin()
+            origin = create_project()
             geo_system = ["UTM", origin.UtmZone, "FLAT"]
             self.face_coords.geoSystem.setValues(geo_system)
 

@@ -6,7 +6,7 @@ import FreeCAD
 from pivy import coin
 
 from ..variables import icons_path
-from ..utils.get_group import georigin
+from ..utils.get_group import create_project
 
 
 class ViewProviderTable:

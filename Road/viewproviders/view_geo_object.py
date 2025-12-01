@@ -3,7 +3,7 @@
 """Provides the viewprovider code for Geolocation based objects."""
 from pivy import coin
 from ..variables import icons_path
-from ..utils.get_group import georigin
+from ..utils.get_group import create_project
 
 
 class ViewProviderGeoObject:
@@ -35,7 +35,7 @@ class ViewProviderGeoObject:
         """Update Object visuals when a data property changed."""
         if prop == "Geolocation":
             base = obj.Geolocation.Base
-            origin = georigin(base)
+            origin = create_project(base)
             geo_system = ["UTM", origin.UtmZone, "FLAT"]
             self.flat_lines.geoSystem.setValues(geo_system)
             self.flat_lines.geoCoords.setValue(*base)
