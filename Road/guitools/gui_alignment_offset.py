@@ -40,8 +40,8 @@ class AlignmentOffset:
         parent = self.parent_selector.selected_object
 
         alignment = make_alignment.create()
-        alignment.OffsetLength = 5
         alignment.Parent = parent
+        alignment.OffsetLength = 5
         alignment.Model.coordinate_system.set_system('custom', alignment.Model.start_point, swap=True)
         #alignment.ViewObject.DisplayMode = "Offset"
 

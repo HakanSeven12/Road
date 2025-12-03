@@ -98,7 +98,7 @@ class Alignment(GeoObject):
             if not obj.Status:
                 obj.Status = "existing"
 
-        elif prop in ["OffsetLength", "Parent"]:
+        elif prop in ["OffsetLength", "Parent"] and obj.Parent:
             self.generate_offset_alignment(obj, obj.Parent, obj.OffsetLength)
 
     def _generate_shape_from_model(self, model: AlignmentModel) -> Part.Shape:
