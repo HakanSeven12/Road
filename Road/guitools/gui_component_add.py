@@ -33,8 +33,8 @@ class ComponentAdd:
 
     def Activated(self):
         """Command activation method"""
-        profile = make_component.create()
-        self.structure.addObject(profile)
+        component = make_component.create()
+        self.structure.addObject(component)
 
         FreeCAD.ActiveDocument.recompute()
 

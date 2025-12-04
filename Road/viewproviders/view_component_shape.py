@@ -110,10 +110,11 @@ class ViewProviderComponentShape:
             self.faces.coordIndex.values = indexes
 
             component = obj.getParentGroup()
-            side = coin.SoAsciiText.LEFT if component.Side == "Right" else coin.SoAsciiText.RIGHT
-            self.text.justification = side
-            self.location.translation = shape.CenterOfMass
-            self.text.string.setValues([obj.Label])
+            if component:
+                side = coin.SoAsciiText.LEFT if component.Side == "Right" else coin.SoAsciiText.RIGHT
+                self.text.justification = side
+                self.location.translation = shape.CenterOfMass
+                self.text.string.setValues([obj.Label])
 
 
     def getDisplayModes(self,vobj):
