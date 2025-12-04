@@ -695,26 +695,34 @@ class TaskLandXMLImport(TaskPanel):
                     surface_failed += 1
         
         # Show summary
-        summary_msg = f"Import completed:\n"
+        rows = []
+
         if alignment_created > 0:
-            summary_msg += f"  Alignments created: {alignment_created}\n"
+            rows.append(f"<tr><td>Alignments created:</td><td align='right'><b>{alignment_created}</b></td></tr>")
         if alignment_failed > 0:
-            summary_msg += f"  Alignments failed: {alignment_failed}\n"
+            rows.append(f"<tr><td>Alignments failed:</td><td align='right'><b>{alignment_failed}</b></td></tr>")
+        if geopoints_created > 0:
+            rows.append(f"<tr><td>GeoPoints groups created:</td><td align='right'><b>{geopoints_created}</b></td></tr>")
         if cgpoint_created > 0:
-            summary_msg += f"  GeoPoints groups created: {geopoints_created}\n"
-            summary_msg += f"  Total CgPoints imported: {cgpoint_created}\n"
+            rows.append(f"<tr><td>Total CgPoints imported:</td><td align='right'><b>{cgpoint_created}</b></td></tr>")
         if cgpoint_failed > 0:
-            summary_msg += f"  CgPoints failed: {cgpoint_failed}\n"
+            rows.append(f"<tr><td>CgPoints failed:</td><td align='right'><b>{cgpoint_failed}</b></td></tr>")
         if surface_created > 0:
-            summary_msg += f"  Terrains created: {surface_created}\n"
+            rows.append(f"<tr><td>Terrains created:</td><td align='right'><b>{surface_created}</b></td></tr>")
         if surface_failed > 0:
-            summary_msg += f"  Terrains failed: {surface_failed}\n"
-        
+            rows.append(f"<tr><td>Terrains failed:</td><td align='right'><b>{surface_failed}</b></td></tr>")
+
+        table_html = f"""
+        <table style='font-size:14px;'>
+            {''.join(rows)}
+        </table>
+        """
+
         if alignment_created > 0 or cgpoint_created > 0 or surface_created > 0:
-            QMessageBox.information(self.form, 'Import Complete', summary_msg)
+            QMessageBox.information(self.form, "Import Complete", table_html)
         else:
-            QMessageBox.warning(self.form, 'Import Failed', summary_msg)
-        
+            QMessageBox.warning(self.form, "Import Failed", table_html)
+
         # Close dialog and recompute
         FreeCADGui.Control.closeDialog()
         FreeCAD.ActiveDocument.recompute()
