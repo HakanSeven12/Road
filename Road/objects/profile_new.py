@@ -33,20 +33,18 @@ class Profile(GeoObject):
             "Height of section view").Height = 15
 
         obj.addProperty(
-            "App::PropertyFloat", "Width", "Geometry",
-            "Width of section view").Width = 40
+            "App::PropertyFloat", "Length", "Geometry",
+            "Width of section view").Length = 1
 
         obj.Proxy = self
 
     def execute(self, obj):
         """Do something when doing a recomputation."""
 
-        sections = obj.getParentGroup()
-        region = sections.getParentGroup()
-        regions = region.getParentGroup()
-        alignment = regions.getParentGroup()
+        profiles = obj.getParentGroup()
+        alignment = profiles.getParentGroup()
 
-        length = alignment.Length.Value
+        length = alignment.Length
         obj.Length = length if length else 1000
         
         obj.Model = {'surface': {}, 'design': {}}
@@ -67,8 +65,8 @@ class Profile(GeoObject):
             
             station_elevation = []
             for point in projected_points:
-                point = point.add(terrain.Geolocation.Base).sub(terrain.Placement.Base)
-                station, position, offset = alignment.Model.get_station_offset([*point])
+                point = point.sub(alignment.Placement.Base)
+                station, offset = alignment.Model.get_station_offset([*point])
                 if station: station_elevation.append([station, point.z])
                 if horizon==0 or point.z < horizon: horizon = point.z
 
@@ -82,8 +80,8 @@ class Profile(GeoObject):
         # Calculate grid position for this item
         p1 = FreeCAD.Vector()
         p2 = FreeCAD.Vector(0, obj.Height * 1000)
-        p3 = FreeCAD.Vector(obj.Width * 1000, obj.Height * 1000)
-        p4 = FreeCAD.Vector(obj.Width * 1000, 0, 0)
+        p3 = FreeCAD.Vector(obj.Length * 1000, obj.Height * 1000)
+        p4 = FreeCAD.Vector(obj.Length * 1000, 0, 0)
         frame = Part.makePolygon([p1, p2, p3, p4, p1])
             
         profiles = []
@@ -91,7 +89,7 @@ class Profile(GeoObject):
             point_list = []
             for station, elevation in values:
                 if station is None or elevation is None: continue
-                point_list.append(FreeCAD.Vector(station, elevation - obj.Horizon))
+                point_list.append(FreeCAD.Vector(station*1000, elevation - obj.Horizon))
             
             if len(point_list) > 1:
                 profile = Part.makePolygon(point_list)

@@ -49,7 +49,7 @@ class ProfileFrame:
         obj.Height = max(z_values) - min(z_values) if z_values else 1000
         obj.Horizon = min(z_values) if z_values else 0
 
-        length = alignment.Length.Value
+        length = alignment.Length*1000
         obj.Length = length if length else 1000
 
         p1 = FreeCAD.Vector()

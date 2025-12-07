@@ -7,11 +7,11 @@ from pivy import coin
 from .view_geo_object import ViewProviderGeoObject
 
 
-class ViewProviderSection(ViewProviderGeoObject):
+class ViewProviderProfile(ViewProviderGeoObject):
     """This class is about Profile Frame Object view features."""
     def __init__(self, vobj):
         """Set view properties."""
-        super().__init__(vobj, "CreateSections")
+        super().__init__(vobj, "CreateProfileFrame")
         vobj.Proxy = self
 
     def attach(self, vobj):
@@ -61,24 +61,28 @@ class ViewProviderSection(ViewProviderGeoObject):
         self.grid_color.rgb = (0.5, 0.5, 0.5)
 
         # Horizontal lines
+        horizontal_grid_template = coin.SoSeparator()
         self.horizontal_coords = coin.SoCoordinate3()
         horizontal_lines = coin.SoLineSet()
+        horizontal_grid_template.addChild(self.horizontal_coords)
+        horizontal_grid_template.addChild(horizontal_lines)
 
         self.horizontal_copy = coin.SoMultipleCopy()
-        self.horizontal_copy.addChild(self.horizontal_coords)
-        self.horizontal_copy.addChild(horizontal_lines)
+        self.horizontal_copy.addChild(horizontal_grid_template)
 
         horizontals = coin.SoSeparator()
         horizontals.addChild(self.grid_color)
         horizontals.addChild(self.horizontal_copy)
 
         # Vertical lines
+        vertical_grid_template = coin.SoSeparator()
         self.vertical_coords = coin.SoCoordinate3()
         vertical_lines = coin.SoLineSet()
+        vertical_grid_template.addChild(self.vertical_coords)
+        vertical_grid_template.addChild(vertical_lines)
 
         self.vertical_copy = coin.SoMultipleCopy()
-        self.vertical_copy.addChild(self.vertical_coords)
-        self.vertical_copy.addChild(vertical_lines)
+        self.vertical_copy.addChild(vertical_grid_template)
 
         verticals = coin.SoSeparator()
         verticals.addChild(self.grid_color)
@@ -195,13 +199,12 @@ class ViewProviderSection(ViewProviderGeoObject):
             self.offsets.removeAllChildren()
 
             # Starting position
-            base = obj.Placement.Base
             vertical_matrices = []
             horizontal_matrices = []
             for sta, data in model.items():
                 # Calculate grid position for this item
-                origin = FreeCAD.Vector(data.get("origin")).add(base)
-                for pos in range(int(-obj.Width*1000/2), int(obj.Width*1000/2), 2000):
+                origin = obj.Placement.Base
+                for pos in range(0, int(obj.Length*1000), 2000):
                     position = origin.add(FreeCAD.Vector(pos, 0))
                     position2 = origin.add(FreeCAD.Vector(pos, obj.Height*1000+500))
                     matrix = coin.SbMatrix()
@@ -223,10 +226,9 @@ class ViewProviderSection(ViewProviderGeoObject):
                     group.addChild(offset)
                     self.offsets.addChild(group)
 
-                horizon = data.get("horizon", 0)
+                horizon = obj.Horizon
                 for pos in range(0, int(obj.Height*1000), 2000):
                     position = origin.add(FreeCAD.Vector(0, pos))
-                    position2 = origin.add(FreeCAD.Vector(-obj.Width*1000/2, pos, 0))
                     matrix = coin.SbMatrix()
                     location = coin.SoTranslation()
                     elevation = coin.SoAsciiText()
@@ -237,7 +239,7 @@ class ViewProviderSection(ViewProviderGeoObject):
                         coin.SbVec3f(1.0, 1.0, 1.0))
                     horizontal_matrices.append(matrix)
 
-                    location.translation = coin.SbVec3f(*position2)
+                    location.translation = coin.SbVec3f(*position)
                     elevation.justification = coin.SoAsciiText.RIGHT
                     elevation.string.setValues([round((horizon+pos)/1000, 3)])
 
@@ -249,7 +251,7 @@ class ViewProviderSection(ViewProviderGeoObject):
             self.vertical_coords.point.values = [FreeCAD.Vector(), FreeCAD.Vector(0,obj.Height*1000)]
             self.vertical_copy.matrix.values = vertical_matrices
 
-            self.horizontal_coords.point.values = [FreeCAD.Vector(-obj.Width*1000/2,0) , FreeCAD.Vector(obj.Width*1000/2,0)]
+            self.horizontal_coords.point.values = [FreeCAD.Vector(obj.Length*1000,0) , FreeCAD.Vector()]
             self.horizontal_copy.matrix.values = horizontal_matrices
 
     def getDetailPath(self, subname, path, append):

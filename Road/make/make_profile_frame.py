@@ -4,17 +4,15 @@
 
 import FreeCAD
 
-from ..objects.profile_frame import ProfileFrame
-from ..viewproviders.view_profile_frame import ViewProviderProfileFrame
+from ..objects.profile_new import Profile
+from ..viewproviders.view_profile_new import ViewProviderProfile
 
 def create():
     """Factory method for Region group."""
 
-    obj = FreeCAD.ActiveDocument.addObject(
-        "App::DocumentObjectGroupPython", "ProfileFrame")
+    obj = FreeCAD.ActiveDocument.addObject("Part::FeaturePython", "Profile")
 
-    ProfileFrame(obj)
-    ViewProviderProfileFrame(obj.ViewObject)
-    obj.Label = "Profile Frame"
+    Profile(obj)
+    ViewProviderProfile(obj.ViewObject)
 
     return obj
