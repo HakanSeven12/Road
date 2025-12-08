@@ -223,7 +223,7 @@ class ViewProviderSection(ViewProviderGeoObject):
                     group.addChild(offset)
                     self.offsets.addChild(group)
 
-                horizon = data.get("horizon", 0)
+                horizon = data.get("horizon", 0) * 1000
                 for pos in range(0, int(obj.Height*1000), 2000):
                     position = origin.add(FreeCAD.Vector(0, pos))
                     position2 = origin.add(FreeCAD.Vector(-obj.Width*1000/2, pos, 0))

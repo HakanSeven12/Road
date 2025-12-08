@@ -52,7 +52,7 @@ class Section(GeoObject):
 
         for idx, sta in enumerate(region.Stations):
             obj.Model[sta] = {'horizon': 0, 'sections': {}}
-            horizon = 0
+            horizon = math.inf
             for terrain in obj.Terrains:
                 flat_points = []
                 for edge in region.Shape.Wires[idx].Edges:
@@ -72,14 +72,14 @@ class Section(GeoObject):
                     point = point.sub(alignment.Placement.Base).multiply(0.001)
                     station, offset = alignment.Model.get_station_offset([*point])
                     if offset: offset_elevation.append([offset, point.z])
-                    if horizon==0 or point.z < horizon: horizon = point.z
+                    if point.z < horizon: horizon = point.z
 
                 # Sort by offset
                 offset_elevation.sort(key=lambda x: x[0])
                 obj.Model[sta]['sections'][terrain.Label] = offset_elevation
 
             # Set horizon
-            obj.Model[sta]["horizon"] = math.floor(horizon / 5) * 5
+            obj.Model[sta]["horizon"] = math.floor(horizon / 5) * 5 if horizon != math.inf else 0
 
         # Calculate grid dimensions (equal rows and columns)
         total_items = len(obj.Model)

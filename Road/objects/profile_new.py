@@ -48,7 +48,7 @@ class Profile(GeoObject):
         obj.Length = length if length else 1000
         
         obj.Model = {'surface': {}, 'design': {}}
-        horizon = 0
+        horizon = math.inf
         for terrain in obj.Terrains:
             flat_points = []
             for edge in alignment.Shape.Edges:
@@ -68,14 +68,14 @@ class Profile(GeoObject):
                 point = point.sub(alignment.Placement.Base).multiply(0.001)
                 station, offset = alignment.Model.get_station_offset([*point])
                 if station: station_elevation.append([station, point.z])
-                if horizon==0 or point.z < horizon: horizon = point.z
+                if point.z < horizon: horizon = point.z
 
             # Sort by offset
             station_elevation.sort(key=lambda x: x[0])
             obj.Model['surface'][terrain.Label] = station_elevation
 
         # Set horizon
-        obj.Horizon = math.floor(horizon / 5) * 5
+        obj.Horizon = math.floor(horizon / 5) * 5 if horizon != math.inf else 0
 
         # Calculate grid position for this item
         p1 = FreeCAD.Vector()

@@ -226,7 +226,7 @@ class ViewProviderProfile(ViewProviderGeoObject):
                     group.addChild(offset)
                     self.offsets.addChild(group)
 
-                horizon = obj.Horizon
+                horizon = obj.Horizon * 1000
                 for pos in range(0, int(obj.Height*1000), 2000):
                     position = origin.add(FreeCAD.Vector(0, pos))
                     matrix = coin.SbMatrix()
