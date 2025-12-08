@@ -25,7 +25,7 @@ class ViewProviderGeoPoints(ViewProviderGeoObject):
 
         vobj.addProperty(
             "App::PropertyColor", "MarkerColor", "Marker Style",
-            "Color of point marker").MarkerColor = (1.0, 1.0, 1.0)
+            "Color of point marker").MarkerColor = (1.0, 0.0, 0.0)
 
         vobj.addProperty(
             "App::PropertyBool", "Number", "Labels Visibility",
@@ -53,7 +53,7 @@ class ViewProviderGeoPoints(ViewProviderGeoObject):
 
         vobj.addProperty(
             "App::PropertyColor", "LabelColor", "Label Style",
-            "Color of point labels").LabelColor = (1.0, 1.0, 1.0)
+            "Color of point labels").LabelColor = (0.0, 0.0, 1.0)
 
         vobj.addProperty(
             "App::PropertyFloat", "LabelSize", "Label Style",
