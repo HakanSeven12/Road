@@ -65,7 +65,7 @@ class Profile(GeoObject):
             
             station_elevation = []
             for point in projected_points:
-                point = point.sub(alignment.Placement.Base)
+                point = point.sub(alignment.Placement.Base).multiply(0.001)
                 station, offset = alignment.Model.get_station_offset([*point])
                 if station: station_elevation.append([station, point.z])
                 if horizon==0 or point.z < horizon: horizon = point.z
@@ -75,7 +75,7 @@ class Profile(GeoObject):
             obj.Model['surface'][terrain.Label] = station_elevation
 
         # Set horizon
-        obj.Horizon = math.floor(horizon / 5000) * 5000
+        obj.Horizon = math.floor(horizon / 5) * 5
 
         # Calculate grid position for this item
         p1 = FreeCAD.Vector()
@@ -89,7 +89,7 @@ class Profile(GeoObject):
             point_list = []
             for station, elevation in values:
                 if station is None or elevation is None: continue
-                point_list.append(FreeCAD.Vector(station*1000, elevation - obj.Horizon))
+                point_list.append(FreeCAD.Vector(station, elevation - obj.Horizon).multiply(1000))
             
             if len(point_list) > 1:
                 profile = Part.makePolygon(point_list)
