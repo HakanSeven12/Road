@@ -2,271 +2,121 @@
 
 """Provides the viewprovider code for Profile Frame objects."""
 
-import FreeCAD, FreeCADGui
+import FreeCAD
 from pivy import coin
-
-from ..variables import icons_path
-from ..utils.get_group import georigin
+from .view_geo_object import ViewProviderGeoObject
 
 
-class ViewProviderProfileFrame:
+class ViewProviderProfileFrame(ViewProviderGeoObject):
     """This class is about Profile Frame Object view features."""
     def __init__(self, vobj):
         """Set view properties."""
-
+        super().__init__(vobj, "ProfileFrame")
         vobj.Proxy = self
-
+    
     def attach(self, vobj):
         """Create Object visuals in 3D view."""
+        super().attach(vobj)
         self.Object = vobj.Object
+        self.view = vobj
 
         self.draw_style = coin.SoDrawStyle()
         self.draw_style.style = coin.SoDrawStyle.LINES
 
         #-----------------------------------------------------------------
-        # Title
+        # Frame and Grid (using FrameManager)
         #-----------------------------------------------------------------
-
-        #-----------------------------------------------------------------
-        # Border
-        #-----------------------------------------------------------------
-
-        # View
-        self.border_color = coin.SoBaseColor()
-        self.border_color.rgb = (0.0, 0.0, 1.0)
-
-        border_view = coin.SoGroup()
-        border_view.addChild(self.draw_style)
-        border_view.addChild(self.border_color)
-
-        # Data
-        self.border_coords = coin.SoCoordinate3()
-        self.border_lines = coin.SoLineSet()
-
-        border_data = coin.SoGroup()
-        border_data.addChild(self.border_coords)
-        border_data.addChild(self.border_lines)
-
-        # Group
-        border = coin.SoSeparator()
-        border.addChild(border_view)
-        border.addChild(border_data)
+        from ..utils.frame_manager import FrameManager
+        self.frame_manager = FrameManager(self.standard)
 
         #-----------------------------------------------------------------
-        # Grid
+        # Sections
         #-----------------------------------------------------------------
+        # Section view
+        self.section_color = coin.SoBaseColor()
+        draw_style = coin.SoDrawStyle()
+        draw_style.style = coin.SoDrawStyle.LINES
+        draw_style.lineWidth = 2
 
-        # View
-        self.grid_color = coin.SoBaseColor()
-        self.grid_color.rgb = (0.5, 0.5, 0.5)
+        section_view = coin.SoGroup()
+        section_view.addChild(draw_style)
+        section_view.addChild(self.section_color)
 
-        # Horizontal lines
-        self.horizontal_coords = coin.SoCoordinate3()
-        horizontal_lines = coin.SoLineSet()
+        # Section data
+        self.section_coords = coin.SoCoordinate3()
+        self.section_lines = coin.SoLineSet()
 
-        self.horizontal_copy = coin.SoMultipleCopy()
-        self.horizontal_copy.addChild(self.horizontal_coords)
-        self.horizontal_copy.addChild(horizontal_lines)
+        section_data = coin.SoGroup()
+        section_data.addChild(self.section_coords)
+        section_data.addChild(self.section_lines)
 
-        horizontals = coin.SoSeparator()
-        horizontals.addChild(self.grid_color)
-        horizontals.addChild(self.horizontal_copy)
-
-        # Vertical lines
-        self.vertical_coords = coin.SoCoordinate3()
-        vertical_lines = coin.SoLineSet()
-
-        self.vertical_copy = coin.SoMultipleCopy()
-        self.vertical_copy.addChild(self.vertical_coords)
-        self.vertical_copy.addChild(vertical_lines)
-
-        verticals = coin.SoSeparator()
-        verticals.addChild(self.grid_color)
-        verticals.addChild(self.vertical_copy)
-
-        grid = coin.SoSeparator()
-        grid.addChild(horizontals)
-        grid.addChild(verticals)
+        # Section group
+        sections = coin.SoAnnotation()
+        sections.addChild(section_view)
+        sections.addChild(section_data)
 
         #-----------------------------------------------------------------
-        # Labels
+        # Labels (using LabelManager)
         #-----------------------------------------------------------------
-
-        # View
-        font = coin.SoFont()
-        font.size = 1000
-
-        # Horizon Label
-        self.horizon = coin.SoAsciiText()
-        self.horizon.justification = coin.SoAsciiText.RIGHT
-
-        # Elevation Labels
-        self.elevations = coin.SoSeparator()
-
-        # Station Labels
-        self.stations = coin.SoSeparator()
-
-        # Label Group
-        labels = coin.SoSeparator()
-        labels.addChild(font)
-        labels.addChild(self.horizon)
-        labels.addChild(self.elevations)
-        labels.addChild(self.stations)
+        from ..utils.label_manager import LabelManager
+        label_root = coin.SoSeparator()
+        self.label_manager = LabelManager(label_root)
 
         #-----------------------------------------------------------------
-        # Profile Frame
+        # Complete Scene
         #-----------------------------------------------------------------
+        self.sel2 = coin.SoType.fromName('SoFCSelection').createInstance()
+        self.sel2.style = 'EMISSIVE_DIFFUSE'
+        self.sel2.addChild(sections)
 
-        # Frame group
         self.drag = coin.SoSeparator()
-        self.frame = coin.SoGeoSeparator()
-        self.frame.addChild(border)
-        self.frame.addChild(grid)
-        self.frame.addChild(labels)
-        self.frame.addChild(self.drag)
-
-        root = coin.SoType.fromName('SoFCSelection').createInstance()
-        root.style = 'EMISSIVE_DIFFUSE'
-        root.addChild(self.frame)
-
-        vobj.addDisplayMode(root, "Frame")
-
-    def onChanged(self, vobj, prop):
-        """Update Object visuals when a view property changed."""
-        pass
-
+        self.standard.addChild(self.sel2)
+        self.standard.addChild(label_root)
+        self.standard.addChild(self.drag)
+        
+    # updateData metodunda değişiklikler:
     def updateData(self, obj, prop):
         """Update Object visuals when a data property changed."""
+        super().updateData(obj, prop)
+
         if prop == "Shape":
-            shape = obj.getPropertyByName(prop)
+            if not len(obj.Shape.SubShapes) == 2: return
+            
+            section_coords = []
+            section_count = []
+            sections = obj.Shape.SubShapes[1].SubShapes
+            for section in sections:
+                section_points = [ver.Point for ver in section.Vertexes]
+                section_coords.extend(section_points)
+                section_count.append(len(section_points))
 
-            self.elevations.removeAllChildren()
-            self.stations.removeAllChildren()
-            if shape.Vertexes:
-                origin = georigin()
-                geo_system = ["UTM", origin.UtmZone, "FLAT"]
-                reference = shape.Vertexes[0].Point
+            self.section_coords.point.values = section_coords
+            self.section_lines.numVertices.values = section_count
 
-                self.frame.geoSystem.setValues(geo_system)
-                self.frame.geoCoords.setValue(reference.x, reference.y, reference.z)
-                corners = [ver.Point.add(reference.negative()) for ver in shape.Vertexes]
-                corners.append(corners[0])
-                self.border_coords.point.values = corners
-
-                vertical_matrices = []
-                for pos in range(10000, int(obj.Length), 10000):
-                    matrix = coin.SbMatrix()
-                    location = coin.SoTranslation()
-                    station = coin.SoAsciiText()
-
-                    matrix.setTransform(
-                        coin.SbVec3f(pos, 0, -1), 
-                        coin.SbRotation(), 
-                        coin.SbVec3f(1.0, 1.0, 1.0))
-                    vertical_matrices.append(matrix)
-
-                    location.translation = coin.SbVec3f(pos, obj.Height+500, 0)
-                    station.justification = coin.SoAsciiText.CENTER
-
-                    text = str(round(pos / 1000, 2)).zfill(6)
-                    integer = text.split('.')[0]
-                    new_integer = integer[:-3] + "+" + integer[-3:]
-
-                    station.string.setValues([new_integer + "." + text.split('.')[1]])
-
-                    group = coin.SoTransformSeparator()
-                    group.addChild(location)
-                    group.addChild(station)
-                    self.stations.addChild(group)
-
-                self.vertical_coords.point.values = [corners[0], corners[3]]
-                self.vertical_copy.matrix.values = vertical_matrices
-
-                horizontal_matrices = []
-                start = (obj.Horizon + 9999) // 10000 * 10000
-                for pos in range(int(start), int(obj.Horizon+obj.Height), 10000):
-                    matrix = coin.SbMatrix()
-                    location = coin.SoTranslation()
-                    elevation = coin.SoAsciiText()
-
-                    matrix.setTransform(
-                        coin.SbVec3f(0, pos-obj.Horizon, -1), 
-                        coin.SbRotation(), 
-                        coin.SbVec3f(1.0, 1.0, 1.0))
-                    horizontal_matrices.append(matrix)
-
-                    location.translation = coin.SbVec3f(-500, pos-obj.Horizon, 0)
-                    elevation.justification = coin.SoAsciiText.RIGHT
-                    elevation.string.setValues([round(pos/1000, 3)])
-
-                    group = coin.SoTransformSeparator()
-                    group.addChild(location)
-                    group.addChild(elevation)
-                    self.elevations.addChild(group)
-
-                self.horizontal_coords.point.values = [corners[0], corners[1]]
-                self.horizontal_copy.matrix.values = horizontal_matrices
-
-        if prop == "Horizon":
-            horizon = obj.getPropertyByName(prop)
-            self.horizon.string.setValues(["Horizon Elevation", round(horizon/1000,3)])
-
-
-    def getDisplayModes(self,vobj):
-        """Return a list of display modes."""
-        modes = ["Frame"]
-        return modes
-
-    def getDefaultDisplayMode(self):
-        """Return the name of the default display mode."""
-        return "Frame"
-
-    def setDisplayMode(self,mode):
-        """Map the display mode defined in attach with 
-        those defined in getDisplayModes."""
-        return mode
-
-    def getIcon(self):
-        """Return object treeview icon."""
-        return icons_path + "/ProfileFrame.svg"
-
-    def claimChildren(self):
-        """Provides object grouping"""
-        return self.Object.Group
-
-    def doubleClicked(self, vobj):
-        """Detect double click"""
-        dragger = coin.SoTranslate2Dragger()
-        marker = coin.SoMarkerSet()
-        scale = coin.SoScale()
-
-        scale.scaleFactor.setValue(1000.0, 1000.0, 1000.0)
-        dragger.translation.setValue(0, 0, 1)
-        marker.markerIndex = 81
-
-        translator = dragger.getPart("translator", False)
-        geometry = translator.getChildren()[1]
-        geometry.removeAllChildren()
-        geometry.addChild(marker)
-
-        self.drag.addChild(scale)
-        self.drag.addChild(dragger)
-
-        self.view = FreeCADGui.ActiveDocument.ActiveView
-        self.view.addDraggerCallback(dragger, "addFinishCallback", self.update_placement)
-
-        return True
-
-    def update_placement(self, dragger):
-        displacement = FreeCAD.Vector(dragger.translation.getValue().getValue())
-        self.Object.Placement.move(displacement)
-        self.drag.removeAllChildren()
-        FreeCAD.ActiveDocument.recompute()
-
-    def dumps(self):
-        """Called during document saving"""
-        return None
-
-    def loads(self, state):
-        """Called during document restore."""
-        return None
+        if prop == "Model":
+            model = obj.getPropertyByName(prop)
+            
+            # Create frame
+            frame = self.frame_manager.create_profile_frame(
+                model, obj.Placement, obj.Length, obj.Height)
+            
+            # Update frame visualization
+            self.frame_manager.update_borders(frame)
+            self.frame_manager.update_grid(frame)
+            
+            # Clear and create labels
+            self.label_manager.clear_labels()
+            
+            origin = frame['origin']
+            
+            # Vertical labels (stations)
+            for i, pos in enumerate(frame['vertical_positions']):
+                label_pos = origin.add(FreeCAD.Vector(pos * 1000, obj.Height * 1000 + 500, 0))
+                self.label_manager.add_label(label_pos, str(int(pos)), "Center")
+            
+            # Horizontal labels (elevations)
+            horizon = obj.Horizon
+            for i, pos in enumerate(frame['horizontal_positions']):
+                label_pos = origin.add(FreeCAD.Vector(0, pos * 1000, 0))
+                elevation = round(horizon + pos, 3)
+                self.label_manager.add_label(label_pos, str(elevation), "Right")

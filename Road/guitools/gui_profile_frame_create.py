@@ -5,7 +5,7 @@
 import FreeCAD, FreeCADGui
 
 from ..variables import icons_path
-from ..make import make_profile_frame, make_profile
+from ..make import make_profile_frame
 from ..tasks.task_selection import SingleSelection, MultipleSelection
 from ..utils.trackers import ViewTracker
 

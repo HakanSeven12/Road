@@ -2,11 +2,9 @@
 
 """Provides the viewprovider code for Profile Frame objects."""
 
-import FreeCAD, FreeCADGui, Part
+import FreeCAD
 from pivy import coin
 from .view_geo_object import ViewProviderGeoObject
-from ..utils.label_manager import LabelManager
-from ..utils.frame_manager import FrameManager
 
 
 class ViewProviderSection(ViewProviderGeoObject):
