@@ -50,8 +50,11 @@ class Section(GeoObject):
         regions = region.getParentGroup()
         alignment = regions.getParentGroup()
 
+        # Clear existing model
+        obj.Model = {}
+        
         for idx, sta in enumerate(region.Stations):
-            obj.Model[sta] = {'horizon': 0, 'sections': {}}
+            obj.Model[sta] = {'sections': {}}
             horizon = math.inf
             for terrain in obj.Terrains:
                 flat_points = []
@@ -78,12 +81,12 @@ class Section(GeoObject):
                 offset_elevation.sort(key=lambda x: x[0])
                 obj.Model[sta]['sections'][terrain.Label] = offset_elevation
 
-            # Set horizon
+            # Set horizon for this station
             obj.Model[sta]["horizon"] = math.floor(horizon / 5) * 5 if horizon != math.inf else 0
 
-        # Calculate grid dimensions (equal rows and columns)
+        # Calculate grid dimensions
         total_items = len(obj.Model)
-        grid_size = math.ceil(math.sqrt(total_items))  # This ensures rows = columns
+        grid_size = math.ceil(math.sqrt(total_items))
 
         current_col = 0
         current_row = 0
@@ -91,9 +94,11 @@ class Section(GeoObject):
         frames = []
         crosssections = []
         for sta, data in obj.Model.items():
-            # Calculate grid position for this item
-            origin = FreeCAD.Vector(current_col * obj.Horizontal, current_row * obj.Vertical, 0).multiply(1000)
-            obj.Model[sta]["origin"] = [*origin]
+            # Calculate grid position origin
+            origin = FreeCAD.Vector(
+                current_col * obj.Horizontal * 1000, 
+                current_row * obj.Vertical * 1000, 
+                0)
             
             p2 = origin.add(FreeCAD.Vector(-obj.Width * 1000 / 2, 0, 0))
             p3 = origin.add(FreeCAD.Vector(-obj.Width * 1000 / 2, obj.Height * 1000, 0))
@@ -102,11 +107,12 @@ class Section(GeoObject):
             frame = Part.makePolygon([origin, p2, p3, p4, p5, origin])
             frames.append(frame)
             
+            horizon = data.get("horizon", 0)
             for terrain, values in data['sections'].items():
                 point_list = []
                 for offset, elevation in values:
                     if offset is None or elevation is None: continue
-                    pt = FreeCAD.Vector(offset, elevation - data.get("horizon"), 0).multiply(1000)
+                    pt = FreeCAD.Vector(offset, elevation - horizon, 0).multiply(1000)
                     point_list.append(origin.add(pt))
                 
                 if len(point_list) > 1:
@@ -122,3 +128,6 @@ class Section(GeoObject):
         shp_frame = Part.Compound(frames)
         shp_section = Part.Compound(crosssections)
         obj.Shape = Part.Compound([shp_frame, shp_section])
+        
+        # Force Model property update notification
+        obj.Model = obj.Model

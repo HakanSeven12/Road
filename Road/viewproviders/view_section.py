@@ -5,6 +5,8 @@
 import FreeCAD, FreeCADGui, Part
 from pivy import coin
 from .view_geo_object import ViewProviderGeoObject
+from ..utils.label_manager import LabelManager
+from ..utils.frame_manager import FrameManager
 
 
 class ViewProviderSection(ViewProviderGeoObject):
@@ -13,7 +15,7 @@ class ViewProviderSection(ViewProviderGeoObject):
         """Set view properties."""
         super().__init__(vobj, "CreateSections")
         vobj.Proxy = self
-
+    
     def attach(self, vobj):
         """Create Object visuals in 3D view."""
         super().attach(vobj)
@@ -24,74 +26,14 @@ class ViewProviderSection(ViewProviderGeoObject):
         self.draw_style.style = coin.SoDrawStyle.LINES
 
         #-----------------------------------------------------------------
-        # Title
+        # Frame and Grid (using FrameManager)
         #-----------------------------------------------------------------
-
-        #-----------------------------------------------------------------
-        # Frame Border
-        #-----------------------------------------------------------------
-
-        # View
-        self.border_color = coin.SoBaseColor()
-        self.border_color.rgb = (0.0, 0.0, 1.0)
-
-        border_view = coin.SoGroup()
-        border_view.addChild(self.draw_style)
-        border_view.addChild(self.border_color)
-
-        # Data
-        self.border_coords = coin.SoCoordinate3()
-        self.border_lines = coin.SoLineSet()
-
-        border_data = coin.SoGroup()
-        border_data.addChild(self.border_coords)
-        border_data.addChild(self.border_lines)
-
-        # Group
-        border = coin.SoSeparator()
-        border.addChild(border_view)
-        border.addChild(border_data)
-
-        #-----------------------------------------------------------------
-        # Frame Grid
-        #-----------------------------------------------------------------
-
-        # View
-        self.grid_color = coin.SoBaseColor()
-        self.grid_color.rgb = (0.5, 0.5, 0.5)
-
-        # Horizontal lines
-        self.horizontal_coords = coin.SoCoordinate3()
-        horizontal_lines = coin.SoLineSet()
-
-        self.horizontal_copy = coin.SoMultipleCopy()
-        self.horizontal_copy.addChild(self.horizontal_coords)
-        self.horizontal_copy.addChild(horizontal_lines)
-
-        horizontals = coin.SoSeparator()
-        horizontals.addChild(self.grid_color)
-        horizontals.addChild(self.horizontal_copy)
-
-        # Vertical lines
-        self.vertical_coords = coin.SoCoordinate3()
-        vertical_lines = coin.SoLineSet()
-
-        self.vertical_copy = coin.SoMultipleCopy()
-        self.vertical_copy.addChild(self.vertical_coords)
-        self.vertical_copy.addChild(vertical_lines)
-
-        verticals = coin.SoSeparator()
-        verticals.addChild(self.grid_color)
-        verticals.addChild(self.vertical_copy)
-
-        grid = coin.SoSeparator()
-        grid.addChild(horizontals)
-        grid.addChild(verticals)
+        from ..utils.frame_manager import FrameManager
+        self.frame_manager = FrameManager(self.standard)
 
         #-----------------------------------------------------------------
         # Sections
         #-----------------------------------------------------------------
-
         # Section view
         self.section_color = coin.SoBaseColor()
         draw_style = coin.SoDrawStyle()
@@ -116,48 +58,22 @@ class ViewProviderSection(ViewProviderGeoObject):
         sections.addChild(section_data)
 
         #-----------------------------------------------------------------
-        # Labels
+        # Labels (using LabelManager)
         #-----------------------------------------------------------------
-
-        # View
-        font = coin.SoFont()
-        font.size = 1000
-
-        # Horizon Label
-        self.horizon = coin.SoAsciiText()
-        self.horizon.justification = coin.SoAsciiText.RIGHT
-
-        # Elevation Labels
-        self.elevations = coin.SoSeparator()
-
-        # Station Labels
-        self.offsets = coin.SoSeparator()
-
-        # Label Group
-        labels = coin.SoSeparator()
-        labels.addChild(font)
-        labels.addChild(self.horizon)
-        labels.addChild(self.elevations)
-        labels.addChild(self.offsets)
+        from ..utils.label_manager import LabelManager
+        label_root = coin.SoSeparator()
+        self.label_manager = LabelManager(label_root)
 
         #-----------------------------------------------------------------
-        # Profile Frame
+        # Complete Scene
         #-----------------------------------------------------------------
-
-        self.sel1 = coin.SoType.fromName('SoFCSelection').createInstance()
-        self.sel1.style = 'EMISSIVE_DIFFUSE'
-        self.sel1.addChild(border)
-
         self.sel2 = coin.SoType.fromName('SoFCSelection').createInstance()
         self.sel2.style = 'EMISSIVE_DIFFUSE'
         self.sel2.addChild(sections)
 
-        # Frame group
         self.drag = coin.SoSeparator()
-        self.standard.addChild(self.sel1)
-        self.standard.addChild(grid)
         self.standard.addChild(self.sel2)
-        self.standard.addChild(labels)
+        self.standard.addChild(label_root)
         self.standard.addChild(self.drag)
 
     def updateData(self, obj, prop):
@@ -166,18 +82,7 @@ class ViewProviderSection(ViewProviderGeoObject):
 
         if prop == "Shape":
             if not len(obj.Shape.SubShapes) == 2: return
-            border_coords = []
-            border_count = []
-            borders = obj.Shape.SubShapes[0].SubShapes
-            for border in borders:
-                border_points = [ver.Point for ver in border.Vertexes]
-                border_points.append(border_points[0])
-                border_coords.extend(border_points)
-                border_count.append(len(border_points))
-
-            self.border_coords.point.values = border_coords
-            self.border_lines.numVertices.values = border_count
-
+            
             section_coords = []
             section_count = []
             sections = obj.Shape.SubShapes[1].SubShapes
@@ -188,122 +93,42 @@ class ViewProviderSection(ViewProviderGeoObject):
 
             self.section_coords.point.values = section_coords
             self.section_lines.numVertices.values = section_count
+            
+            # Update frames when Shape is updated (if Model is ready)
+            if obj.Model:
+                self._update_frames_and_labels(obj)
 
         if prop == "Model":
-            model = obj.getPropertyByName(prop)
-            self.elevations.removeAllChildren()
-            self.offsets.removeAllChildren()
+            if not obj.Model: return
+            # Update frames when Model is updated (if Shape is ready)
+            if obj.Shape and len(obj.Shape.SubShapes) == 2:
+                self._update_frames_and_labels(obj)
 
-            # Starting position
-            base = obj.Placement.Base
-            vertical_matrices = []
-            horizontal_matrices = []
-            for sta, data in model.items():
-                # Calculate grid position for this item
-                origin = FreeCAD.Vector(data.get("origin")).add(base)
-                for pos in range(int(-obj.Width*1000/2), int(obj.Width*1000/2), 2000):
-                    position = origin.add(FreeCAD.Vector(pos, 0))
-                    position2 = origin.add(FreeCAD.Vector(pos, obj.Height*1000+500))
-                    matrix = coin.SbMatrix()
-                    location = coin.SoTranslation()
-                    offset = coin.SoAsciiText()
-
-                    matrix.setTransform(
-                        coin.SbVec3f(*position), 
-                        coin.SbRotation(), 
-                        coin.SbVec3f(1.0, 1.0, 1.0))
-                    vertical_matrices.append(matrix)
-
-                    location.translation = coin.SbVec3f(*position2)
-                    offset.justification = coin.SoAsciiText.CENTER
-                    offset.string.setValues([int(pos / 1000)])
-
-                    group = coin.SoTransformSeparator()
-                    group.addChild(location)
-                    group.addChild(offset)
-                    self.offsets.addChild(group)
-
-                horizon = data.get("horizon", 0) * 1000
-                for pos in range(0, int(obj.Height*1000), 2000):
-                    position = origin.add(FreeCAD.Vector(0, pos))
-                    position2 = origin.add(FreeCAD.Vector(-obj.Width*1000/2, pos, 0))
-                    matrix = coin.SbMatrix()
-                    location = coin.SoTranslation()
-                    elevation = coin.SoAsciiText()
-
-                    matrix.setTransform(
-                        coin.SbVec3f(*position), 
-                        coin.SbRotation(), 
-                        coin.SbVec3f(1.0, 1.0, 1.0))
-                    horizontal_matrices.append(matrix)
-
-                    location.translation = coin.SbVec3f(*position2)
-                    elevation.justification = coin.SoAsciiText.RIGHT
-                    elevation.string.setValues([round((horizon+pos)/1000, 3)])
-
-                    group = coin.SoTransformSeparator()
-                    group.addChild(location)
-                    group.addChild(elevation)
-                    self.elevations.addChild(group)
-
-            self.vertical_coords.point.values = [FreeCAD.Vector(), FreeCAD.Vector(0,obj.Height*1000)]
-            self.vertical_copy.matrix.values = vertical_matrices
-
-            self.horizontal_coords.point.values = [FreeCAD.Vector(-obj.Width*1000/2,0) , FreeCAD.Vector(obj.Width*1000/2,0)]
-            self.horizontal_copy.matrix.values = horizontal_matrices
-
-    def getDetailPath(self, subname, path, append):
-        vobj = self.view
-        if append:
-            path.append(vobj.RootNode)
-            path.append(vobj.SwitchNode)
-
-            mode = vobj.SwitchNode.whichChild.getValue()
-            if mode >= 0:
-                mode = vobj.SwitchNode.getChild(mode)
-                path.append(mode)
-                sub = Part.splitSubname(subname)[-1]
-                if sub == 'Atom1':
-                    path.append(self.sel1)
-                elif sub == 'Atom2':
-                    path.append(self.sel2)
-                else:
-                    path.append(mode.getChild(0))
-        return True
-
-    def getElementPicked(self, pp):
-        path = pp.getPath()
-        if path.findNode(self.sel1) >= 0:
-            return 'Atom1'
-        if path.findNode(self.sel2) >= 0:
-            return 'Atom2'
-        raise NotImplementedError
-
-    def doubleClicked(self, vobj):
-        """Detect double click"""
-        dragger = coin.SoTranslate2Dragger()
-        marker = coin.SoMarkerSet()
-        scale = coin.SoScale()
-
-        scale.scaleFactor.setValue(1000.0, 1000.0, 1000.0)
-        dragger.translation.setValue(0, 0, 1)
-        marker.markerIndex = 81
-
-        translator = dragger.getPart("translator", False)
-        geometry = translator.getChildren()[1]
-        geometry.removeAllChildren()
-        geometry.addChild(marker)
-
-        self.drag.addChild(scale)
-        self.drag.addChild(dragger)
-
-        self.view = FreeCADGui.ActiveDocument.ActiveView
-        self.view.addDraggerCallback(dragger, "addFinishCallback", self.update_placement)
-
-        return True
-
-    def update_placement(self, dragger):
-        displacement = FreeCAD.Vector(dragger.translation.getValue().getValue())
-        self.Object.Placement.move(displacement)
-        self.drag.removeAllChildren()
-        FreeCAD.ActiveDocument.recompute()
+    def _update_frames_and_labels(self, obj):
+        """Helper method to update frames and labels"""
+        # Create frames
+        frames = self.frame_manager.create_section_frames(
+            obj.Model, obj.Placement, obj.Width, obj.Height,
+            obj.Horizontal, obj.Vertical)
+        
+        # Update frame visualization
+        self.frame_manager.update_borders(frames)
+        self.frame_manager.update_grid(frames)
+        
+        # Clear and create labels
+        self.label_manager.clear_labels()
+        
+        for frame in frames:
+            origin = frame['origin']
+            horizon = frame['horizon']
+            
+            # Vertical labels (offsets)
+            for i, pos in enumerate(frame['vertical_positions']):
+                label_pos = origin.add(FreeCAD.Vector(pos * 1000, obj.Height * 1000 + 500, 0))
+                self.label_manager.add_label(label_pos, str(int(pos)), "Center")
+            
+            # Horizontal labels (elevations)
+            for i, pos in enumerate(frame['horizontal_positions']):
+                label_pos = origin.add(FreeCAD.Vector(-obj.Width * 1000 / 2, pos * 1000, 0))
+                elevation = round(horizon + pos, 3)
+                self.label_manager.add_label(label_pos, str(elevation), "Right")

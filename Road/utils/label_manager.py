@@ -22,12 +22,10 @@ class LabelManager:
             root_node: Parent coin3d node to attach labels
         """
         # Default styling
-        self.vertical_offset = 0.0
-        self.horizontal_offset = 0.0
-
         self.labels = []
         
         self.font = coin.SoFont()
+        self.font.size.setValue(1000)
         self.material = coin.SoMaterial()
         self.label_group = coin.SoGroup()
 
@@ -85,7 +83,7 @@ class LabelManager:
         lod.addChild(label_sep)
         lod.addChild(empty)
 
-        lod.screenArea.values = [250]
+        lod.screenArea.values = [150]
 
         # Add to group
         self.label_group.addChild(lod)
