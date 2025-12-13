@@ -5,7 +5,7 @@
 import FreeCAD, FreeCADGui
 
 from .task_panel import TaskPanel
-from ..functions.landxml_reader import LandXMLReader
+from ..landxml.landxml_reader import LandXMLReader
 from ..geometry.alignment import Alignment
 from ..make import make_terrain, make_alignment, make_geopoints
 

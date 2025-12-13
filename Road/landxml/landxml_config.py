@@ -70,6 +70,35 @@ CONVERTER_TYPES = {
     'angle': 'angle'         # Converts angle to radians based on unit system
 }
 
+# Alignment configuration
+ALIGNMENT_CONFIG = {
+    'attr_map': {
+        'name': ('name', str),
+        'desc': ('desc', str),
+        'length': ('length', 'float'),
+        'staStart': ('staStart', 'float')
+    }
+}
+
+# Alignment PI configuration
+ALIGN_PI_CONFIG = {
+    'attr_map': {
+        'station': ('station', 'float'),
+        'desc': ('desc', str)
+    }
+}
+
+# Station equation configuration
+STATION_EQUATION_CONFIG = {
+    'attr_map': {
+        'staAhead': ('staAhead', 'float'),
+        'staBack': ('staBack', 'float'),
+        'staInternal': ('staInternal', 'float'),
+        'desc': ('desc', str)
+    },
+    'required_fields': ['staAhead', 'staBack']
+}
+
 # Geometry element configurations
 GEOMETRY_CONFIG = {
     'Line': {
@@ -125,33 +154,55 @@ GEOMETRY_CONFIG = {
     }
 }
 
-# Alignment configuration
-ALIGNMENT_CONFIG = {
+# Profile configuration
+PROFILE_CONFIG = {
     'attr_map': {
         'name': ('name', str),
         'desc': ('desc', str),
-        'length': ('length', 'float'),
-        'staStart': ('staStart', 'float')
+        'staStart': ('staStart', 'float'),
+        'staEnd': ('staEnd', 'float')
     }
 }
 
-# Alignment PI configuration
-ALIGN_PI_CONFIG = {
+# ProfAlign configuration
+PROFALIGN_CONFIG = {
     'attr_map': {
-        'station': ('station', 'float'),
-        'desc': ('desc', str)
+        'name': ('name', str),
+        'desc': ('desc', str),
+        'staStart': ('staStart', 'float'),
+        'length': ('length', 'float')
     }
 }
 
-# Station equation configuration
-STATION_EQUATION_CONFIG = {
+# ProfSurf configuration
+PROFSURF_CONFIG = {
     'attr_map': {
-        'staAhead': ('staAhead', 'float'),
-        'staBack': ('staBack', 'float'),
-        'staInternal': ('staInternal', 'float'),
-        'desc': ('desc', str)
+        'name': ('name', str),
+        'desc': ('desc', str),
+        'surfType': ('surfType', str)
+    }
+}
+
+# Profile geometry elements
+PROFILE_GEOMETRY_CONFIG = {
+    'PntList2D': {
+        'attr_map': {}
     },
-    'required_fields': ['staAhead', 'staBack']
+    'CircCurve': {
+        'attr_map': {
+            'length': ('length', 'float'),
+            'radius': ('radius', 'float'),
+            'tangentIn': ('tangentIn', 'float'),
+            'tangentOut': ('tangentOut', 'float'),
+            'desc': ('desc', str)
+        }
+    },
+    'ParaCurve': {
+        'attr_map': {
+            'length': ('length', 'float'),
+            'desc': ('desc', str)
+        }
+    }
 }
 
 # CgPoint configuration
