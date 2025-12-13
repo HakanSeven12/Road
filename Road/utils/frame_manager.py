@@ -7,7 +7,7 @@ Frame manager for Profile and Section views
 import FreeCAD
 from pivy import coin
 import math
-
+from .label_manager import LabelManager
 
 class FrameManager:
     """
@@ -37,8 +37,13 @@ class FrameManager:
         self.horizontal_copy = coin.SoMultipleCopy()
         self.vertical_copy = coin.SoMultipleCopy()
         
+        # Label manager
+        label_root = coin.SoSeparator()
+        self.label_manager = LabelManager(label_root)
+        self.root_node.addChild(label_root)
+        
         self._setup_scene_graph()
-    
+
     def _setup_scene_graph(self):
         """Create the coin3d scene graph structure"""
         draw_style = coin.SoDrawStyle()
@@ -246,6 +251,19 @@ class FrameManager:
         
         return frames
 
+    def update(self, frames, width, height):
+        """
+        Update all frame visualizations (borders, grid, and labels)
+        
+        Args:
+            frames: Single frame dict or list of frame dicts
+            width: Frame width in meters
+            height: Frame height in meters
+        """
+        self.update_borders(frames)
+        self.update_grid(frames)
+        self.update_labels(frames, width, height)
+
     def update_borders(self, frames):
         """
         Update border visualization
@@ -307,3 +325,44 @@ class FrameManager:
             ]
         self.horizontal_copy.matrix.values = all_horizontal_matrices
     
+    def update_labels(self, frames, width, height):
+        """
+        Update labels for frames
+        
+        Args:
+            frames: Single frame dict or list of frame dicts
+            width: Frame width in meters
+            height: Frame height in meters
+        """
+        # Clear existing labels
+        self.label_manager.clear_labels()
+        
+        if not isinstance(frames, list):
+            frames = [frames]
+        
+        for frame in frames:
+            origin = frame['origin']
+            horizon = frame.get('horizon', 0)
+            center_origin = frame['center_origin']
+            
+            # Rotation for vertical text (90 degrees around Z axis)
+            vertical_rotation = FreeCAD.Rotation(FreeCAD.Vector(0, 0, 1), 90)
+            vertical_transform = FreeCAD.Placement(FreeCAD.Vector(0,1000), vertical_rotation)
+            
+            # Vertical labels (stations for profile, offsets for sections) - rotated
+            for pos in frame['vertical_positions']:
+                label_pos = origin.add(FreeCAD.Vector(pos * 1000, height * 1000 + 500, 0))
+                self.label_manager.add_label(
+                    label_pos, str(int(pos)), "Center", 
+                    transformation=vertical_transform)
+            
+            # Horizontal labels (elevations) - normal orientation
+            for pos in frame['horizontal_positions']:
+                if center_origin:  # Section view
+                    x_offset = -width * 1000 / 2
+                else:  # Profile view
+                    x_offset = 0
+                
+                label_pos = origin.add(FreeCAD.Vector(x_offset, pos * 1000, 0))
+                elevation = round(horizon + pos, 3)
+                self.label_manager.add_label(label_pos, str(elevation), "Right")

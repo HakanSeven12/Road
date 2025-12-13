@@ -2,7 +2,6 @@
 
 """Provides the viewprovider code for Profile Frame objects."""
 
-import FreeCAD
 from pivy import coin
 from .view_geo_object import ViewProviderGeoObject
 
@@ -56,13 +55,6 @@ class ViewProviderSection(ViewProviderGeoObject):
         sections.addChild(section_data)
 
         #-----------------------------------------------------------------
-        # Labels (using LabelManager)
-        #-----------------------------------------------------------------
-        from ..utils.label_manager import LabelManager
-        label_root = coin.SoSeparator()
-        self.label_manager = LabelManager(label_root)
-
-        #-----------------------------------------------------------------
         # Complete Scene
         #-----------------------------------------------------------------
         self.sel2 = coin.SoType.fromName('SoFCSelection').createInstance()
@@ -71,7 +63,6 @@ class ViewProviderSection(ViewProviderGeoObject):
 
         self.drag = coin.SoSeparator()
         self.standard.addChild(self.sel2)
-        self.standard.addChild(label_root)
         self.standard.addChild(self.drag)
 
     def updateData(self, obj, prop):
@@ -109,24 +100,5 @@ class ViewProviderSection(ViewProviderGeoObject):
             obj.Model, obj.Placement, obj.Width, obj.Height,
             obj.Horizontal, obj.Vertical)
         
-        # Update frame visualization
-        self.frame_manager.update_borders(frames)
-        self.frame_manager.update_grid(frames)
-        
-        # Clear and create labels
-        self.label_manager.clear_labels()
-        
-        for frame in frames:
-            origin = frame['origin']
-            horizon = frame['horizon']
-            
-            # Vertical labels (offsets)
-            for i, pos in enumerate(frame['vertical_positions']):
-                label_pos = origin.add(FreeCAD.Vector(pos * 1000, obj.Height * 1000 + 500, 0))
-                self.label_manager.add_label(label_pos, str(int(pos)), "Center")
-            
-            # Horizontal labels (elevations)
-            for i, pos in enumerate(frame['horizontal_positions']):
-                label_pos = origin.add(FreeCAD.Vector(-obj.Width * 1000 / 2, pos * 1000, 0))
-                elevation = round(horizon + pos, 3)
-                self.label_manager.add_label(label_pos, str(elevation), "Right")
+        # Update all visualizations
+        self.frame_manager.update(frames, obj.Width, obj.Height)
