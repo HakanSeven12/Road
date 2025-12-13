@@ -5,7 +5,6 @@ import xml.etree.ElementTree as ET
 from typing import Dict, List, Optional, Union
 from pathlib import Path
 from .alignment_parser import AlignmentParser
-from .profile_parser import ProfileParser
 from .cgpoint_parser import CgPointParser
 from .surface_parser import SurfaceParser
 from .landxml_config import (
@@ -41,9 +40,6 @@ class LandXMLReader:
 
         self.alignments_data = []
         self.alignment_parser = AlignmentParser(self)
-
-        self.profiles_data = []
-        self.profile_parser = ProfileParser(self)
 
         self.cgpoints_data = []
         self.cgpoint_parser = CgPointParser(self)
@@ -297,17 +293,6 @@ class LandXMLReader:
         
         return len(self.alignments_data)
     
-    def read_profiles(self) -> List[Dict]:
-        """
-        Read all Profiles from LandXML file.
-        Profiles can contain both alignment profiles (ProfAlign) and surface profiles (ProfSurf).
-        
-        Returns:
-            List of Profile data dictionaries
-        """
-        self.profiles_data = self.profile_parser.read_all_profiles()
-        return self.profiles_data
-    
     def get_profile_by_alignment(self, alignment_name: str) -> Optional[Dict]:
         """
         Get profile data for a specific alignment.
@@ -318,14 +303,31 @@ class LandXMLReader:
         Returns:
             Profile data dictionary or None if not found
         """
-        if not self.profiles_data:
-            self.read_profiles()
-        
-        for profile in self.profiles_data:
-            if profile.get('alignmentName') == alignment_name:
-                return profile
-        
+        alignment = self.get_alignment_by_name(alignment_name)
+        if alignment:
+            return alignment.get('Profile')
         return None
+    
+    def get_all_profiles(self) -> List[Dict]:
+        """
+        Get all profiles from all alignments.
+        
+        Returns:
+            List of profile data dictionaries
+        """
+        if not self.alignments_data:
+            self.read_alignments()
+        
+        profiles = []
+        for alignment in self.alignments_data:
+            if 'Profile' in alignment:
+                profile = alignment['Profile'].copy()
+                # Add alignment reference if not already present
+                if 'alignmentName' not in profile:
+                    profile['alignmentName'] = alignment.get('name')
+                profiles.append(profile)
+        
+        return profiles
     
     def get_profile_names(self) -> List[str]:
         """
@@ -334,10 +336,8 @@ class LandXMLReader:
         Returns:
             List of profile names
         """
-        if not self.profiles_data:
-            self.read_profiles()
-        
-        return [prof.get('name', 'Unnamed') for prof in self.profiles_data]
+        profiles = self.get_all_profiles()
+        return [prof.get('name', 'Unnamed') for prof in profiles]
     
     def get_profile_count(self) -> int:
         """
@@ -346,10 +346,7 @@ class LandXMLReader:
         Returns:
             Count of profiles
         """
-        if not self.profiles_data:
-            self.read_profiles()
-        
-        return len(self.profiles_data)
+        return len(self.get_all_profiles())
 
     def read_cgpoints(self) -> List[Dict]:
         """
@@ -516,7 +513,7 @@ class LandXMLReader:
         Export all parsed data to dictionary.
         
         Returns:
-            Dictionary containing file info, alignments, CgPoints, Surfaces, and Profiles
+            Dictionary containing file info, alignments (with profiles), CgPoints, and Surfaces
         """
         if not self.alignments_data:
             self.read_alignments()
@@ -527,18 +524,14 @@ class LandXMLReader:
         if not self.surfaces_data:
             self.read_surfaces()
         
-        if not self.profiles_data:
-            self.read_profiles()
-        
         return {
             'filepath': str(self.filepath),
             'alignment_count': len(self.alignments_data),
             'cgpoint_group_count': len(self.cgpoints_data),
             'cgpoint_count': sum(len(g.get('points', [])) for g in self.cgpoints_data),
             'surface_count': len(self.surfaces_data),
-            'profile_count': len(self.profiles_data),
+            'profile_count': self.get_profile_count(),
             'alignments': self.alignments_data,
             'cgpoint_groups': self.cgpoints_data,
-            'surfaces': self.surfaces_data,
-            'profiles': self.profiles_data
+            'surfaces': self.surfaces_data
         }

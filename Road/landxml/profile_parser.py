@@ -30,6 +30,32 @@ class ProfileParser:
         """
         self.reader = reader
     
+    def parse_pvi(self, pvi_elem: ET.Element) -> Dict:
+        """
+        Parse PVI (Profile Vertical Intersection) element.
+        
+        Args:
+            pvi_elem: PVI XML element
+            
+        Returns:
+            Dictionary with parsed PVI data
+        """
+        pvi_data = {}
+        
+        # Parse PVI coordinates from text
+        pvi_text = pvi_elem.text
+        if pvi_text:
+            coords = pvi_text.strip().replace(',', ' ').split()
+            if len(coords) >= 2:
+                pvi_data['station'] = float(coords[0])
+                pvi_data['elevation'] = float(coords[1])
+        
+        # Parse attributes
+        if 'desc' in pvi_elem.attrib:
+            pvi_data['desc'] = pvi_elem.attrib['desc']
+        
+        return pvi_data
+    
     def parse_pntlist2d(self, pntlist_elem: ET.Element) -> List[tuple]:
         """
         Parse PntList2D element containing profile points.
@@ -59,7 +85,8 @@ class ProfileParser:
     
     def parse_profile_geometry_element(self, geom_elem: ET.Element, geom_type: str) -> Optional[Dict]:
         """
-        Parse profile geometry elements (CircCurve, ParaCurve, PntList2D).
+        Parse profile geometry elements (PVI, CircCurve, ParaCurve, UnsymParaCurve, PntList2D).
+        Uses Civil3D format where curve elements contain PVI coordinates in text content.
         
         Args:
             geom_elem: XML element to parse
@@ -78,38 +105,29 @@ class ProfileParser:
         attributes = self.reader._parse_attributes(geom_elem, config['attr_map'])
         geom_data.update(attributes)
         
-        # Special handling for PntList2D
-        if geom_type == 'PntList2D':
+        # Special handling for different geometry types
+        if geom_type == 'PVI':
+            # PVI coordinates are in element text
+            pvi_text = geom_elem.text
+            if pvi_text:
+                coords = pvi_text.strip().replace(',', ' ').split()
+                if len(coords) >= 2:
+                    geom_data['station'] = float(coords[0])
+                    geom_data['elevation'] = float(coords[1])
+        
+        elif geom_type == 'PntList2D':
+            # PntList2D contains list of points
             points = self.parse_pntlist2d(geom_elem)
             if points:
                 geom_data['points'] = points
         
-        # Parse Start/End points for curves
-        if geom_type in ['CircCurve', 'ParaCurve']:
-            start_elem = self.reader._find_element(geom_elem, 'Start')
-            if start_elem is not None and start_elem.text:
-                coords = start_elem.text.strip().replace(',', ' ').split()
+        elif geom_type in ['CircCurve', 'ParaCurve', 'UnsymParaCurve']:
+            # Civil3D format: PVI coordinates in element text content
+            elem_text = geom_elem.text
+            if elem_text and elem_text.strip():
+                coords = elem_text.strip().replace(',', ' ').split()
                 if len(coords) >= 2:
-                    geom_data['start'] = {
-                        'station': float(coords[0]),
-                        'elevation': float(coords[1])
-                    }
-            
-            end_elem = self.reader._find_element(geom_elem, 'End')
-            if end_elem is not None and end_elem.text:
-                coords = end_elem.text.strip().replace(',', ' ').split()
-                if len(coords) >= 2:
-                    geom_data['end'] = {
-                        'station': float(coords[0]),
-                        'elevation': float(coords[1])
-                    }
-            
-            # Parse PI (Point of Intersection) for curves
-            pi_elem = self.reader._find_element(geom_elem, 'PI')
-            if pi_elem is not None and pi_elem.text:
-                coords = pi_elem.text.strip().replace(',', ' ').split()
-                if len(coords) >= 2:
-                    geom_data['pi'] = {
+                    geom_data['pvi'] = {
                         'station': float(coords[0]),
                         'elevation': float(coords[1])
                     }
@@ -132,30 +150,8 @@ class ProfileParser:
         attributes = self.reader._parse_attributes(profalign_elem, PROFALIGN_CONFIG['attr_map'])
         profalign_data.update(attributes)
         
-        # Parse PVI points (Profile Vertical Intersection points)
-        pvi_list = []
-        pvi_elements = self.reader._find_all_elements(profalign_elem, 'PVI')
-        
-        for pvi_elem in pvi_elements:
-            pvi_text = pvi_elem.text
-            if pvi_text:
-                coords = pvi_text.strip().replace(',', ' ').split()
-                if len(coords) >= 2:
-                    pvi_data = {
-                        'station': float(coords[0]),
-                        'elevation': float(coords[1])
-                    }
-                    
-                    # Add optional attributes
-                    if 'desc' in pvi_elem.attrib:
-                        pvi_data['desc'] = pvi_elem.attrib['desc']
-                    
-                    pvi_list.append(pvi_data)
-        
-        if pvi_list:
-            profalign_data['PVI'] = pvi_list
-        
-        # Parse geometry elements (CircCurve, ParaCurve, PntList2D)
+        # Parse geometry elements (PVI, CircCurve, ParaCurve, UnsymParaCurve, PntList2D)
+        # These elements define the vertical alignment in order
         geom_list = []
         for child in profalign_elem:
             tag = child.tag
@@ -246,40 +242,3 @@ class ProfileParser:
             profile_data['ProfSurf'] = profsurf_list
         
         return profile_data
-    
-    def read_all_profiles(self) -> List[Dict]:
-        """
-        Read all Profiles from LandXML file.
-        Profiles are typically contained within Alignment elements.
-        
-        Returns:
-            List of Profile data dictionaries
-        """
-        profiles = []
-        
-        # Profiles are typically under Alignments
-        alignments_elem = self.reader._find_element(self.reader.root, 'Alignments')
-        
-        if alignments_elem is None:
-            print("Warning: No Alignments element found in LandXML file")
-            return profiles
-        
-        # Find all Alignment elements
-        alignment_elements = self.reader._find_all_elements(alignments_elem, 'Alignment')
-        
-        for align_elem in alignment_elements:
-            # Get alignment name for reference
-            align_name = align_elem.attrib.get('name')
-            
-            # Find Profile element within each Alignment
-            profile_elem = self.reader._find_element(align_elem, 'Profile')
-            
-            if profile_elem is not None:
-                try:
-                    profile_data = self.parse_profile(profile_elem, align_name)
-                    profiles.append(profile_data)
-                except Exception as e:
-                    print(f"Warning: Failed to parse Profile for alignment '{align_name}': {str(e)}")
-                    continue
-        
-        return profiles

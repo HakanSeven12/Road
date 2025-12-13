@@ -7,6 +7,7 @@ Handles parsing of Alignment and CoordGeom elements from LandXML files.
 
 from typing import Dict, List
 import xml.etree.ElementTree as ET
+from .profile_parser import ProfileParser
 from .landxml_config import (
     GEOMETRY_CONFIG,
     ALIGNMENT_CONFIG,
@@ -29,6 +30,7 @@ class AlignmentParser:
             reader: LandXMLReader instance for accessing helper methods
         """
         self.reader = reader
+        self.profile_parser = ProfileParser(reader)
     
     def parse_child_points(self, element: ET.Element, point_tags: List[str]) -> Dict:
         """
@@ -197,6 +199,9 @@ class AlignmentParser:
         attributes = self.reader._parse_attributes(alignment_elem, config['attr_map'])
         alignment_data.update(attributes)
         
+        # Get alignment name for profile reference
+        align_name = alignment_data.get('name')
+        
         # Get start point (optional)
         start_elem = self.reader._find_element(alignment_elem, 'Start')
         if start_elem is not None and start_elem.text:
@@ -216,6 +221,13 @@ class AlignmentParser:
         coord_geom = self.parse_coord_geom(alignment_elem)
         if coord_geom:
             alignment_data['CoordGeom'] = coord_geom
+        
+        # Parse Profile (vertical alignment)
+        profile_elem = self.reader._find_element(alignment_elem, 'Profile')
+        if profile_elem is not None:
+            profile_data = self.profile_parser.parse_profile(profile_elem, align_name)
+            if profile_data:
+                alignment_data['Profile'] = profile_data
         
         return alignment_data
     

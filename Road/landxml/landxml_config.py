@@ -185,15 +185,15 @@ PROFSURF_CONFIG = {
 
 # Profile geometry elements
 PROFILE_GEOMETRY_CONFIG = {
-    'PntList2D': {
-        'attr_map': {}
+    'PVI': {
+        'attr_map': {
+            'desc': ('desc', str)
+        }
     },
     'CircCurve': {
         'attr_map': {
             'length': ('length', 'float'),
             'radius': ('radius', 'float'),
-            'tangentIn': ('tangentIn', 'float'),
-            'tangentOut': ('tangentOut', 'float'),
             'desc': ('desc', str)
         }
     },
@@ -202,6 +202,17 @@ PROFILE_GEOMETRY_CONFIG = {
             'length': ('length', 'float'),
             'desc': ('desc', str)
         }
+    },
+    'UnsymParaCurve': {
+        'attr_map': {
+            'length': ('length', 'float'),
+            'lengthIn': ('lengthIn', 'float'),
+            'lengthOut': ('lengthOut', 'float'),
+            'desc': ('desc', str)
+        }
+    },
+    'PntList2D': {
+        'attr_map': {}
     }
 }
 
