@@ -79,14 +79,16 @@ class TaskLandXMLImport(TaskPanel):
                 'Error', 
                 f'Failed to load LandXML file:\n{str(e)}'
             )
-            
+
     def _populate_tree(self):
         """Populates tree with data from LandXML reader."""
+        # Temporarily block signals to prevent premature updates
+        self.tree.blockSignals(True)
+        
         root_item = QTreeWidgetItem(self.tree)
         root_item.setText(0, 'LandXML')
         root_item.setText(1, self.parsed_data['filepath'].split('/')[-1])
         root_item.setExpanded(True)
-        root_item.setCheckState(0, Qt.Unchecked)
         root_item.setFlags(root_item.flags() | Qt.ItemIsUserCheckable)
         
         # Add alignments
@@ -98,6 +100,23 @@ class TaskLandXMLImport(TaskPanel):
         # Add Surfaces
         self._add_surfaces_items(root_item)
         
+        # Now set all checkboxes to Checked after tree is built
+        self._check_all_items(root_item)
+        
+        # Unblock signals
+        self.tree.blockSignals(False)
+    
+    def _check_all_items(self, item):
+        """Recursively check all checkable items in the tree."""
+        # Check this item if it's checkable
+        if item.flags() & Qt.ItemIsUserCheckable:
+            item.setCheckState(0, Qt.Checked)
+        
+        # Recursively check all children
+        for i in range(item.childCount()):
+            child = item.child(i)
+            self._check_all_items(child)
+    
     def _add_alignments_items(self, root_item):
         """Adds alignment items to the tree."""
         alignments_data = self.parsed_data.get('alignments', [])
@@ -109,7 +128,7 @@ class TaskLandXMLImport(TaskPanel):
         alignments_item.setText(0, 'Alignments')
         alignments_item.setText(1, f'({len(alignments_data)} items)')
         alignments_item.setExpanded(True)
-        alignments_item.setCheckState(0, Qt.Unchecked)
+        alignments_item.setCheckState(0, Qt.Checked)  # Changed to Checked
         alignments_item.setFlags(alignments_item.flags() | Qt.ItemIsUserCheckable)
         
         for align_data in alignments_data:
@@ -121,7 +140,7 @@ class TaskLandXMLImport(TaskPanel):
             align_item.setText(0, align_name)
             align_item.setText(1, f'Length: {align_length:.2f}, Elements: {elem_count}')
             align_item.setData(0, Qt.UserRole, {'type': 'alignment', 'data': align_data})
-            align_item.setCheckState(0, Qt.Unchecked)
+            align_item.setCheckState(0, Qt.Checked)  # Changed to Checked
             align_item.setFlags(align_item.flags() | Qt.ItemIsUserCheckable)
             align_item.setExpanded(False)
             
@@ -135,6 +154,10 @@ class TaskLandXMLImport(TaskPanel):
             # Add PI points if present
             if 'AlignPIs' in align_data and align_data['AlignPIs']:
                 self._add_pi_points(align_item, align_data['AlignPIs'])
+            
+            # Add Profile if present
+            if 'Profile' in align_data and align_data['Profile']:
+                self._add_profile(align_item, align_data['Profile'])
     
     def _add_geometry_elements(self, parent_item, geom_elements):
         """Adds geometry elements as children."""
@@ -167,6 +190,79 @@ class TaskLandXMLImport(TaskPanel):
                 r_start_str = 'INF' if r_start == float('inf') else f'{r_start:.2f}'
                 r_end_str = 'INF' if r_end == float('inf') else f'{r_end:.2f}'
                 geom_item.setText(1, f'Rs={r_start_str}, Re={r_end_str}, L={geom_length:.2f}')
+    
+    def _add_profile(self, parent_item, profile_data):
+        """Adds profile data as children."""
+        profile_name = profile_data.get('name', 'Unnamed Profile')
+        
+        profile_item = QTreeWidgetItem(parent_item)
+        profile_item.setText(0, f'Profile: {profile_name}')
+        profile_item.setExpanded(False)
+        profile_item.setFlags(profile_item.flags() & ~Qt.ItemIsSelectable)
+        
+        # Add ProfAlign if present
+        if 'ProfAlign' in profile_data:
+            self._add_profalign(profile_item, profile_data['ProfAlign'])
+        
+        # Add ProfSurf elements if present
+        if 'ProfSurf' in profile_data:
+            self._add_profsurf_list(profile_item, profile_data['ProfSurf'])
+    
+    def _add_profalign(self, parent_item, profalign_data):
+        """Adds vertical alignment (ProfAlign) data."""
+        profalign_name = profalign_data.get('name', 'Design Profile')
+        geom_elements = profalign_data.get('geometry', [])
+        
+        profalign_item = QTreeWidgetItem(parent_item)
+        profalign_item.setText(0, f'Vertical Alignment: {profalign_name}')
+        profalign_item.setText(1, f'({len(geom_elements)} elements)')
+        profalign_item.setExpanded(False)
+        profalign_item.setFlags(profalign_item.flags() & ~Qt.ItemIsSelectable)
+        
+        # Add geometry elements
+        for i, geom in enumerate(geom_elements):
+            geom_type = geom.get('Type', 'Unknown')
+            
+            geom_item = QTreeWidgetItem(profalign_item)
+            geom_item.setText(0, f'{i+1}. {geom_type}')
+            
+            if geom_type == 'PVI':
+                station = geom.get('station', 0)
+                elevation = geom.get('elevation', 0)
+                geom_item.setText(1, f'Sta: {station:.2f}, Elev: {elevation:.3f}')
+            
+            elif geom_type in ['ParaCurve', 'CircCurve', 'UnsymParaCurve']:
+                length = geom.get('length', 0)
+                pvi = geom.get('pvi', {})
+                if pvi:
+                    station = pvi.get('station', 0)
+                    elevation = pvi.get('elevation', 0)
+                    geom_item.setText(1, f'L={length:.2f}, PVI: Sta {station:.2f}, Elev {elevation:.3f}')
+                else:
+                    geom_item.setText(1, f'Length: {length:.2f}')
+            
+            elif geom_type == 'PntList2D':
+                points = geom.get('points', [])
+                geom_item.setText(1, f'{len(points)} points')
+            
+            geom_item.setFlags(geom_item.flags() & ~Qt.ItemIsSelectable)
+    
+    def _add_profsurf_list(self, parent_item, profsurf_list):
+        """Adds surface profile (ProfSurf) data."""
+        profsurf_group = QTreeWidgetItem(parent_item)
+        profsurf_group.setText(0, 'Surface Profiles')
+        profsurf_group.setText(1, f'({len(profsurf_list)} surfaces)')
+        profsurf_group.setExpanded(False)
+        profsurf_group.setFlags(profsurf_group.flags() & ~Qt.ItemIsSelectable)
+        
+        for profsurf_data in profsurf_list:
+            surf_name = profsurf_data.get('name', 'Unnamed Surface')
+            points = profsurf_data.get('points', [])
+            
+            profsurf_item = QTreeWidgetItem(profsurf_group)
+            profsurf_item.setText(0, surf_name)
+            profsurf_item.setText(1, f'{len(points)} points')
+            profsurf_item.setFlags(profsurf_item.flags() & ~Qt.ItemIsSelectable)
     
     def _add_station_equations(self, parent_item, equations):
         """Adds station equations as children."""
@@ -221,7 +317,7 @@ class TaskLandXMLImport(TaskPanel):
         cgpoints_item.setText(0, 'CgPoints')
         cgpoints_item.setText(1, f'({total_points} points in {len(cgpoint_groups)} groups)')
         cgpoints_item.setExpanded(False)
-        cgpoints_item.setCheckState(0, Qt.Unchecked)
+        cgpoints_item.setCheckState(0, Qt.Checked)  # Changed to Checked
         cgpoints_item.setFlags(cgpoints_item.flags() | Qt.ItemIsUserCheckable)
         
         # Add each group
@@ -237,7 +333,7 @@ class TaskLandXMLImport(TaskPanel):
             group_item.setText(0, group_name)
             group_item.setText(1, f'({len(points_list)} points)')
             group_item.setExpanded(False)
-            group_item.setCheckState(0, Qt.Unchecked)
+            group_item.setCheckState(0, Qt.Checked)  # Changed to Checked
             group_item.setFlags(group_item.flags() | Qt.ItemIsUserCheckable)
             group_item.setData(0, Qt.UserRole, {'type': 'cgpoint_group', 'data': group_data})
             
@@ -263,7 +359,7 @@ class TaskLandXMLImport(TaskPanel):
         
         point_item.setText(1, coord_str)
         point_item.setData(0, Qt.UserRole, {'type': 'cgpoint', 'data': point_data})
-        point_item.setCheckState(0, Qt.Unchecked)
+        point_item.setCheckState(0, Qt.Checked)  # Changed to Checked
         point_item.setFlags(point_item.flags() | Qt.ItemIsUserCheckable)
         
         # Add description as child if present
@@ -285,7 +381,7 @@ class TaskLandXMLImport(TaskPanel):
         surfaces_item.setText(0, 'Surfaces')
         surfaces_item.setText(1, f'({len(surfaces_data)} surfaces)')
         surfaces_item.setExpanded(False)
-        surfaces_item.setCheckState(0, Qt.Unchecked)
+        surfaces_item.setCheckState(0, Qt.Checked)  # Changed to Checked
         surfaces_item.setFlags(surfaces_item.flags() | Qt.ItemIsUserCheckable)
         
         for surface_data in surfaces_data:
@@ -298,7 +394,7 @@ class TaskLandXMLImport(TaskPanel):
             surface_item.setText(0, surface_name)
             surface_item.setText(1, f'Type: {surf_type}, Points: {point_count}, Faces: {face_count}')
             surface_item.setData(0, Qt.UserRole, {'type': 'surface', 'data': surface_data})
-            surface_item.setCheckState(0, Qt.Unchecked)
+            surface_item.setCheckState(0, Qt.Checked)  # Changed to Checked
             surface_item.setFlags(surface_item.flags() | Qt.ItemIsUserCheckable)
             surface_item.setExpanded(False)
             
@@ -568,6 +664,8 @@ class TaskLandXMLImport(TaskPanel):
         # Create alignment objects in FreeCAD
         alignment_created = 0
         alignment_failed = 0
+        profile_created = 0
+        profile_failed = 0
         
         for align_data in selected_alignments:
             try:
@@ -578,6 +676,25 @@ class TaskLandXMLImport(TaskPanel):
                 
                 print(f"Created alignment: {align_name}")
                 alignment_created += 1
+                
+                # Create Profile if present
+                if 'Profile' in align_data:
+                    try:
+                        profile_data = align_data['Profile']
+                        profile_name = profile_data.get('name', f'{align_name} Profile')
+                        
+                        # TODO: Create FreeCAD Profile object here
+                        # profile = make_profile.create(profile_name, alignment)
+                        # profile.Model = Profile(profile_data)
+                        
+                        print(f"TODO: Create profile '{profile_name}' for alignment '{align_name}'")
+                        # profile_created += 1
+                        
+                    except Exception as e:
+                        error_msg = f"Failed to create profile for alignment '{align_name}': {str(e)}"
+                        self.errors.append(error_msg)
+                        print(error_msg)
+                        profile_failed += 1
                 
             except Exception as e:
                 error_msg = f"Failed to create alignment '{align_name}': {str(e)}"
@@ -686,7 +803,7 @@ class TaskLandXMLImport(TaskPanel):
                     terrain.Faces = {"Visible":visible_faces, "Invisible":invisible_faces}
                     
                     surface_created += 1
-                    print(f"Created terrain '{surface_name}' with {len(visible_faces)} visible faces, {len(invisible_faces)} visible faces and {len(terrain_points)} points")
+                    print(f"Created terrain '{surface_name}' with {len(visible_faces)} visible faces, {len(invisible_faces)} invisible faces and {len(terrain_points)} points")
                     
                 except Exception as e:
                     error_msg = f"Failed to create terrain '{surface_name}': {str(e)}"
@@ -701,6 +818,10 @@ class TaskLandXMLImport(TaskPanel):
             rows.append(f"<tr><td>Alignments created:</td><td align='right'><b>{alignment_created}</b></td></tr>")
         if alignment_failed > 0:
             rows.append(f"<tr><td>Alignments failed:</td><td align='right'><b>{alignment_failed}</b></td></tr>")
+        if profile_created > 0:
+            rows.append(f"<tr><td>Profiles created:</td><td align='right'><b>{profile_created}</b></td></tr>")
+        if profile_failed > 0:
+            rows.append(f"<tr><td>Profiles failed:</td><td align='right'><b>{profile_failed}</b></td></tr>")
         if geopoints_created > 0:
             rows.append(f"<tr><td>GeoPoints groups created:</td><td align='right'><b>{geopoints_created}</b></td></tr>")
         if cgpoint_created > 0:
