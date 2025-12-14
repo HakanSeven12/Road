@@ -2,7 +2,7 @@
 
 import math
 from typing import Dict, List, Tuple, Optional, Union
-from ..functions.coordinate_system import CoordinateSystem
+from ...functions.coordinate_system import CoordinateSystem
 from .line import Line
 from .curve import Curve
 from .spiral import Spiral

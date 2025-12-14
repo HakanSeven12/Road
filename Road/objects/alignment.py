@@ -5,10 +5,10 @@
 import FreeCAD, Part
 
 from .geo_object import GeoObject
-from ..geometry.alignment import Alignment as AlignmentModel
-from ..geometry.line import Line
-from ..geometry.curve import Curve
-from ..geometry.spiral import Spiral
+from ..geometry.alignment.alignment import Alignment as AlignmentModel
+from ..geometry.alignment.line import Line
+from ..geometry.alignment.curve import Curve
+from ..geometry.alignment.spiral import Spiral
 from ..utils.support import  zero_referance
 
 

@@ -11,7 +11,7 @@ from PySide.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout,
 
 from .task_panel import TaskPanel
 from ..make import make_alignment
-from ..geometry.alignment import Alignment
+from ..geometry.alignment.alignment import Alignment
 from ..functions.alignment_data_from_object import extract_alignment_data
 
 
