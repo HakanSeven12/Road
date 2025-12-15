@@ -218,12 +218,25 @@ class ProfileParser:
         if alignment_name:
             profile_data['alignmentName'] = alignment_name
         
-        # Parse ProfAlign (vertical alignment)
-        profalign_elem = self.reader._find_element(profile_elem, 'ProfAlign')
-        if profalign_elem is not None:
-            profalign_data = self.parse_profalign(profalign_elem)
-            if profalign_data:
-                profile_data['ProfAlign'] = profalign_data
+        # Parse all ProfAlign elements (can be multiple)
+        profalign_list = []
+        profalign_elements = self.reader._find_all_elements(profile_elem, 'ProfAlign')
+        
+        for profalign_elem in profalign_elements:
+            try:
+                profalign_data = self.parse_profalign(profalign_elem)
+                if profalign_data:
+                    profalign_list.append(profalign_data)
+            except Exception as e:
+                print(f"Warning: Failed to parse ProfAlign: {str(e)}")
+                continue
+        
+        if profalign_list:
+            # Store as list if multiple, single dict if only one
+            if len(profalign_list) == 1:
+                profile_data['ProfAlign'] = profalign_list[0]
+            else:
+                profile_data['ProfAlign'] = profalign_list
         
         # Parse all ProfSurf elements (surface profiles)
         profsurf_list = []

@@ -9,8 +9,8 @@ from .parabola import Parabola
 class Profile:
     """
     LandXML 1.2 vertical profile reader & geometry generator.
-    Manages vertical alignment (ProfAlign) and surface profiles (ProfSurf).
-    Works in conjunction with a horizontal Alignment.
+    Manages multiple vertical alignments (ProfAlign) and surface profiles (ProfSurf).
+    Each uses geometry elements (Tangent, Parabola, Arc).
     """
 
     def __init__(self, data: Dict, parent_alignment=None):
@@ -28,132 +28,143 @@ class Profile:
         self.sta_end = float(data['staEnd']) if 'staEnd' in data else None
         self.alignment_name = data.get('alignmentName', None)
         
-        # Reference to parent alignment (for station/offset calculations)
+        # Reference to parent alignment
         self.parent_alignment = parent_alignment
         
-        # PVI points (Profile Vertical Intersection points) - NOT geometry objects
-        self.pvi_points = []  # List of dicts with station, elevation, description
+        # Multiple design profiles (ProfAlign) - each has name, PVIs, and geometry
+        self.profalign_list = []
         
-        # Geometry elements (Tangent, Parabola, Arc)
-        self.geometry_elements = []
-        
-        # Surface profiles (existing ground, etc.)
+        # Multiple surface profiles (ProfSurf) - each has name and geometry
         self.profsurf_list = []
         
-        # Parse ProfAlign (vertical alignment)
-        if 'ProfAlign' in data and data['ProfAlign']:
-            self._parse_profalign(data['ProfAlign'])
+        # Parse ProfAlign (can be single dict or list)
+        if 'ProfAlign' in data:
+            profalign_data = data['ProfAlign']
+            if isinstance(profalign_data, dict):
+                # Single ProfAlign
+                self._parse_profalign(profalign_data)
+            elif isinstance(profalign_data, list):
+                # Multiple ProfAlign
+                for pa_data in profalign_data:
+                    self._parse_profalign(pa_data)
         
-        # Parse ProfSurf elements (surface profiles)
+        # Parse ProfSurf (usually a list)
         if 'ProfSurf' in data and data['ProfSurf']:
-            self._parse_profsurf_list(data['ProfSurf'])
+            if isinstance(data['ProfSurf'], list):
+                self._parse_profsurf_list(data['ProfSurf'])
+            else:
+                # Single ProfSurf as dict
+                self._parse_profsurf_list([data['ProfSurf']])
         
         # Compute profile properties
         self._compute_profile_properties()
     
     def _parse_profalign(self, profalign_data: Dict):
-        """Parse vertical alignment (ProfAlign) data and create geometry"""
+        """Parse a single vertical alignment (ProfAlign) and create geometry"""
         
-        # Temporary storage for parsed data
+        profalign = {
+            'name': profalign_data.get('name', 'Design Profile'),
+            'description': profalign_data.get('desc', None),
+            'staStart': float(profalign_data['staStart']) if 'staStart' in profalign_data else None,
+            'length': float(profalign_data['length']) if 'length' in profalign_data else None,
+            'pvi_points': [],
+            'geometry': []
+        }
+        
         raw_geometry = profalign_data.get('geometry', [])
-        
-        # First pass: Extract PVI points and curve data
         curves_data = []
         
+        # Extract PVI points and curve data
         for geom_data in raw_geometry:
             geom_type = geom_data.get('Type', None)
             
             if geom_type == 'PVI':
-                # Store PVI point (not a geometry object)
                 pvi = {
                     'station': float(geom_data['station']),
                     'elevation': float(geom_data['elevation']),
                     'description': geom_data.get('desc', None)
                 }
-                self.pvi_points.append(pvi)
+                profalign['pvi_points'].append(pvi)
             
             elif geom_type in ['ParaCurve', 'UnsymParaCurve', 'CircCurve']:
-                # Store curve data for second pass
                 curves_data.append(geom_data)
         
         # Sort PVI points by station
-        self.pvi_points.sort(key=lambda p: p['station'])
+        profalign['pvi_points'].sort(key=lambda p: p['station'])
         
-        if not self.pvi_points:
-            return
+        if profalign['pvi_points']:
+            # Create geometry elements for this ProfAlign
+            geometry_elements = self._create_geometry_elements(
+                profalign['pvi_points'], 
+                curves_data
+            )
+            profalign['geometry'] = geometry_elements
         
-        # Second pass: Create geometry elements (tangents and curves)
-        self._create_geometry_elements(curves_data)
+        self.profalign_list.append(profalign)
     
-    def _create_geometry_elements(self, curves_data: List[Dict]):
-        """
-        Create geometry elements from PVI points and curve data.
-        Automatically inserts tangents between curves.
-        """
-        if len(self.pvi_points) < 2:
-            return
+    def _create_geometry_elements(self, pvi_points: List[Dict], curves_data: List[Dict]) -> List:
+        """Create geometry elements from PVI points and curve data"""
         
-        # Track which PVI pairs have curves
-        curve_map = {}  # {pvi_index: curve_data}
+        if len(pvi_points) < 2:
+            return []
+        
+        geometry_elements = []
         
         # Map curves to their PVI positions
+        curve_map = {}
         for curve_data in curves_data:
             pvi_data = curve_data.get('pvi', {})
             if pvi_data:
                 pvi_station = float(pvi_data['station'])
-                
-                # Find which PVI this curve belongs to
-                for i, pvi in enumerate(self.pvi_points):
+                for i, pvi in enumerate(pvi_points):
                     if abs(pvi['station'] - pvi_station) < 1e-6:
                         curve_map[i] = curve_data
                         break
         
-        # Build geometry elements (tangents and curves) between consecutive PVIs
-        for i in range(len(self.pvi_points) - 1):
-            pvi_curr = self.pvi_points[i]
-            pvi_next = self.pvi_points[i + 1]
+        # Build geometry elements
+        for i in range(len(pvi_points) - 1):
+            pvi_curr = pvi_points[i]
+            pvi_next = pvi_points[i + 1]
             
-            # Calculate grade between these two PVIs
+            # Calculate grade between PVIs
             sta_diff = pvi_next['station'] - pvi_curr['station']
             elev_diff = pvi_next['elevation'] - pvi_curr['elevation']
             grade = elev_diff / sta_diff if sta_diff != 0 else 0.0
             
-            # Check if there's a curve at the current PVI
+            # Check if there's a curve at current PVI
             if i in curve_map:
                 curve_data = curve_map[i]
                 
-                # Get previous grade (from previous element or assume same)
-                if self.geometry_elements:
-                    prev_elem = self.geometry_elements[-1]
+                # Get previous grade
+                if geometry_elements:
+                    prev_elem = geometry_elements[-1]
                     if isinstance(prev_elem, Tangent):
                         prev_grade = prev_elem.grade
                     else:
                         prev_grade = prev_elem.grade_out
                 else:
-                    # First element - use current grade
                     prev_grade = grade
                 
                 # Create curve
                 curve = self._create_curve(curve_data, prev_grade, grade)
                 
                 if curve:
-                    # Add tangent before curve (if there's space)
-                    if self.geometry_elements:
-                        last_elem = self.geometry_elements[-1]
+                    # Add tangent before curve if needed
+                    if geometry_elements:
+                        last_elem = geometry_elements[-1]
                         last_sta_end = last_elem.get_station_range()[1]
                         curve_sta_start = curve.get_station_range()[0]
                         
                         if curve_sta_start > last_sta_end + 1e-6:
-                            # Create tangent from end of last element to start of curve
                             tangent = Tangent(
                                 sta_start=last_sta_end,
                                 elev_start=last_elem.get_elevation_at_station(last_sta_end),
                                 sta_end=curve_sta_start,
                                 elev_end=curve.elev_bvc
                             )
-                            self.geometry_elements.append(tangent)
+                            geometry_elements.append(tangent)
                     else:
-                        # First element is a curve - add tangent from first PVI to curve start
+                        # First element is curve
                         curve_sta_start = curve.get_station_range()[0]
                         if pvi_curr['station'] < curve_sta_start - 1e-6:
                             tangent = Tangent(
@@ -162,14 +173,13 @@ class Profile:
                                 sta_end=curve_sta_start,
                                 elev_end=curve.elev_bvc
                             )
-                            self.geometry_elements.append(tangent)
+                            geometry_elements.append(tangent)
                     
-                    self.geometry_elements.append(curve)
+                    geometry_elements.append(curve)
                     
-                    # Add tangent after curve to next element (if space)
+                    # Add tangent after curve if needed
                     curve_sta_end = curve.get_station_range()[1]
-                    if i + 1 < len(self.pvi_points) - 1:
-                        # Not the last segment - add tangent to next curve or PVI
+                    if i + 1 < len(pvi_points) - 1:
                         next_curve_data = curve_map.get(i + 1)
                         if next_curve_data:
                             next_curve_pvi = next_curve_data.get('pvi', {})
@@ -184,9 +194,9 @@ class Profile:
                                     sta_end=next_curve_start,
                                     elev_end=curve.elev_evc + grade * (next_curve_start - curve_sta_end)
                                 )
-                                self.geometry_elements.append(tangent)
+                                geometry_elements.append(tangent)
                     else:
-                        # Last segment - add tangent to final PVI
+                        # Last segment
                         if pvi_next['station'] > curve_sta_end + 1e-6:
                             tangent = Tangent(
                                 sta_start=curve_sta_end,
@@ -194,22 +204,19 @@ class Profile:
                                 sta_end=pvi_next['station'],
                                 elev_end=pvi_next['elevation']
                             )
-                            self.geometry_elements.append(tangent)
-            
+                            geometry_elements.append(tangent)
             else:
-                # No curve at this PVI - create simple tangent
-                if not self.geometry_elements:
-                    # First tangent
+                # No curve - create tangent
+                if not geometry_elements:
                     tangent = Tangent(
                         sta_start=pvi_curr['station'],
                         elev_start=pvi_curr['elevation'],
                         sta_end=pvi_next['station'],
                         elev_end=pvi_next['elevation']
                     )
-                    self.geometry_elements.append(tangent)
+                    geometry_elements.append(tangent)
                 else:
-                    # Continue from last element
-                    last_elem = self.geometry_elements[-1]
+                    last_elem = geometry_elements[-1]
                     last_sta_end = last_elem.get_station_range()[1]
                     
                     if last_sta_end < pvi_next['station'] - 1e-6:
@@ -219,11 +226,12 @@ class Profile:
                             sta_end=pvi_next['station'],
                             elev_end=pvi_next['elevation']
                         )
-                        self.geometry_elements.append(tangent)
+                        geometry_elements.append(tangent)
+        
+        return geometry_elements
     
     def _create_curve(self, curve_data: Dict, prev_grade: float, next_grade: float):
-        """Create appropriate curve object from data"""
-        
+        """Create appropriate curve object"""
         geom_type = curve_data.get('Type')
         
         try:
@@ -236,143 +244,144 @@ class Profile:
             return None
     
     def _parse_profsurf_list(self, profsurf_list: List[Dict]):
-        """Parse surface profile (ProfSurf) list"""
+        """Parse surface profiles and convert to Tangent geometry"""
         
         for profsurf_data in profsurf_list:
             profsurf = {
                 'name': profsurf_data.get('name', 'Surface Profile'),
                 'description': profsurf_data.get('desc', None),
                 'surfType': profsurf_data.get('surfType', None),
-                'points': []  # List of (station, elevation) tuples
+                'geometry': []
             }
             
-            # Parse points
+            # Parse and sort points
             points = profsurf_data.get('points', [])
-            for point in points:
-                if isinstance(point, (tuple, list)) and len(point) >= 2:
-                    profsurf['points'].append((float(point[0]), float(point[1])))
+            if len(points) < 2:
+                continue
             
-            # Sort points by station
-            profsurf['points'].sort(key=lambda p: p[0])
+            sorted_points = sorted(points, key=lambda p: float(p[0]))
+            
+            # Create tangent segments between consecutive points
+            for i in range(len(sorted_points) - 1):
+                sta1, elev1 = float(sorted_points[i][0]), float(sorted_points[i][1])
+                sta2, elev2 = float(sorted_points[i + 1][0]), float(sorted_points[i + 1][1])
+                
+                tangent = Tangent(
+                    sta_start=sta1,
+                    elev_start=elev1,
+                    sta_end=sta2,
+                    elev_end=elev2,
+                    desc=f"{profsurf['name']} segment {i+1}"
+                )
+                profsurf['geometry'].append(tangent)
             
             self.profsurf_list.append(profsurf)
     
     def _compute_profile_properties(self):
-        """Compute profile properties"""
+        """Compute overall profile properties"""
         
-        # Determine profile station range from geometry
-        if self.geometry_elements:
-            self.sta_start = self.geometry_elements[0].get_station_range()[0]
-            self.sta_end = self.geometry_elements[-1].get_station_range()[1]
-        elif self.pvi_points:
-            self.sta_start = self.pvi_points[0]['station']
-            self.sta_end = self.pvi_points[-1]['station']
+        # Determine profile station range from all profiles
+        all_stations = []
+        
+        for profalign in self.profalign_list:
+            if profalign['geometry']:
+                all_stations.append(profalign['geometry'][0].get_station_range()[0])
+                all_stations.append(profalign['geometry'][-1].get_station_range()[1])
+        
+        for profsurf in self.profsurf_list:
+            if profsurf['geometry']:
+                all_stations.append(profsurf['geometry'][0].get_station_range()[0])
+                all_stations.append(profsurf['geometry'][-1].get_station_range()[1])
+        
+        if all_stations:
+            if self.sta_start is None:
+                self.sta_start = min(all_stations)
+            if self.sta_end is None:
+                self.sta_end = max(all_stations)
     
-    def get_elevation_at_station(self, station: float) -> Optional[float]:
+    def get_elevation_at_station(self, station: float, profalign_name: Optional[str] = None) -> Optional[float]:
         """
-        Get elevation at given station from design profile.
+        Get design elevation at station from a specific ProfAlign.
         
         Args:
-            station: Station value to query
-            
-        Returns:
-            Elevation at station, or None if outside profile range
+            station: Station to query
+            profalign_name: Name of ProfAlign (uses first if None)
         """
-        if not self.geometry_elements:
+        profalign = self._select_profalign(profalign_name)
+        if not profalign:
             return None
         
-        # Find geometry element containing this station
-        for elem in self.geometry_elements:
+        for elem in profalign['geometry']:
             sta_start, sta_end = elem.get_station_range()
             if sta_start <= station <= sta_end:
                 return elem.get_elevation_at_station(station)
-        
         return None
     
-    def get_grade_at_station(self, station: float) -> Optional[float]:
+    def get_grade_at_station(self, station: float, profalign_name: Optional[str] = None) -> Optional[float]:
         """
-        Calculate grade (slope) at given station from design profile.
+        Get design grade at station from a specific ProfAlign.
         
         Args:
-            station: Station value to query
-            
-        Returns:
-            Grade as decimal (e.g., 0.05 = 5%), or None if outside profile range
+            station: Station to query
+            profalign_name: Name of ProfAlign (uses first if None)
         """
-        if not self.geometry_elements:
+        profalign = self._select_profalign(profalign_name)
+        if not profalign:
             return None
         
-        # Find geometry element containing this station
-        for elem in self.geometry_elements:
+        for elem in profalign['geometry']:
             sta_start, sta_end = elem.get_station_range()
             if sta_start <= station <= sta_end:
                 return elem.get_grade_at_station(station)
-        
         return None
     
-    def get_surface_elevation_at_station(self, station: float, 
-                                        surface_name: Optional[str] = None) -> Optional[float]:
-        """
-        Get elevation at given station from surface profile (ProfSurf).
-        Uses linear interpolation between surface points.
+    def get_surface_elevation_at_station(self, station: float, surface_name: Optional[str] = None) -> Optional[float]:
+        """Get surface elevation at station"""
+        profsurf = self._select_surface(surface_name)
+        if not profsurf:
+            return None
         
-        Args:
-            station: Station value to query
-            surface_name: Name of surface profile (uses first if None)
-            
-        Returns:
-            Elevation at station, or None if outside profile range
-        """
+        for tangent in profsurf['geometry']:
+            sta_start, sta_end = tangent.get_station_range()
+            if sta_start <= station <= sta_end:
+                return tangent.get_elevation_at_station(station)
+        return None
+    
+    def get_surface_grade_at_station(self, station: float, surface_name: Optional[str] = None) -> Optional[float]:
+        """Get surface grade at station"""
+        profsurf = self._select_surface(surface_name)
+        if not profsurf:
+            return None
+        
+        for tangent in profsurf['geometry']:
+            sta_start, sta_end = tangent.get_station_range()
+            if sta_start <= station <= sta_end:
+                return tangent.get_grade_at_station(station)
+        return None
+    
+    def _select_profalign(self, profalign_name: Optional[str] = None) -> Optional[Dict]:
+        """Helper to select ProfAlign by name"""
+        if not self.profalign_list:
+            return None
+        
+        if profalign_name:
+            return next((pa for pa in self.profalign_list if pa['name'] == profalign_name), None)
+        return self.profalign_list[0]
+    
+    def _select_surface(self, surface_name: Optional[str] = None) -> Optional[Dict]:
+        """Helper to select surface profile by name"""
         if not self.profsurf_list:
             return None
         
-        # Select surface profile
         if surface_name:
-            profsurf = next((ps for ps in self.profsurf_list if ps['name'] == surface_name), None)
-            if not profsurf:
-                return None
-        else:
-            profsurf = self.profsurf_list[0]
-        
-        points = profsurf['points']
-        if not points:
-            return None
-        
-        # Check if station is within surface range
-        if station < points[0][0] or station > points[-1][0]:
-            return None
-        
-        # Find points bracketing this station
-        for i in range(len(points) - 1):
-            sta1, elev1 = points[i]
-            sta2, elev2 = points[i + 1]
-            
-            if sta1 <= station <= sta2:
-                # Linear interpolation
-                if sta2 == sta1:
-                    return elev1
-                
-                t = (station - sta1) / (sta2 - sta1)
-                elevation = elev1 + t * (elev2 - elev1)
-                
-                return elevation
-        
-        return None
+            return next((ps for ps in self.profsurf_list if ps['name'] == surface_name), None)
+        return self.profsurf_list[0]
     
     def get_cut_fill_at_station(self, station: float, 
+                                profalign_name: Optional[str] = None,
                                 surface_name: Optional[str] = None) -> Optional[float]:
-        """
-        Calculate cut/fill at given station (design elevation - surface elevation).
-        Positive value = fill, negative value = cut.
-        
-        Args:
-            station: Station value to query
-            surface_name: Name of surface profile (uses first if None)
-            
-        Returns:
-            Cut/fill value, or None if data not available
-        """
-        design_elev = self.get_elevation_at_station(station)
+        """Calculate cut/fill (design - surface). Positive = fill, negative = cut"""
+        design_elev = self.get_elevation_at_station(station, profalign_name)
         surface_elev = self.get_surface_elevation_at_station(station, surface_name)
         
         if design_elev is None or surface_elev is None:
@@ -380,35 +389,37 @@ class Profile:
         
         return design_elev - surface_elev
     
-    def generate_profile_points(self, step: float, 
+    def generate_profile_points(self, step: float,
+                               profalign_name: Optional[str] = None,
                                include_surface: bool = False,
-                               surface_name: Optional[str] = None) -> List[Tuple]:
-        """
-        Generate profile points at regular station intervals.
-        
-        Args:
-            step: Station interval between points
-            include_surface: Include surface elevation in output
-            surface_name: Name of surface profile (uses first if None and include_surface=True)
-            
-        Returns:
-            List of tuples:
-            - If include_surface=False: (station, design_elevation)
-            - If include_surface=True: (station, design_elevation, surface_elevation)
-        """
-        if not self.geometry_elements:
+                               surface_name: Optional[str] = None,
+                               include_grade: bool = False) -> List[Tuple]:
+        """Generate profile points at regular intervals for a specific ProfAlign"""
+        profalign = self._select_profalign(profalign_name)
+        if not profalign or not profalign['geometry']:
             return []
         
-        points = []
-        current_station = self.sta_start
+        sta_start = profalign['geometry'][0].get_station_range()[0]
+        sta_end = profalign['geometry'][-1].get_station_range()[1]
         
-        while current_station <= self.sta_end:
-            design_elev = self.get_elevation_at_station(current_station)
+        points = []
+        current_station = sta_start
+        
+        while current_station <= sta_end:
+            design_elev = self.get_elevation_at_station(current_station, profalign_name)
             
             if design_elev is not None:
-                if include_surface:
+                if include_surface and include_grade:
+                    design_grade = self.get_grade_at_station(current_station, profalign_name)
+                    surface_elev = self.get_surface_elevation_at_station(current_station, surface_name)
+                    surface_grade = self.get_surface_grade_at_station(current_station, surface_name)
+                    points.append((current_station, design_elev, design_grade, surface_elev, surface_grade))
+                elif include_surface:
                     surface_elev = self.get_surface_elevation_at_station(current_station, surface_name)
                     points.append((current_station, design_elev, surface_elev))
+                elif include_grade:
+                    design_grade = self.get_grade_at_station(current_station, profalign_name)
+                    points.append((current_station, design_elev, design_grade))
                 else:
                     points.append((current_station, design_elev))
             
@@ -416,17 +427,56 @@ class Profile:
         
         return points
     
-    def get_pvi_points(self) -> List[Dict]:
-        """Return list of all PVI points"""
-        return self.pvi_points.copy()
+    def generate_surface_points(self, step: float, surface_name: Optional[str] = None) -> List[Tuple[float, float]]:
+        """Generate surface profile points"""
+        profsurf = self._select_surface(surface_name)
+        if not profsurf or not profsurf['geometry']:
+            return []
+        
+        sta_start = profsurf['geometry'][0].get_station_range()[0]
+        sta_end = profsurf['geometry'][-1].get_station_range()[1]
+        
+        points = []
+        current_station = sta_start
+        
+        while current_station <= sta_end:
+            elev = self.get_surface_elevation_at_station(current_station, surface_name)
+            if elev is not None:
+                points.append((current_station, elev))
+            current_station += step
+        
+        return points
     
-    def get_geometry_elements(self) -> List:
-        """Return list of all geometry elements"""
-        return self.geometry_elements.copy()
+    def get_profalign_names(self) -> List[str]:
+        """Return all ProfAlign names"""
+        return [pa['name'] for pa in self.profalign_list]
     
     def get_surface_names(self) -> List[str]:
-        """Return list of all surface profile names"""
+        """Return all surface profile names"""
         return [ps['name'] for ps in self.profsurf_list]
+    
+    def get_pvi_points(self, profalign_name: Optional[str] = None) -> List[Dict]:
+        """Return PVI points for a specific ProfAlign"""
+        profalign = self._select_profalign(profalign_name)
+        return profalign['pvi_points'].copy() if profalign else []
+    
+    def get_geometry_elements(self, profalign_name: Optional[str] = None) -> List:
+        """Return geometry elements for a specific ProfAlign"""
+        profalign = self._select_profalign(profalign_name)
+        return profalign['geometry'].copy() if profalign else []
+    
+    def get_surface_geometry_elements(self, surface_name: Optional[str] = None) -> List[Tangent]:
+        """Return geometry elements for a surface profile"""
+        profsurf = self._select_surface(surface_name)
+        return profsurf['geometry'].copy() if profsurf else []
+    
+    def get_profalign_count(self) -> int:
+        """Return number of ProfAlign profiles"""
+        return len(self.profalign_list)
+    
+    def get_surface_count(self) -> int:
+        """Return number of surface profiles"""
+        return len(self.profsurf_list)
     
     def get_sta_start(self) -> Optional[float]:
         """Return profile start station"""
@@ -437,40 +487,53 @@ class Profile:
         return self.sta_end
     
     def to_dict(self) -> Dict:
-        """Export profile properties as dictionary"""
+        """Export profile properties"""
         return {
             'name': self.name,
             'desc': self.description,
             'staStart': self.sta_start,
             'staEnd': self.sta_end,
             'alignmentName': self.alignment_name,
-            'pviCount': len(self.pvi_points),
-            'geometryCount': len(self.geometry_elements),
+            'profalignCount': len(self.profalign_list),
             'surfaceProfileCount': len(self.profsurf_list),
-            'pviPoints': self.pvi_points,
-            'geometry': [elem.to_dict() for elem in self.geometry_elements],
-            'surfaces': self.profsurf_list
+            'profaligns': [
+                {
+                    'name': pa['name'],
+                    'description': pa['description'],
+                    'pviCount': len(pa['pvi_points']),
+                    'geometryCount': len(pa['geometry']),
+                    'pviPoints': pa['pvi_points'],
+                    'geometry': [elem.to_dict() for elem in pa['geometry']]
+                }
+                for pa in self.profalign_list
+            ],
+            'surfaces': [
+                {
+                    'name': ps['name'],
+                    'description': ps['description'],
+                    'surfType': ps['surfType'],
+                    'geometryCount': len(ps['geometry']),
+                    'geometry': [elem.to_dict() for elem in ps['geometry']]
+                }
+                for ps in self.profsurf_list
+            ]
         }
     
     def __repr__(self) -> str:
-        """String representation of profile"""
         return (
             f"Profile(name='{self.name}', "
-            f"PVIs={len(self.pvi_points)}, "
-            f"geometry={len(self.geometry_elements)}, "
-            f"surfaces={len(self.profsurf_list)})"
+            f"ProfAligns={len(self.profalign_list)}, "
+            f"Surfaces={len(self.profsurf_list)})"
         )
     
     def __str__(self) -> str:
-        """Human-readable string representation"""
         sta_range = ""
         if self.sta_start is not None and self.sta_end is not None:
             sta_range = f", Sta {self.sta_start:.2f} to {self.sta_end:.2f}"
         
         return (
             f"Profile '{self.name}': "
-            f"{len(self.pvi_points)} PVIs, "
-            f"{len(self.geometry_elements)} geometry elements, "
-            f"{len(self.profsurf_list)} surface profiles"
+            f"{len(self.profalign_list)} design profile(s), "
+            f"{len(self.profsurf_list)} surface profile(s)"
             f"{sta_range}"
         )

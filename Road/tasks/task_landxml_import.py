@@ -200,9 +200,29 @@ class TaskLandXMLImport(TaskPanel):
         profile_item.setExpanded(False)
         profile_item.setFlags(profile_item.flags() & ~Qt.ItemIsSelectable)
         
-        # Add ProfAlign if present
+        # Add ProfAlign elements (can be single dict or list)
         if 'ProfAlign' in profile_data:
-            self._add_profalign(profile_item, profile_data['ProfAlign'])
+            profalign_data = profile_data['ProfAlign']
+            
+            # Handle both single ProfAlign and list of ProfAlign
+            if isinstance(profalign_data, dict):
+                # Single ProfAlign
+                self._add_profalign(profile_item, profalign_data)
+            elif isinstance(profalign_data, list):
+                # Multiple ProfAlign
+                if len(profalign_data) > 1:
+                    # Create a group item for multiple profiles
+                    profalign_group = QTreeWidgetItem(profile_item)
+                    profalign_group.setText(0, 'Design Profiles')
+                    profalign_group.setText(1, f'({len(profalign_data)} profiles)')
+                    profalign_group.setExpanded(False)
+                    profalign_group.setFlags(profalign_group.flags() & ~Qt.ItemIsSelectable)
+                    
+                    for pa_data in profalign_data:
+                        self._add_profalign(profalign_group, pa_data)
+                elif len(profalign_data) == 1:
+                    # Single ProfAlign in list
+                    self._add_profalign(profile_item, profalign_data[0])
         
         # Add ProfSurf elements if present
         if 'ProfSurf' in profile_data:
