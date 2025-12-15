@@ -170,26 +170,45 @@ class TaskLandXMLImport(TaskPanel):
         geom_group.setExpanded(False)
         geom_group.setFlags(geom_group.flags() & ~Qt.ItemIsSelectable)
         
-        for i, geom in enumerate(geom_elements):
-            geom_type = geom.get('Type', 'Unknown')
-            geom_length = geom.get('length', geom.get('Length', 0))
+    def _add_station_equations(self, parent_item, equations):
+        """Adds station equations as children."""
+        eq_group = QTreeWidgetItem(parent_item)
+        eq_group.setText(0, 'Station Equations')
+        eq_group.setText(1, f'({len(equations)} equations)')
+        eq_group.setExpanded(False)
+        eq_group.setFlags(eq_group.flags() & ~Qt.ItemIsSelectable)
+        
+        for i, eq in enumerate(equations):
+            sta_back = eq.get('staBack', 0)
+            sta_ahead = eq.get('staAhead', 0)
+            adjustment = sta_ahead - sta_back
             
-            geom_item = QTreeWidgetItem(geom_group)
-            geom_item.setText(0, f'{i+1}. {geom_type}')
-            geom_item.setText(1, f'Length: {geom_length:.2f}')
-            geom_item.setFlags(geom_item.flags() & ~Qt.ItemIsSelectable)
+            eq_item = QTreeWidgetItem(eq_group)
+            eq_item.setText(0, f'{i+1}. {sta_back:.2f} = {sta_ahead:.2f}')
+            eq_item.setText(1, f'Adjustment: {adjustment:+.2f}')
+            eq_item.setFlags(eq_item.flags() & ~Qt.ItemIsSelectable)
+    
+    def _add_pi_points(self, parent_item, pi_points):
+        """Adds PI points as children."""
+        pi_group = QTreeWidgetItem(parent_item)
+        pi_group.setText(0, 'PI Points')
+        pi_group.setText(1, f'({len(pi_points)} points)')
+        pi_group.setExpanded(False)
+        pi_group.setFlags(pi_group.flags() & ~Qt.ItemIsSelectable)
+        
+        for i, pi in enumerate(pi_points):
+            point = pi.get('point', (0, 0))
+            station = pi.get('station', None)
             
-            # Add specific attributes based on type
-            if geom_type == 'Curve':
-                radius = geom.get('radius', 0)
-                delta = geom.get('delta', 0)
-                geom_item.setText(1, f'R={radius:.2f}, Δ={delta:.4f} rad')
-            elif geom_type == 'Spiral':
-                r_start = geom.get('StartRadius', float('inf'))
-                r_end = geom.get('EndRadius', float('inf'))
-                r_start_str = 'INF' if r_start == float('inf') else f'{r_start:.2f}'
-                r_end_str = 'INF' if r_end == float('inf') else f'{r_end:.2f}'
-                geom_item.setText(1, f'Rs={r_start_str}, Re={r_end_str}, L={geom_length:.2f}')
+            pi_item = QTreeWidgetItem(pi_group)
+            pi_item.setText(0, f'{i+1}. PI')
+            
+            if station is not None:
+                pi_item.setText(1, f'Sta: {station:.2f}, ({point[0]:.2f}, {point[1]:.2f})')
+            else:
+                pi_item.setText(1, f'({point[0]:.2f}, {point[1]:.2f})')
+            
+            pi_item.setFlags(pi_item.flags() & ~Qt.ItemIsSelectable)
     
     def _add_profile(self, parent_item, profile_data):
         """Adds profile data as children."""
@@ -239,34 +258,6 @@ class TaskLandXMLImport(TaskPanel):
         profalign_item.setExpanded(False)
         profalign_item.setFlags(profalign_item.flags() & ~Qt.ItemIsSelectable)
         
-        # Add geometry elements
-        for i, geom in enumerate(geom_elements):
-            geom_type = geom.get('Type', 'Unknown')
-            
-            geom_item = QTreeWidgetItem(profalign_item)
-            geom_item.setText(0, f'{i+1}. {geom_type}')
-            
-            if geom_type == 'PVI':
-                station = geom.get('station', 0)
-                elevation = geom.get('elevation', 0)
-                geom_item.setText(1, f'Sta: {station:.2f}, Elev: {elevation:.3f}')
-            
-            elif geom_type in ['ParaCurve', 'CircCurve', 'UnsymParaCurve']:
-                length = geom.get('length', 0)
-                pvi = geom.get('pvi', {})
-                if pvi:
-                    station = pvi.get('station', 0)
-                    elevation = pvi.get('elevation', 0)
-                    geom_item.setText(1, f'L={length:.2f}, PVI: Sta {station:.2f}, Elev {elevation:.3f}')
-                else:
-                    geom_item.setText(1, f'Length: {length:.2f}')
-            
-            elif geom_type == 'PntList2D':
-                points = geom.get('points', [])
-                geom_item.setText(1, f'{len(points)} points')
-            
-            geom_item.setFlags(geom_item.flags() & ~Qt.ItemIsSelectable)
-    
     def _add_profsurf_list(self, parent_item, profsurf_list):
         """Adds surface profile (ProfSurf) data."""
         profsurf_group = QTreeWidgetItem(parent_item)
@@ -283,46 +274,6 @@ class TaskLandXMLImport(TaskPanel):
             profsurf_item.setText(0, surf_name)
             profsurf_item.setText(1, f'{len(points)} points')
             profsurf_item.setFlags(profsurf_item.flags() & ~Qt.ItemIsSelectable)
-    
-    def _add_station_equations(self, parent_item, equations):
-        """Adds station equations as children."""
-        eq_group = QTreeWidgetItem(parent_item)
-        eq_group.setText(0, 'Station Equations')
-        eq_group.setText(1, f'({len(equations)} equations)')
-        eq_group.setExpanded(False)
-        eq_group.setFlags(eq_group.flags() & ~Qt.ItemIsSelectable)
-        
-        for i, eq in enumerate(equations):
-            sta_back = eq.get('staBack', 0)
-            sta_ahead = eq.get('staAhead', 0)
-            adjustment = sta_ahead - sta_back
-            
-            eq_item = QTreeWidgetItem(eq_group)
-            eq_item.setText(0, f'{i+1}. {sta_back:.2f} = {sta_ahead:.2f}')
-            eq_item.setText(1, f'Adjustment: {adjustment:+.2f}')
-            eq_item.setFlags(eq_item.flags() & ~Qt.ItemIsSelectable)
-    
-    def _add_pi_points(self, parent_item, pi_points):
-        """Adds PI points as children."""
-        pi_group = QTreeWidgetItem(parent_item)
-        pi_group.setText(0, 'PI Points')
-        pi_group.setText(1, f'({len(pi_points)} points)')
-        pi_group.setExpanded(False)
-        pi_group.setFlags(pi_group.flags() & ~Qt.ItemIsSelectable)
-        
-        for i, pi in enumerate(pi_points):
-            point = pi.get('point', (0, 0))
-            station = pi.get('station', None)
-            
-            pi_item = QTreeWidgetItem(pi_group)
-            pi_item.setText(0, f'{i+1}. PI')
-            
-            if station is not None:
-                pi_item.setText(1, f'Sta: {station:.2f}, ({point[0]:.2f}, {point[1]:.2f})')
-            else:
-                pi_item.setText(1, f'({point[0]:.2f}, {point[1]:.2f})')
-            
-            pi_item.setFlags(pi_item.flags() & ~Qt.ItemIsSelectable)
     
     def _add_cgpoints_items(self, root_item):
         """Adds CgPoints items to the tree organized by groups."""
@@ -463,26 +414,6 @@ class TaskLandXMLImport(TaskPanel):
             points_group.setExpanded(False)
             points_group.setFlags(points_group.flags() & ~Qt.ItemIsSelectable)
             
-            # Show first 5 points as example
-            for i, point in enumerate(points[:5]):
-                point_id = point.get('id', 'Unknown')
-                northing = point.get('northing', 0)
-                easting = point.get('easting', 0)
-                elevation = point.get('elevation', 'N/A')
-                
-                point_item = QTreeWidgetItem(points_group)
-                point_item.setText(0, f'ID: {point_id}')
-                if elevation != 'N/A':
-                    point_item.setText(1, f'N:{northing:.2f}, E:{easting:.2f}, Z:{elevation:.2f}')
-                else:
-                    point_item.setText(1, f'N:{northing:.2f}, E:{easting:.2f}')
-                point_item.setFlags(point_item.flags() & ~Qt.ItemIsSelectable)
-            
-            if len(points) > 5:
-                more_item = QTreeWidgetItem(points_group)
-                more_item.setText(0, f'... and {len(points) - 5} more points')
-                more_item.setFlags(more_item.flags() & ~Qt.ItemIsSelectable)
-        
         # Add faces summary
         faces = surface_data.get('faces', [])
         if faces:
