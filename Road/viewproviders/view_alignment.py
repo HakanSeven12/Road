@@ -235,10 +235,9 @@ class ViewProviderAlignment(ViewProviderGeoObject):
                     placement.Rotation = FreeCAD.Rotation(FreeCAD.Vector(0, 0, 1), math.degrees(angle))
 
                 # Format station text
-                station_str = str(station).zfill(6)
-                integer = station_str.split('.')[0]
-                new_integer = integer[:-3] + "+" + integer[-3:]
-                text = new_integer + "." + station_str.split('.')[1]
+                km = int(station // 1000)
+                m = station - km * 1000
+                text = f"{km}+{m:06.2f}"
 
                 self.label_manager.add_label(
                     position=point,
