@@ -5,7 +5,7 @@
 import FreeCAD, FreeCADGui
 
 from ..variables import icons_path
-from ..tasks import task_alignment_editor
+from ..tasks.task_alignment_editor import AlignmentEditor
 
 
 class AlignmentEdit:
@@ -33,7 +33,7 @@ class AlignmentEdit:
 
     def Activated(self):
         """Command activation method"""
-        panel = task_alignment_editor.run(self.alignment)
+        panel = AlignmentEditor(self.alignment)
         FreeCADGui.Control.showDialog(panel)
 
         FreeCAD.ActiveDocument.recompute()
