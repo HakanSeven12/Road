@@ -540,3 +540,96 @@ class CoordinateSystem:
             'epsg_code': epsg_code,
             'name': f'WGS 84 / UTM zone {zone_number}{hemisphere[0].upper()}'
         }
+    
+    def to_dict(self) -> Dict:
+        """
+        Convert CoordinateSystem to dictionary representation.
+        Useful for serialization and storage.
+        
+        Returns:
+            Dictionary containing all coordinate system data
+        """
+        result = {
+            'coord_sys_data': self.coord_sys_data,
+            'epsg_code': self.epsg_code,
+            'wkt_code': self.wkt_code,
+            'name': self.name
+        }
+        
+        # Add CRS WKT representation if available
+        if self.crs is not None:
+            try:
+                result['crs_wkt'] = self.crs.to_wkt()
+            except Exception:
+                pass
+        
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict) -> 'CoordinateSystem':
+        """
+        Create CoordinateSystem from dictionary representation.
+        
+        Args:
+            data: Dictionary containing coordinate system data
+            
+        Returns:
+            CoordinateSystem instance
+        """
+        coord_sys_data = data.get('coord_sys_data', {})
+        instance = cls(coord_sys_data)
+        
+        # Try to restore from stored WKT if CRS initialization failed
+        if instance.crs is None and 'crs_wkt' in data:
+            try:
+                instance.crs = CRS.from_wkt(data['crs_wkt'])
+            except CRSError:
+                pass
+        
+        return instance
+
+    def __getstate__(self) -> Dict:
+        """
+        Prepare CoordinateSystem for pickling.
+        CRS objects cannot be pickled directly, so we store WKT representation.
+        
+        Returns:
+            Dictionary of picklable state
+        """
+        state = self.__dict__.copy()
+        
+        # Store CRS as WKT string instead of CRS object
+        if self.crs is not None:
+            try:
+                state['_crs_wkt'] = self.crs.to_wkt()
+            except Exception:
+                state['_crs_wkt'] = None
+        else:
+            state['_crs_wkt'] = None
+        
+        # Remove unpicklable CRS object
+        state['crs'] = None
+        
+        return state
+
+    def __setstate__(self, state: Dict):
+        """
+        Restore CoordinateSystem from pickled state.
+        Reconstructs CRS object from WKT representation.
+        
+        Args:
+            state: Dictionary of pickled state
+        """
+        self.__dict__.update(state)
+        
+        # Restore CRS from WKT if available
+        _crs_wkt = state.get('_crs_wkt')
+        if _crs_wkt:
+            try:
+                self.crs = CRS.from_wkt(_crs_wkt)
+            except CRSError as e:
+                print(f"Warning: Failed to restore CRS from pickled state: {str(e)}")
+                self.crs = None
+        else:
+            # Try to reinitialize CRS from coord_sys_data
+            self._initialize_crs()

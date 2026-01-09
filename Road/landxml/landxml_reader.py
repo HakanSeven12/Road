@@ -129,15 +129,16 @@ class LandXMLReader:
                             # This is a direction/azimuth attribute
                             dir_value = float(value)
                             
-                            if self.direction_unit == 'radians':
-                                # Already in radians and already math angle (Quadri format)
-                                result[output_key] = dir_value
+                            # First convert to radians based on unit
+                            dir_radians = dir_value * self.direction_conversion_factor
+
+                            # Then, if coordinate system exists, use radians value as-is
+                            # No coordinate system - Convert azimuth (0=North, clockwise) to math angle (0=East, counter-clockwise)
+                            if self.coordinate_system:
+                                result[output_key] = dir_radians
+
                             else:
-                                # In degrees and it's azimuth (Civil3D, standard LandXML)
-                                # Convert azimuth to math angle
-                                azimuth_deg = dir_value
-                                math_angle_deg = 90.0 - azimuth_deg
-                                result[output_key] = math.radians(math_angle_deg)
+                                result[output_key] = math.pi / 2 - dir_radians
                         else:
                             # Other angles (delta, theta) - just convert based on unit
                             result[output_key] = float(value) * self.angular_conversion_factor
@@ -236,6 +237,7 @@ class LandXMLReader:
         )
         
         self.coordinate_system = coord_sys_data if coord_sys_data else None
+        print(f"Info: Parsed CoordinateSystem: {self.coordinate_system}")
     
     def _parse_point(self, point_text: str) -> tuple:
         """
