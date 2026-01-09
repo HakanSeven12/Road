@@ -4,8 +4,9 @@
 
 import FreeCAD
 from pivy import coin
-from ..geometry.first_iteration.alignment_old import transformation
 from .view_geo_object import ViewProviderGeoObject
+from ..utils.label_manager import LabelManager
+from ..utils.support import  zero_referance
 
 import math
 
@@ -41,18 +42,11 @@ class ViewProviderAlignment(ViewProviderGeoObject):
             "Justification of station label").Justification = ["Left", "Center", "Right"]
 
         vobj.addProperty(
-            "App::PropertyFloat", "OffsetX", "Label Placement",
-            "Horizontal offset between station label and tick").OffsetX = 1
-
-        vobj.addProperty(
-            "App::PropertyFloat", "OffsetY", "Label Placement",
-            "Vertical offset between point station and tick").OffsetY = 0
-
-        vobj.addProperty(
-            "App::PropertyVector", "LabelOffset", "Label Placement",
-            "Points of reference for station label").LabelOffset = FreeCAD.Vector(vobj.OffsetX, vobj.OffsetY)
+            "App::PropertyPlacement", "Transformation", "Label Placement",
+            "Placement").Transformation = FreeCAD.Placement()
 
         vobj.Proxy = self
+        self.label_manager = None
 
     def attach(self, vobj):
         """Create Object visuals in 3D view."""
@@ -169,25 +163,8 @@ class ViewProviderAlignment(ViewProviderGeoObject):
         # Labels
         #-----------------------------------------------------------------
 
-        #Ticks
-        self.tick_coords = coin.SoCoordinate3()
-        tick_lines = coin.SoLineSet()
-
-        self.tick_copy = coin.SoMultipleCopy()
-        self.tick_copy.addChild(self.tick_coords)
-        self.tick_copy.addChild(tick_lines)
-
-        # Text
-        self.font = coin.SoFont()
-        self.label_color = coin.SoBaseColor()
-
-        self.texts = coin.SoGroup()
-
-        self.labels = coin.SoSeparator()
-        self.labels.addChild(self.font)
-        self.labels.addChild(self.label_color)
-        self.labels.addChild(self.tick_copy)
-        self.labels.addChild(self.texts)
+        labels_root = coin.SoSeparator()
+        self.label_manager = LabelManager(labels_root)
 
         #-----------------------------------------------------------------
         # Alignment
@@ -200,7 +177,7 @@ class ViewProviderAlignment(ViewProviderGeoObject):
         centerline_selection.addChild(curves)
         centerline_selection.addChild(spirals)
         centerline_selection.addChild(tangents)
-        centerline_selection.addChild(self.labels)
+        centerline_selection.addChild(labels_root)
 
         self.standard.addChild(centerline_selection)
 
@@ -217,7 +194,6 @@ class ViewProviderAlignment(ViewProviderGeoObject):
         vobj.addDisplayMode(self.offset, "Offset")
 
         self.onChanged(vobj, "Labels")
-        #self.onChanged(vobj, "TickSize")
         self.onChanged(vobj, "LabelColor")
         self.onChanged(vobj, "LabelSize")
         self.onChanged(vobj, "FontName")
@@ -227,88 +203,68 @@ class ViewProviderAlignment(ViewProviderGeoObject):
     def onChanged(self, vobj, prop):
         """Update Object visuals when a view property changed."""
         if prop == "Labels":
-            self.texts.removeAllChildren()
-            if not vobj.getPropertyByName(prop):
-                self.tick_coords.point.values = []
+            if not hasattr(vobj, 'Transformation'):
                 return
+                
+            self.label_manager.clear_labels()
+            stations = vobj.Object.Model.generate_stations()
+            
+            for station in stations:
+                # Get point and direction from alignment
+                tuple_coord, tuple_vec = vobj.Object.Model.get_orthogonal_at_station(station, "left")
+                coord = zero_referance(vobj.Object.Model.get_start_point(), [tuple_coord])
+                point = coord[0].add(vobj.Object.Placement.Base)
+                dir_vec = FreeCAD.Vector(*tuple_vec)
+                
+                # Calculate angle from direction vector
+                angle = math.atan2(dir_vec.y, dir_vec.x)
 
-            matrices = []
-            stations = transformation(vobj.Object, 10, 10, 10)
-            for station, transform in stations.items():
-                point = transform["Location"]
-                angle = transform["Rotation"]
-
-                matrix = coin.SbMatrix()
-                transform = coin.SoTransform()
-                location = coin.SoTranslation()
-                text = coin.SoAsciiText()
-
-                matrix.setTransform(
-                    coin.SbVec3f(point.x, point.y, point.z), 
-                    coin.SbRotation(coin.SbVec3f(0, 0, 1), angle), 
-                    coin.SbVec3f(1.0, 1.0, 1.0))
-                matrices.append(matrix)
-
-                if vobj.Justification == "Left":
-                    text.justification = coin.SoAsciiText.LEFT
-                elif vobj.Justification == "Right":
-                    text.justification = coin.SoAsciiText.RIGHT
-                else:
-                    text.justification = coin.SoAsciiText.CENTER
-
-                if math.pi / 2 < angle < 3 * math.pi /2:
-                    text.justification = 2 if text.justification == 1 else 1
+                # Prepare placement and rotation
+                placement = FreeCAD.Placement()
+                placement.Base = FreeCAD.Vector(0, 0, 0)
+                placement.Rotation = FreeCAD.Rotation(FreeCAD.Vector(0, 0, 1), math.degrees(angle))
+                
+                # Adjust for readability
+                justification = vobj.Justification
+                if math.pi / 2 < angle < 3 * math.pi / 2:
+                    if justification == "Left":
+                        justification = "Right"
+                    elif justification == "Right":
+                        justification = "Left"
                     angle = (angle + math.pi) % (2 * math.pi)
+                    placement.Rotation = FreeCAD.Rotation(FreeCAD.Vector(0, 0, 1), math.degrees(angle))
 
-                transform.translation = point
-                transform.rotation.setValue(coin.SbVec3f(0, 0, 1), angle)
-                location.translation = vobj.LabelOffset
+                # Format station text
+                km = int(station // 1000)
+                m = station - km * 1000
+                text = f"{km}+{m:06.2f}"
 
-                station = str(station).zfill(6)
-                integer = station.split('.')[0]
-                new_integer = integer[:-3] + "+" + integer[-3:]
-
-                text.string.setValues([new_integer + "." + station.split('.')[1]])
-
-                group = coin.SoTransformSeparator()
-                group.addChild(transform)
-                group.addChild(location)
-                group.addChild(text)
-                self.texts.addChild(group)
-
-            self.tick_copy.matrix.values = matrices
-
-        elif prop == "TickSize":
-            size = vobj.getPropertyByName(prop)
-            self.tick_coords.point.values = [
-                FreeCAD.Vector((size / 2) * 1000, 0, 0), 
-                FreeCAD.Vector((-size / 2) * 1000, 0, 0)]
+                self.label_manager.add_label(
+                    position=point,
+                    text=text,
+                    side=justification,
+                    spacing=1.0,
+                    transformation=placement.multiply(vobj.Transformation)
+                )
 
         elif prop == "LabelColor":
-            color = vobj.getPropertyByName(prop)
-            self.label_color.rgb = (color[0], color[1], color[2])
+            if self.label_manager:
+                color = vobj.getPropertyByName(prop)
+                self.label_manager.material.diffuseColor = (color[0], color[1], color[2])
 
         elif prop == "LabelSize":
-            self.font.size = vobj.getPropertyByName(prop) * 1000
-            self.onChanged(vobj, "OffsetY")
+            if self.label_manager:
+                self.label_manager.font.size = vobj.getPropertyByName(prop) * 1000
+            self.onChanged(vobj, "Labels")
 
         elif prop == "FontName":
-            self.font.name = vobj.getPropertyByName(prop).encode("utf8")
+            if self.label_manager:
+                self.label_manager.font.name = vobj.getPropertyByName(prop).encode("utf8")
 
         elif prop == "Justification":
-            self.onChanged(vobj, "OffsetX")
+            self.onChanged(vobj, "Labels")
 
-        elif prop == "OffsetX":
-            justification = -1 if vobj.Justification == "Right" else 1
-            vobj.LabelOffset.x = vobj.getPropertyByName(prop) * 1000 * justification
-            self.onChanged(vobj, "LabelOffset")
-
-        elif prop == "OffsetY":
-            y_offset = vobj.getPropertyByName(prop)
-            vobj.LabelOffset.y = -vobj.LabelSize / 2 + y_offset * 1000
-            self.onChanged(vobj, "LabelOffset")
-
-        elif prop == "LabelOffset":
+        elif prop == "Transformation":
             self.onChanged(vobj, "Labels")
 
         elif prop == "DisplayMode":

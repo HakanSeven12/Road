@@ -5,7 +5,7 @@
 import FreeCAD, FreeCADGui
 
 from ..variables import icons_path
-from ..make import make_profile_frame, make_profile
+from ..make import make_profile_frame
 from ..tasks.task_selection import SingleSelection, MultipleSelection
 from ..utils.trackers import ViewTracker
 
@@ -42,43 +42,32 @@ class ProfileFrameCreate:
 
     def accept(self):
         """Panel 'OK' button clicked"""
-        alignment = self.alignment_selector.selected_object
-        self.terrains = self.terrain_selector.selected_objects
-        self.profile_frame = make_profile_frame.create()
-
-        for item in alignment.Group:
-            if item.Proxy.Type == "Road::Profiles":
-                item.addObject(self.profile_frame)
-                break
-
         FreeCAD.Console.PrintWarning("Select Profile Frame position on screen")
         view = FreeCADGui.ActiveDocument.ActiveView
         self.tracker = ViewTracker(view, "Mouse", key="Left", function=self.set_placement)
         self.tracker.start()
 
-        FreeCADGui.Control.closeDialog()
-
     def set_placement(self, callback):
+        profile_frame = make_profile_frame.create()
+        
+        alignment = self.alignment_selector.selected_object
+        for item in alignment.Group:
+            if item.Proxy.Type == "Road::Profiles":
+                item.addObject(profile_frame)
+                break
+
         event = callback.getEvent()
         position = event.getPosition() #Window position
         view = FreeCADGui.ActiveDocument.ActiveView
         coordinate = view.getPoint(tuple(position.getValue()))
         coordinate.z = 0
 
-        origin = FreeCAD.ActiveDocument.getObject("GeoOrigin")
-        if origin:
-            coordinate = coordinate.add(origin.Base)
+        profile_frame.Placement.Base = coordinate
+        profile_frame.Terrains = self.terrain_selector.selected_objects
 
-        self.profile_frame.Placement.Base = coordinate
         self.tracker.stop()
 
-        for i in self.terrains:
-            profile = make_profile.create()
-            self.profile_frame.addObject(profile)
-            profile.ViewObject.DisplayMode = "Terrain"
-            profile.Terrain = i
-
         FreeCAD.ActiveDocument.recompute()
-
+        FreeCADGui.Control.closeDialog()
 
 FreeCADGui.addCommand("Profile Frame Create", ProfileFrameCreate())

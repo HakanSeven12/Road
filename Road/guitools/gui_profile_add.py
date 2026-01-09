@@ -5,7 +5,6 @@
 import FreeCAD, FreeCADGui
 
 from ..variables import icons_path
-from ..make import make_profile
 from ..tasks.task_selection import MultipleSelection
 
 
@@ -43,12 +42,9 @@ class ProfileAdd:
     def accept(self):
         """Panel 'OK' button clicked"""
         self.terrains = self.terrain_selector.selected_objects
-        FreeCADGui.Control.closeDialog()
+        self.profile_frame.Terrains = self.terrains
 
-        for i in self.terrains:
-            profile = make_profile.create()
-            self.profile_frame.addObject(profile)
-            profile.ViewObject.DisplayMode = "Terrain"
-            profile.Terrain = i
+        FreeCADGui.Control.closeDialog()
+        FreeCAD.ActiveDocument.recompute()
 
 FreeCADGui.addCommand("Profile Add", ProfileAdd())

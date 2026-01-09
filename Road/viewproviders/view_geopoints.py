@@ -5,6 +5,7 @@
 import FreeCAD, FreeCADGui
 from pivy import coin
 from .view_geo_object import ViewProviderGeoObject
+from ..utils.label_manager import LabelManager
 import math
 
 
@@ -25,7 +26,7 @@ class ViewProviderGeoPoints(ViewProviderGeoObject):
 
         vobj.addProperty(
             "App::PropertyColor", "MarkerColor", "Marker Style",
-            "Color of point marker").MarkerColor = (1.0, 1.0, 1.0)
+            "Color of point marker").MarkerColor = (1.0, 0.0, 0.0)
 
         vobj.addProperty(
             "App::PropertyBool", "Number", "Labels Visibility",
@@ -53,7 +54,7 @@ class ViewProviderGeoPoints(ViewProviderGeoObject):
 
         vobj.addProperty(
             "App::PropertyColor", "LabelColor", "Label Style",
-            "Color of point labels").LabelColor = (1.0, 1.0, 1.0)
+            "Color of point labels").LabelColor = (0.0, 0.0, 1.0)
 
         vobj.addProperty(
             "App::PropertyFloat", "LabelSize", "Label Style",
@@ -110,8 +111,6 @@ class ViewProviderGeoPoints(ViewProviderGeoObject):
         self.vertices = coin.SoCoordinate3()
         self.line = coin.SoIndexedLineSet()
 
-        # Create a hidden template for the marker geometry
-        # This prevents the origin geometry from affecting bounding box
         marker_template = coin.SoSeparator()
         marker_template.addChild(self.marker_color)
         marker_template.addChild(self.marker_scale)
@@ -126,16 +125,9 @@ class ViewProviderGeoPoints(ViewProviderGeoObject):
         # Labels
         #-------------------------------------------------------------
 
-        self.label_color = coin.SoBaseColor()
-        self.font = coin.SoFont()
-        self.transformation = coin.SoTransform()
-        self.label_data = coin.SoGroup()
-
-        labels = coin.SoSeparator()
-        labels.addChild(self.label_color)
-        labels.addChild(self.font)
-        labels.addChild(self.transformation)
-        labels.addChild(self.label_data)
+        # Create label container
+        label_container = coin.SoSeparator()
+        self.label_manager = LabelManager(label_container)
 
         #-------------------------------------------------------------
         # Level of Detail
@@ -143,18 +135,14 @@ class ViewProviderGeoPoints(ViewProviderGeoObject):
 
         level0 = coin.SoAnnotation()
         level0.addChild(self.marker_copy)
-        level0.addChild(labels)
+        level0.addChild(label_container)
 
         level1 = coin.SoAnnotation()
         level1.addChild(self.marker_copy)
 
-        level2 = coin.SoAnnotation()
-        level2.addChild(self.marker_copy)
-
         lod = coin.SoLevelOfDetail()
         lod.addChild(level0)
         lod.addChild(level1)
-        lod.addChild(level2)
 
         lod.screenArea.values = [100]
 
@@ -180,7 +168,7 @@ class ViewProviderGeoPoints(ViewProviderGeoObject):
         self.onChanged(vobj, "MarkerColor")
         self.onChanged(vobj, "PointSize")
         self.onChanged(vobj, "LabelDisplay")
-        self.onChanged(vobj, "LabelOffset")
+        self.onChanged(vobj, "Transformation")
         self.onChanged(vobj, "LabelColor")
         self.onChanged(vobj, "LabelSize")
         self.onChanged(vobj, "FontName")
@@ -194,7 +182,9 @@ class ViewProviderGeoPoints(ViewProviderGeoObject):
         if prop == "Points":
             points = obj.Points.Points
             self.coordinate.point.values = points
-            self.label_data.removeAllChildren()
+            
+            # Clear existing labels
+            self.label_manager.clear_labels()
 
             matrices = []
             for i, pt in enumerate(points):
@@ -205,16 +195,16 @@ class ViewProviderGeoPoints(ViewProviderGeoObject):
                     coin.SbVec3f(1.0, 1.0, 1.0))
                 matrices.append(matrix)
 
-                location = coin.SoTranslation()
-                text = coin.SoAsciiText()
-
+                # Prepare label text
                 label_set = []
                 vobj = obj.ViewObject
                 display = vobj.LabelDisplay
                 no = list(obj.Model.keys())[i]
                 data = list(obj.Model.values())[i]
+                
                 for label, show in display.items():
-                    if not show: continue
+                    if not show: 
+                        continue
 
                     if label == "Number": 
                         label_set.append(no)
@@ -223,34 +213,14 @@ class ViewProviderGeoPoints(ViewProviderGeoObject):
                     else:
                         label_set.append(data.get(label))
 
-                text.string.setValues(label_set)
-
-                if vobj.Justification == "Left":
-                    text.justification = coin.SoAsciiText.LEFT
-                elif vobj.Justification == "Right":
-                    text.justification = coin.SoAsciiText.RIGHT
-                else:
-                    text.justification = coin.SoAsciiText.CENTER
-                
-                text.spacing = vobj.LineSpacing
-                location.translation = pt
-
-                label = coin.SoTransformSeparator()
-                label.addChild(location)
-                label.addChild(text)
-
-                level0 = coin.SoAnnotation()
-                level0.addChild(label)
-
-                level1 = coin.SoAnnotation()
-
-                lod = coin.SoLevelOfDetail()
-                lod.addChild(level0)
-                lod.addChild(level1)
-
-                lod.screenArea.values = [250]
-
-                self.label_data.addChild(lod)
+                # Add label using LabelManager
+                if label_set and hasattr(vobj,"Transformation"):  # Only add if there's text to display
+                    self.label_manager.add_label(
+                        position=pt,
+                        text=label_set,
+                        side=vobj.Justification,
+                        spacing=vobj.LineSpacing,
+                        transformation=vobj.Transformation)
 
             self.marker_copy.matrix.values = matrices
 
@@ -333,19 +303,15 @@ class ViewProviderGeoPoints(ViewProviderGeoObject):
             self.onChanged(vobj, "LabelDisplay")
 
         elif prop == "LabelColor":
-            color = vobj.getPropertyByName(prop)
-            self.label_color.rgb = color[:3]
+            self.label_manager.material.diffuseColor.setValue(vobj.LabelColor[:3])
 
         elif prop == "LabelSize":
-            self.font.size = vobj.getPropertyByName(prop) * 100
+            self.label_manager.font.size.setValue(vobj.LabelSize * 100)
 
         elif prop == "FontName":
-            self.font.name = vobj.getPropertyByName(prop).encode("utf8")
+            self.label_manager.font.name.setValue(vobj.FontName)
 
-        elif prop == "Transformation":
-            self.transformation.translation = vobj.Transformation.Base
-
-        elif prop in ["Justification", "LineSpacing", "LabelDisplay"]:
+        elif prop in ["Transformation", "Justification", "LineSpacing", "LabelDisplay"]:
             self.updateData(vobj.Object, "Points")
 
     def doubleClicked(self, vobj):

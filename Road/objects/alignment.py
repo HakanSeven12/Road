@@ -5,10 +5,11 @@
 import FreeCAD, Part
 
 from .geo_object import GeoObject
-from ..geometry.alignment import Alignment as AlignmentModel
-from ..geometry.line import Line
-from ..geometry.curve import Curve
-from ..geometry.spiral import Spiral
+from ..geometry.alignment.alignment import Alignment as AlignmentModel
+from ..geometry.alignment.line import Line
+from ..geometry.alignment.curve import Curve
+from ..geometry.alignment.spiral import Spiral
+from ..utils.support import  zero_referance
 
 
 class Alignment(GeoObject):
@@ -97,7 +98,7 @@ class Alignment(GeoObject):
             if not obj.Status:
                 obj.Status = "existing"
 
-        elif prop in ["OffsetLength", "Parent"]:
+        elif prop in ["OffsetLength", "Parent"] and obj.Parent:
             self.generate_offset_alignment(obj, obj.Parent, obj.OffsetLength)
 
     def _generate_shape_from_model(self, model: AlignmentModel) -> Part.Shape:

@@ -11,7 +11,7 @@ from PySide.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout,
 
 from .task_panel import TaskPanel
 from ..make import make_alignment
-from ..geometry.alignment import Alignment
+from ..geometry.alignment.alignment import Alignment
 from ..functions.alignment_data_from_object import extract_alignment_data
 
 
@@ -70,14 +70,6 @@ class TaskAlignmentObject(TaskPanel):
         self.start_sta_spin.setSingleStep(10.0)
         params_layout.addRow("Start Station:", self.start_sta_spin)
         
-        # Tolerance for geometry analysis
-        self.tolerance_spin = QDoubleSpinBox()
-        self.tolerance_spin.setRange(1e-6, 1.0)
-        self.tolerance_spin.setValue(0.001)
-        self.tolerance_spin.setDecimals(6)
-        self.tolerance_spin.setSingleStep(0.001)
-        params_layout.addRow("Tolerance:", self.tolerance_spin)
-        
         # Description
         self.desc_edit = QLineEdit()
         self.desc_edit.setText(f"Created from {self.source_obj.Label}")
@@ -109,7 +101,6 @@ class TaskAlignmentObject(TaskPanel):
             name = self.name_edit.text()
             description = self.desc_edit.text()
             start_sta = self.start_sta_spin.value()
-            tolerance = self.tolerance_spin.value()
             reverse = self.reverse_check.isChecked()
             
             # Extract geometry data using helper function from command module
@@ -118,7 +109,6 @@ class TaskAlignmentObject(TaskPanel):
                 name,
                 description,
                 start_sta,
-                tolerance,
                 reverse
             )
             
@@ -127,7 +117,7 @@ class TaskAlignmentObject(TaskPanel):
                 return False
             
             # Create alignment object
-            alignment = make_alignment.create()
+            alignment = make_alignment.create(alignment_data.get('name', 'Alignment'))
             alignment.Model = Alignment(alignment_data)
             alignment.Model.coordinate_system.set_system('custom', alignment.Model.start_point, swap=True)
             
