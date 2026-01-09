@@ -11,14 +11,13 @@ class CoordinateSystem:
     Coordinate system handler using pyproj for coordinate transformations.
     Supports EPSG codes, WKT strings, and coordinate transformations between systems.
     """
-    
     def __init__(self, coord_sys_data: Optional[dict] = None):
         """
         Initialize coordinate system from LandXML coordinate system data.
         
         Args:
             coord_sys_data: Dictionary containing coordinate system info from LandXML
-                           Can include 'epsgCode', 'ogcWktCode', 'name', 'horizontalDatum', etc.
+                        Can include 'wkt', 'epsgCode', 'ogcWktCode', 'name', etc.
         """
         self.coord_sys_data = coord_sys_data or {}
         self.crs = None
@@ -28,11 +27,20 @@ class CoordinateSystem:
         
         # Try to initialize CRS from available data
         self._initialize_crs()
-    
+
     def _initialize_crs(self):
         """Initialize CRS object from available coordinate system data"""
         
-        # Priority 1: Try EPSG code from main level
+        # Priority 1: Try WKT from LandXML reader (most reliable)
+        if 'wkt' in self.coord_sys_data:
+            try:
+                self.crs = CRS.from_wkt(self.coord_sys_data['wkt'])
+                self.wkt_code = self.coord_sys_data['wkt']
+                return
+            except CRSError as e:
+                print(f"Warning: Failed to create CRS from stored WKT - {str(e)}")
+        
+        # Priority 2: Try EPSG code from main level
         if 'epsgCode' in self.coord_sys_data:
             self.epsg_code = self.coord_sys_data['epsgCode']
             try:
@@ -41,7 +49,7 @@ class CoordinateSystem:
             except (ValueError, CRSError) as e:
                 print(f"Warning: Failed to create CRS from EPSG:{self.epsg_code} - {str(e)}")
         
-        # Priority 2: Try EPSG code from HorizontalCoordinateSystem
+        # Priority 3: Try EPSG code from HorizontalCoordinateSystem
         if 'HorizontalCoordinateSystem' in self.coord_sys_data:
             horiz_cs = self.coord_sys_data['HorizontalCoordinateSystem']
             if 'epsgCode' in horiz_cs:
@@ -52,7 +60,7 @@ class CoordinateSystem:
                 except (ValueError, CRSError) as e:
                     print(f"Warning: Failed to create CRS from EPSG:{self.epsg_code} - {str(e)}")
         
-        # Priority 3: Try OGC WKT code
+        # Priority 4: Try OGC WKT code
         if 'ogcWktCode' in self.coord_sys_data:
             self.wkt_code = self.coord_sys_data['ogcWktCode']
             try:
@@ -61,7 +69,7 @@ class CoordinateSystem:
             except CRSError as e:
                 print(f"Warning: Failed to create CRS from WKT - {str(e)}")
         
-        # Priority 4: Try WKT from HorizontalCoordinateSystem
+        # Priority 5: Try WKT from HorizontalCoordinateSystem
         if 'HorizontalCoordinateSystem' in self.coord_sys_data:
             horiz_cs = self.coord_sys_data['HorizontalCoordinateSystem']
             if 'ogcWktCode' in horiz_cs:
@@ -75,7 +83,7 @@ class CoordinateSystem:
         # If no CRS could be initialized
         if self.crs is None:
             print("Warning: Could not initialize coordinate system from available data")
-    
+
     def set_crs_from_epsg(self, epsg_code: Union[int, str]):
         """
         Set coordinate system from EPSG code.
