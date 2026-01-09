@@ -8,7 +8,7 @@ from ..variables import icons_path
 from ..objects.group import Group
 from ..viewproviders.view_group import ViewProviderGroup
 
-from ..objects.georigin import GeoOrigin
+from ..objects.coordinate_system import GeoOrigin
 from ..viewproviders.view_georigin import ViewProviderGeoOrigin
 
 
@@ -27,17 +27,18 @@ def get(name):
     obj.Label = name
     return obj
 
-def georigin(origin=FreeCAD.Vector(), name = "GeoOrigin"):
+def create_project(origin=FreeCAD.Vector()):
     """Get the GeoOrigin object"""
-    obj = FreeCAD.ActiveDocument.getObject(name)
+    obj = FreeCAD.ActiveDocument.getObject("CoordinateSystem")
 
     if not obj:
         obj=FreeCAD.ActiveDocument.addObject(
-            "App::DocumentObjectGroupPython", name)
+            "App::DocumentObjectGroupPython", "CoordinateSystem")
+        obj.Label = "Coordinate System"
 
-        GeoOrigin(obj, "Road::" + name)
+        GeoOrigin(obj, "Road::CoordinateSystem")
         ViewProviderGeoOrigin(
-            obj.ViewObject, icons_path + "/" + name + ".svg")
+            obj.ViewObject, icons_path + "/CoordinateSystem.svg")
 
         for group in ["Clusters", "Terrains", "Alignments", "GeoLines", "Structures", "Roads"]:
             obj.addObject(get(group))

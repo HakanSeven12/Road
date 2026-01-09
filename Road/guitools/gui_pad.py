@@ -7,7 +7,7 @@ import Part
 
 from ..variables import icons_path
 from ..make import make_terrain, make_geopoints
-from ..utils.get_group import georigin
+from ..utils.get_group import create_project
 
 
 class CreatePad:
@@ -46,7 +46,7 @@ class CreatePad:
         """
         slope = 1
         length = 30000
-        self.origin = georigin()
+        self.origin = create_project()
 
         polyline = FreeCADGui.Selection.getSelection()[-2]
         self.target = FreeCADGui.Selection.getSelection()[-1]

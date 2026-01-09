@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
 
 import FreeCAD, Part
-from ..utils.get_group import georigin
+from ..utils.get_group import create_project
 
 
 def extract_alignment_data(obj, name, description, start_sta, reverse):
@@ -11,7 +11,7 @@ def extract_alignment_data(obj, name, description, start_sta, reverse):
     """
     try:
         shape = obj.Shape.copy()
-        shape.translate(georigin(obj.Placement.Base).Base)
+        shape.translate(create_project(obj.Placement.Base).Base)
 
         if not shape.Wires:
             FreeCAD.Console.PrintError("Selected object has no wires.\n")

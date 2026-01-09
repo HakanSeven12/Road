@@ -6,7 +6,7 @@ import FreeCAD
 
 import Part
 
-from ..utils.get_group import georigin
+from ..utils.get_group import create_project
 from ..functions import profile
 
 

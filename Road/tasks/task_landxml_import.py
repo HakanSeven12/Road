@@ -7,11 +7,13 @@ import FreeCAD, FreeCADGui
 from .task_panel import TaskPanel
 from ..landxml.landxml_reader import LandXMLReader
 from ..geometry.alignment.alignment import Alignment
+from ..utils.coordinate_system import CoordinateSystem
 from ..make import make_terrain, make_alignment, make_geopoints
+from ..utils import get_group
 
 from PySide.QtWidgets import (QWidget, QVBoxLayout, 
                              QHBoxLayout, QPushButton, QLabel, QTreeWidget, 
-                             QTreeWidgetItem, QFileDialog, QMessageBox)
+                             QTreeWidgetItem, QFileDialog, QMessageBox, QCheckBox)
 from PySide.QtCore import Qt
 
 
@@ -41,6 +43,12 @@ class TaskLandXMLImport(TaskPanel):
         
         main_layout.addLayout(top_layout)
         
+        # Coordinate system info label
+        self.coord_info_label = QLabel('')
+        self.coord_info_label.setWordWrap(True)
+        self.coord_info_label.setStyleSheet("QLabel { color: #0066cc; padding: 5px; }")
+        main_layout.addWidget(self.coord_info_label)
+        
         # Middle TreeView
         self.tree = QTreeWidget()
         self.tree.setHeaderLabels(['Item', 'Details'])
@@ -69,6 +77,9 @@ class TaskLandXMLImport(TaskPanel):
             self.landxml_reader = LandXMLReader(file_path)
             self.parsed_data = self.landxml_reader.export_to_dict()
             
+            # Update coordinate system info
+            self._update_coord_system_info()
+            
             self.tree.clear()
             self._populate_tree()
             
@@ -79,7 +90,60 @@ class TaskLandXMLImport(TaskPanel):
                 'Error', 
                 f'Failed to load LandXML file:\n{str(e)}'
             )
+    
+    def _update_coord_system_info(self):
+        """Update coordinate system information label."""
+        coord_sys_data = self.parsed_data.get('coordinate_system')
+        
+        if coord_sys_data:
+            coord_sys = CoordinateSystem(coord_sys_data)
+            
+            info_text = "Coordinate System: "
+            
+            if coord_sys.is_valid():
+                epsg_code = coord_sys.get_epsg_code()
+                if epsg_code:
+                    info_text += f"EPSG:{epsg_code} - "
+                info_text += coord_sys.get_name()
+                
+                if coord_sys.is_projected():
+                    info_text += " (Projected)"
+                elif coord_sys.is_geographic():
+                    info_text += " (Geographic)"
+                
+                self.coord_info_label.setText(info_text)
+            else:
+                # Show available info even if CRS couldn't be created
+                name = coord_sys_data.get('name', 'Unknown')
+                epsg = coord_sys_data.get('epsgCode', 'N/A')
+                info_text += f"{name} (EPSG:{epsg}) - Could not create valid CRS"
+                self.coord_info_label.setText(info_text)
+                self.coord_info_label.setStyleSheet("QLabel { color: #cc6600; padding: 5px; }")
+        else:
+            self.coord_info_label.setText("No coordinate system information in LandXML file")
+            self.coord_info_label.setStyleSheet("QLabel { color: #cc0000; padding: 5px; }")
+    
+    def _setup_coordinate_system(self):
+        """Setup GeoOrigin with coordinate system from LandXML."""
+        coord_sys_data = self.parsed_data.get('coordinate_system')
+        if not coord_sys_data:
+            FreeCAD.Console.PrintWarning(
+                "No coordinate system information in LandXML file\n"
+            )
+            return 
+        
+        try:
+            # Find or create GeoOrigin
+            self.geo_origin = get_group.create_project()
+            self.geo_origin.Model = CoordinateSystem(coord_sys_data)
 
+            
+        except Exception as e:
+            FreeCAD.Console.PrintError(
+                f"Error setting up GeoOrigin: {str(e)}\n"
+            )
+            return 
+            
     def _populate_tree(self):
         """Populates tree with data from LandXML reader."""
         # Temporarily block signals to prevent premature updates
@@ -583,6 +647,9 @@ class TaskLandXMLImport(TaskPanel):
         if not self.landxml_reader:
             QMessageBox.warning(self.form, 'Warning', 'No LandXML file loaded!')
             return
+        
+        # Setup GeoOrigin with coordinate system first
+        self._setup_coordinate_system()
 
         # Collect checked alignments
         selected_alignments = []
@@ -597,6 +664,7 @@ class TaskLandXMLImport(TaskPanel):
             self.tree.invisibleRootItem(),
             selected_cgpoint_groups
         )
+        
         # Collect checked Surfaces
         selected_surfaces = []
         self._collect_checked_surface_data(

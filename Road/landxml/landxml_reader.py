@@ -4,12 +4,16 @@ import math
 import xml.etree.ElementTree as ET
 from typing import Dict, List, Optional, Union
 from pathlib import Path
+from pyproj import CRS
+from pyproj.exceptions import CRSError
 from .alignment_parser import AlignmentParser
 from .cgpoint_parser import CgPointParser
 from .surface_parser import SurfaceParser
 from .landxml_config import (
     LANDXML_NAMESPACES,
     UNITS_CONFIG,
+    COORDINATE_SYSTEM_CONFIG,
+    HORIZONTAL_COORDINATE_SYSTEM_CONFIG,
     ANGULAR_UNITS
 )
 
@@ -51,10 +55,11 @@ class LandXMLReader:
         self.direction_unit = 'decimal degrees'  # Default
         self.angular_conversion_factor = ANGULAR_UNITS['decimal degrees']
         self.direction_conversion_factor = ANGULAR_UNITS['decimal degrees']
+        self.coordinate_system = None
     
-        # Parse the XML file and parse units
         self._parse_xml()
         self._parse_units()
+        self._parse_coordinate_system()
     
     def _find_element(self, parent: ET.Element, tag: str) -> Optional[ET.Element]:
         """
@@ -127,15 +132,24 @@ class LandXMLReader:
                             # This is a direction/azimuth attribute
                             dir_value = float(value)
                             
-                            if self.direction_unit == 'radians':
-                                # Already in radians and already math angle (Quadri format)
-                                result[output_key] = dir_value
+                            # First convert to radians based on unit
+                            dir_radians = dir_value * self.direction_conversion_factor
+
+                            # Then, if coordinate system exists, use radians value as-is
+                            # No coordinate system - Convert azimuth (0=North, clockwise) to math angle (0=East, counter-clockwise)
+                            if self.coordinate_system:
+                                # Get azimuth convention from coordinate system
+                                azimuth_convention = self.coordinate_system_data.get(
+                                    '_azimuth_convention', 
+                                    'clockwise_from_north'
+                                )
+                                
+                                if azimuth_convention == 'mirrored':
+                                    dir_radians = -dir_radians
+                                result[output_key] = dir_radians
+
                             else:
-                                # In degrees and it's azimuth (Civil3D, standard LandXML)
-                                # Convert azimuth to math angle
-                                azimuth_deg = dir_value
-                                math_angle_deg = 90.0 - azimuth_deg
-                                result[output_key] = math.radians(math_angle_deg)
+                                result[output_key] = math.pi / 2 - dir_radians
                         else:
                             # Other angles (delta, theta) - just convert based on unit
                             result[output_key] = float(value) * self.angular_conversion_factor
@@ -214,6 +228,126 @@ class LandXMLReader:
             'angular_conversion_factor': self.angular_conversion_factor,
             'direction_conversion_factor': self.direction_conversion_factor
         }
+    
+    def _parse_coordinate_system(self) -> Optional[Dict]:
+        """
+        Parse CoordinateSystem element from LandXML and create CRS object.
+        Can include both attributes and child elements like HorizontalCoordinateSystem.
+        
+        Returns:
+            Dictionary with coordinate system data including WKT or None if not found
+        """
+        coord_sys_elem = self._find_element(self.root, 'CoordinateSystem')
+        
+        if coord_sys_elem is None:
+            return None
+        
+        # Parse main CoordinateSystem attributes
+        coord_sys_data = self._parse_attributes(
+            coord_sys_elem, 
+            COORDINATE_SYSTEM_CONFIG['attr_map']
+        )
+        
+        # Check for HorizontalCoordinateSystem child element
+        horiz_cs_elem = self._find_element(coord_sys_elem, 'HorizontalCoordinateSystem')
+        if horiz_cs_elem is not None:
+            horiz_cs_data = self._parse_attributes(
+                horiz_cs_elem,
+                HORIZONTAL_COORDINATE_SYSTEM_CONFIG['attr_map']
+            )
+            if horiz_cs_data:
+                coord_sys_data['HorizontalCoordinateSystem'] = horiz_cs_data
+        
+        # Try to create CRS from available data
+        crs = None
+        
+        # Priority 1: Try EPSG code
+        epsg_code = coord_sys_data.get('epsgCode')
+        if epsg_code:
+            try:
+                crs = CRS.from_epsg(int(epsg_code))
+                print(f"Created CRS from EPSG:{epsg_code}")
+            except (ValueError, CRSError) as e:
+                print(f"Warning: Failed to create CRS from EPSG:{epsg_code} - {str(e)}")
+        
+        # Priority 2: Try WKT code if EPSG failed
+        if crs is None and 'ogcWktCode' in coord_sys_data:
+            try:
+                crs = CRS.from_wkt(coord_sys_data['ogcWktCode'])
+                print(f"Created CRS from WKT")
+            except CRSError as e:
+                print(f"Warning: Failed to create CRS from WKT - {str(e)}")
+        
+        # Priority 3: Try from HorizontalCoordinateSystem EPSG
+        if crs is None and 'HorizontalCoordinateSystem' in coord_sys_data:
+            horiz_epsg = coord_sys_data['HorizontalCoordinateSystem'].get('epsgCode')
+            if horiz_epsg:
+                try:
+                    crs = CRS.from_epsg(int(horiz_epsg))
+                    print(f"Created CRS from HorizontalCoordinateSystem EPSG:{horiz_epsg}")
+                except (ValueError, CRSError) as e:
+                    print(f"Warning: Failed to create CRS from HorizontalCoordinateSystem EPSG:{horiz_epsg} - {str(e)}")
+        
+        # If CRS was created successfully, add WKT and analyze axis order
+        if crs is not None:
+            # Store WKT representation
+            coord_sys_data['wkt'] = crs.to_wkt()
+            
+            # Analyze axis order to determine azimuth convention
+            coord_sys_data['_azimuth_convention'] = self._determine_convention_from_crs(crs)
+            
+            # Store additional CRS info
+            coord_sys_data['crs_name'] = crs.name
+            coord_sys_data['is_projected'] = crs.is_projected
+            coord_sys_data['is_geographic'] = crs.is_geographic
+        else:
+            print("Warning: Could not create CRS from coordinate system data")
+            # Default to standard convention
+            coord_sys_data['_azimuth_convention'] = 'clockwise_from_north'
+        
+        self.coordinate_system = coord_sys_data if coord_sys_data else None
+
+    def _determine_convention_from_crs(self, crs: CRS) -> str:
+        """
+        Determine azimuth convention by analyzing CRS axis order from WKT.
+        
+        Args:
+            crs: PyProj CRS object
+        
+        Returns:
+            'clockwise_from_north' (standard) or 'mirrored' (reversed axis)
+        """
+        try:
+            # Get axis info
+            axis_info = crs.axis_info
+            
+            if len(axis_info) < 2:
+                return 'clockwise_from_north'
+            
+            # Check first axis
+            first_axis = axis_info[0]
+            
+            # Check axis name and abbreviation
+            first_name = first_axis.name.lower()
+            first_abbrev = first_axis.abbrev.lower()
+            
+            # If first axis is Northing/North, it's mirrored (North, East order)
+            if 'north' in first_name or first_abbrev == 'n':
+                print(f"CRS axis order: Northing first (ORDER[1]=N, ORDER[2]=E) - Using mirrored azimuth convention")
+                return 'mirrored'
+            
+            # If first axis is Easting/East, it's standard (East, North order)
+            if 'east' in first_name or first_abbrev == 'e':
+                print(f"CRS axis order: Easting first (ORDER[1]=E, ORDER[2]=N) - Using standard azimuth convention")
+                return 'clockwise_from_north'
+            
+            # Default to standard
+            print(f"CRS axis order: Unknown ({first_name}) - Using standard azimuth convention")
+            return 'clockwise_from_north'
+            
+        except Exception as e:
+            print(f"Warning: Could not determine axis order from CRS: {str(e)}")
+            return 'clockwise_from_north'
     
     def _parse_point(self, point_text: str) -> tuple:
         """
@@ -531,6 +665,7 @@ class LandXMLReader:
             'cgpoint_count': sum(len(g.get('points', [])) for g in self.cgpoints_data),
             'surface_count': len(self.surfaces_data),
             'profile_count': self.get_profile_count(),
+            'coordinate_system': self.coordinate_system,
             'alignments': self.alignments_data,
             'cgpoint_groups': self.cgpoints_data,
             'surfaces': self.surfaces_data
