@@ -60,7 +60,9 @@ COORDINATE_SYSTEM_CONFIG = {
         'datumName': ('datumName', str),
         'gridCoordinateSystemName': ('gridCoordinateSystemName', str),
         'epsgCode': ('epsgCode', str),
-        'ogcWktCode': ('ogcWktCode', str)
+        'ogcWktCode': ('ogcWktCode', str),
+        'verticalCoordinateSystemName': ('verticalCoordinateSystemName', str),
+        'rotationAngle': ('rotationAngle', 'float')
     }
 }
 

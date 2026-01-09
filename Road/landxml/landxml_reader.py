@@ -10,6 +10,7 @@ from .surface_parser import SurfaceParser
 from .landxml_config import (
     LANDXML_NAMESPACES,
     UNITS_CONFIG,
+    COORDINATE_SYSTEM_CONFIG,
     ANGULAR_UNITS
 )
 
@@ -51,10 +52,11 @@ class LandXMLReader:
         self.direction_unit = 'decimal degrees'  # Default
         self.angular_conversion_factor = ANGULAR_UNITS['decimal degrees']
         self.direction_conversion_factor = ANGULAR_UNITS['decimal degrees']
+        self.coordinate_system = None
     
-        # Parse the XML file and parse units
         self._parse_xml()
         self._parse_units()
+        self._parse_coordinate_system()
     
     def _find_element(self, parent: ET.Element, tag: str) -> Optional[ET.Element]:
         """
@@ -214,6 +216,26 @@ class LandXMLReader:
             'angular_conversion_factor': self.angular_conversion_factor,
             'direction_conversion_factor': self.direction_conversion_factor
         }
+    def _parse_coordinate_system(self) -> Optional[Dict]:
+        """
+        Parse CoordinateSystem element from LandXML.
+        
+        Returns:
+            Dictionary with coordinate system data or None if not found
+        """
+        coord_sys_elem = self._find_element(self.root, 'CoordinateSystem')
+        
+        if coord_sys_elem is None:
+            print("Warning: No CoordinateSystem element found in LandXML file")
+            return None
+        
+        # Parse coordinate system attributes
+        coord_sys_data = self._parse_attributes(
+            coord_sys_elem, 
+            COORDINATE_SYSTEM_CONFIG['attr_map']
+        )
+        
+        self.coordinate_system = coord_sys_data if coord_sys_data else None
     
     def _parse_point(self, point_text: str) -> tuple:
         """
@@ -531,6 +553,7 @@ class LandXMLReader:
             'cgpoint_count': sum(len(g.get('points', [])) for g in self.cgpoints_data),
             'surface_count': len(self.surfaces_data),
             'profile_count': self.get_profile_count(),
+            'coordinate_system': self.coordinate_system,
             'alignments': self.alignments_data,
             'cgpoint_groups': self.cgpoints_data,
             'surfaces': self.surfaces_data
