@@ -5,7 +5,7 @@ from ..utils.get_group import create_project
 import math
 
 
-def extract_alignment_data(obj, name, description, start_sta, tolerance, reverse):
+def extract_alignment_data(obj, name, description, start_sta, reverse):
     """
     Extract alignment geometry data from FreeCAD object.
     Returns dictionary compatible with Alignment class initialization.
@@ -14,19 +14,20 @@ def extract_alignment_data(obj, name, description, start_sta, tolerance, reverse
         shape = obj.Shape.copy()
         shape.translate(create_project(obj.Placement.Base).Base)
 
+        if not shape.Wires:
+            FreeCAD.Console.PrintError("Selected object has no wires.\n")
+            return None
+        
         # Get ordered edges
-        if len(shape.Wires) > 0:
-            wire = shape.Wires[0]
-            edges = wire.OrderedEdges
-        else:
-            edges = order_edges(shape.Edges, tolerance)
+        wire = shape.Wires[0]
+        edges = wire.OrderedEdges
 
         if reverse:
             edges = list(reversed(edges))
 
         # Extract elements
         coord_geom = []
-        current_station = 0
+        current_station = start_sta
 
         for i, edge in enumerate(edges):
             element_data = edge_to_geometry(edge, current_station, i)
@@ -37,6 +38,7 @@ def extract_alignment_data(obj, name, description, start_sta, tolerance, reverse
         return {
             'name': name,
             'desc': description,
+            'staStart': start_sta,
             'CoordGeom': coord_geom,
             'coordinateSystem': {
                 'system_type': 'global'
@@ -46,43 +48,6 @@ def extract_alignment_data(obj, name, description, start_sta, tolerance, reverse
     except Exception as e:
         FreeCAD.Console.PrintError(f"Error extracting alignment data: {str(e)}\n")
         return None
-
-def order_edges(edges, tolerance):
-    """Order disconnected edges into continuous path"""
-    if len(edges) <= 1:
-        return edges
-
-    ordered = [edges[0]]
-    remaining = list(edges[1:])
-
-    while remaining:
-        last_edge = ordered[-1]
-        last_point = last_edge.Vertexes[-1].Point
-
-        found = False
-        for i, edge in enumerate(remaining):
-            sp = edge.Vertexes[0].Point
-            ep = edge.Vertexes[-1].Point
-
-            if last_point.distanceToPoint(sp) < tolerance:
-                ordered.append(edge)
-                remaining.pop(i)
-                found = True
-                break
-            elif last_point.distanceToPoint(ep) < tolerance:
-                reversed_edge = edge.reversed()
-                ordered.append(reversed_edge)
-                remaining.pop(i)
-                found = True
-                break
-
-        if not found:
-            FreeCAD.Console.PrintWarning("Gap detected in geometry - continuing anyway.\n")
-            ordered.extend(remaining)
-            break
-
-    return ordered
-
 
 def edge_to_geometry(edge, station, index):
     """Convert FreeCAD edge to alignment geometry element dictionary."""

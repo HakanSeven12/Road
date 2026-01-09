@@ -5,7 +5,6 @@
 import FreeCAD, FreeCADGui
 
 from ..variables import icons_path
-from ..make import make_profile
 from ..tasks import task_profile_editor
 
 
@@ -34,6 +33,8 @@ class ProfileCreate:
 
     def Activated(self):
         """Command activation method"""
+        pass
+        """
         profile = make_profile.create()
         self.profile_frame.addObject(profile)
 
@@ -41,5 +42,6 @@ class ProfileCreate:
         FreeCADGui.Control.showDialog(panel)
 
         FreeCAD.ActiveDocument.recompute()
+        """
 
 FreeCADGui.addCommand("Profile Create", ProfileCreate())

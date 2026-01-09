@@ -6,7 +6,7 @@ import FreeCAD, FreeCADGui
 
 from ..variables import icons_path
 from ..make import make_alignment
-from ..tasks import task_alignment_editor
+from ..tasks.task_alignment_editor import AlignmentEditor
 
 
 class AlignmentCreate:
@@ -32,7 +32,7 @@ class AlignmentCreate:
         # Check for selected object
         alignment = make_alignment.create()
 
-        panel = task_alignment_editor.run(alignment)
+        panel = AlignmentEditor(alignment)
         FreeCADGui.Control.showDialog(panel)
 
         FreeCAD.ActiveDocument.recompute()

@@ -99,9 +99,10 @@ class ViewProviderComponentPoint:
             self.location.translation = shape.CenterOfMass
 
             component = obj.getParentGroup()
-            side = coin.SoAsciiText.LEFT if component.Side == "Right" else coin.SoAsciiText.RIGHT
-            self.text.justification = side
-            self.text.string.setValues([obj.Label])
+            if component:
+                side = coin.SoAsciiText.LEFT if component.Side == "Right" else coin.SoAsciiText.RIGHT
+                self.text.justification = side
+                self.text.string.setValues([obj.Label])
 
     def getDisplayModes(self,vobj):
         """Return a list of display modes."""

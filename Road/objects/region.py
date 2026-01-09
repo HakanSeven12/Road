@@ -97,7 +97,7 @@ class Region(GeoObject):
 
         # Generate stations using alignment model method
         try:
-            stations = alignment_model.generate_stations(
+            obj.Stations = alignment_model.generate_stations(
                 start_station=start,
                 end_station=end,
                 increments=increments,
@@ -110,12 +110,9 @@ class Region(GeoObject):
             )
             return
         
-        # Store stations in mm for compatibility
-        obj.Stations = [sta * 1000.0 for sta in stations]
-
         lines = []
         # Computing coordinates and orthogonals for guidelines
-        for sta in stations:
+        for sta in obj.Stations:
             try:
                 # Small tolerance for floating point errors
                 tolerance = 1e-6
