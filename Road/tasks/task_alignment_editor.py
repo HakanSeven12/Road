@@ -271,8 +271,8 @@ class AlignmentEditor(QWidget):
                         pi_data['point'][0],
                         pi_data['point'][1],
                         pi_data.get('station', ''),
-                        pi_data.get('spiral_in', ''),
                         pi_data.get('radius', ''),
+                        pi_data.get('spiral_in', ''),
                         pi_data.get('spiral_out', ''),
                         pi_data.get('description', '')
                     ])
