@@ -1148,20 +1148,30 @@ class Alignment:
             
         Returns:
             New Alignment instance
-            
-        Example:
-            pis = [
-                {'point': (0, 0)},
-                {'point': (100, 0), 'radius': 50},
-                {'point': (150, 50), 'radius': 75, 'spiral_in': 20, 'spiral_out': 20},
-                {'point': (200, 100)}
-            ]
-            alignment = Alignment.from_pis(pis, name="Highway-1")
         """
         if len(pi_list) < 2:
             raise ValueError("At least 2 PI points required")
         
-        coord_geom = Alignment._generate_geometry_from_pis(pi_list)
+        coord_geom = []
+        previous_segment_end = pi_list[0]['point']  # Start from first PI point
+
+        for i in range(1, len(pi_list) - 1):
+            pi_previous = pi_list[i - 1]
+            pi_current = pi_list[i]
+            pi_next = pi_list[i + 1] if i + 1 < len(pi_list) else None
+            
+            segment_geoms = Alignment._create_segment_geometry(
+                pi_previous,
+                pi_current,
+                pi_next,
+                previous_segment_end
+            )
+            
+            coord_geom.extend(segment_geoms)
+            
+            # Track the end point of this segment for next iteration
+            if segment_geoms:
+                previous_segment_end = segment_geoms[-1]['End']
         
         alignment_data = {
             'name': name,
@@ -1176,54 +1186,48 @@ class Alignment:
         return Alignment(alignment_data)
 
     @staticmethod
-    def _generate_geometry_from_pis(pi_list: List[Dict]) -> List[Dict]:
-        """Generate geometry elements from PI list."""
-        geometry_list = []
-        
-        for i in range(len(pi_list) - 1):
-            pi_current = pi_list[i]
-            pi_next = pi_list[i + 1]
-            pi_after_next = pi_list[i + 2] if i + 2 < len(pi_list) else None
-            
-            segment_geoms = Alignment._create_segment_geometry(
-                pi_current,
-                pi_next,
-                pi_after_next,
-                i == 0
-            )
-            
-            geometry_list.extend(segment_geoms)
-        
-        return geometry_list
-
-    @staticmethod
     def _create_segment_geometry(
+        pi_previous: Dict,
         pi_current: Dict,
-        pi_next: Dict,
-        pi_after_next: Optional[Dict],
-        is_first_segment: bool
+        pi_next: Optional[Dict],
+        previous_segment_end: Optional[Tuple[float, float]] = None
     ) -> List[Dict]:
-        """Create geometry elements between two consecutive PI points."""
-        elements = []
-        
+        """
+        Create geometry elements between two consecutive PI points.
+        Adds connecting line if there's a gap between previous segment and current segment.
+        """
+        pt_previous = pi_previous['point']
         pt_current = pi_current['point']
-        pt_next = pi_next['point']
+        pt_next = pi_next['point'] if pi_next else None
         
+
         # Curve parameters are at NEXT PI
-        radius = pi_next.get('radius', None)
-        spiral_in = pi_next.get('spiral_in', None)
-        spiral_out = pi_next.get('spiral_out', None)
+        radius = pi_current.get('radius', None)
+        spiral_in = pi_current.get('spiral_in', None)
+        spiral_out = pi_current.get('spiral_out', None)
         
-        if pi_after_next:
-            pt_after_next = pi_after_next['point']
-        else:
+        if not pt_next:
             # Last segment - straight line only
-            return [{'Type': 'Line', 'Start': pt_current, 'End': pt_next}]
+            elements = []
+            # Check if connecting line needed from previous segment
+            if previous_segment_end:
+                dist = math.sqrt(
+                    (pt_current[0] - previous_segment_end[0])**2 + 
+                    (pt_current[1] - previous_segment_end[1])**2
+                )
+                if dist > 1e-6:  # If there's a gap
+                    elements.append({
+                        'Type': 'Line', 
+                        'Start': previous_segment_end, 
+                        'End': pt_current
+                    })
+            elements.append({'Type': 'Line', 'Start': pt_previous, 'End': pt_next})
+            return elements
         
         # Calculate direction to check for minimal deflection
-        dir_in = math.atan2(pt_next[1] - pt_current[1], pt_next[0] - pt_current[0])
-        dir_out = math.atan2(pt_after_next[1] - pt_next[1], pt_after_next[0] - pt_next[0])
-        
+        dir_in = math.atan2(pt_current[1] - pt_previous[1], pt_current[0] - pt_previous[0])
+        dir_out = math.atan2(pt_current[1] - pt_next[1], pt_current[0] - pt_next[0])
+
         # Calculate deflection angle
         delta = dir_out - dir_in
         while delta > math.pi:
@@ -1233,19 +1237,47 @@ class Alignment:
         
         # Straight line if no curve or minimal deflection
         if abs(delta) < 1e-6 or radius is None:
-            return [{'Type': 'Line', 'Start': pt_current, 'End': pt_next}]
+            elements = []
+            # Check if connecting line needed from previous segment
+            if previous_segment_end:
+                dist = math.sqrt(
+                    (pt_current[0] - previous_segment_end[0])**2 + 
+                    (pt_current[1] - previous_segment_end[1])**2
+                )
+                if dist > 1e-6:  # If there's a gap
+                    elements.append({
+                        'Type': 'Line', 
+                        'Start': previous_segment_end, 
+                        'End': pt_current
+                    })
+            elements.append({'Type': 'Line', 'Start': pt_current, 'End': pt_next})
+            return elements
         
         # Check for spirals
         if spiral_in or spiral_out:
-            return Alignment._create_scs_geometry(
-                pt_current, pt_next, pt_after_next,
-                radius, spiral_in, spiral_out, is_first_segment
-            )
+            curve_elements = Alignment._create_scs_geometry(
+                pt_previous,pt_current, pt_next,
+                radius, spiral_in, spiral_out)
         else:
-            return Alignment._create_simple_curve_geometry(
-                pt_current, pt_next, pt_after_next,
-                radius, is_first_segment
+            curve_elements = Alignment._create_simple_curve_geometry(
+                pt_previous,pt_current, pt_next,radius)
+        
+        # Add connecting line if there's a gap from previous segment to first element of current segment
+        if previous_segment_end and curve_elements:
+            first_element_start = curve_elements[0]['Start']
+            dist = math.sqrt(
+                (first_element_start[0] - previous_segment_end[0])**2 + 
+                (first_element_start[1] - previous_segment_end[1])**2
             )
+            if dist > 1e-6:  # If there's a gap
+                # Insert connecting line at the beginning
+                curve_elements.insert(0, {
+                    'Type': 'Line', 
+                    'Start': previous_segment_end, 
+                    'End': first_element_start
+                })
+        
+        return curve_elements
 
     @staticmethod
     def _create_simple_curve_geometry(
@@ -1253,7 +1285,6 @@ class Alignment:
         pt_pi: Tuple[float, float],
         pt_end: Tuple[float, float],
         radius: float,
-        is_first_segment: bool
     ) -> List[Dict]:
         """
         Create Line + Curve geometry (simple curve without spirals).
@@ -1315,14 +1346,6 @@ class Alignment:
         center_x = pc_x + radius * math.cos(perp_angle)
         center_y = pc_y + radius * math.sin(perp_angle)
         
-        # Create Line element from start to PC (if not first segment)
-        if not is_first_segment:
-            elements.append({
-                'Type': 'Line',
-                'Start': pt_start,
-                'End': (pc_x, pc_y)
-            })
-        
         # Create Curve element from PC to PT
         elements.append({
             'Type': 'Curve',
@@ -1344,7 +1367,6 @@ class Alignment:
         radius: float,
         spiral_in_length: float,
         spiral_out_length: float,
-        is_first_segment: bool
     ) -> List[Dict]:
         """
         Create Spiral + Curve + Spiral geometry.
@@ -1394,7 +1416,7 @@ class Alignment:
         if (not spiral_in_length or spiral_in_length <= 0) and \
         (not spiral_out_length or spiral_out_length <= 0):
             return Alignment._create_simple_curve_geometry(
-                pt_start, pt_pi, pt_end, radius, is_first_segment
+                pt_start, pt_pi, pt_end, radius
             )
         
         # Normalize spiral lengths (treat None or negative as zero)
@@ -1480,14 +1502,6 @@ class Alignment:
         else:
             st_x = cs_x
             st_y = cs_y
-        
-        # Create Line to start of curve/spiral (if not first segment)
-        if not is_first_segment:
-            elements.append({
-                'Type': 'Line',
-                'Start': pt_start,
-                'End': (ts_x, ts_y)
-            })
         
         # Entry spiral (only if length > 0)
         if spiral_in_length > 0:

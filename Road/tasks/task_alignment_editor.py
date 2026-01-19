@@ -82,8 +82,8 @@ class AlignmentEditor(QWidget):
         if pi_data:
             point_x = str(pi_data.get('point', (0.0, 0.0))[0])
             point_y = str(pi_data.get('point', (0.0, 0.0))[1])
-            radius = str(pi_data.get('radius', ''))
             spiral_in = str(pi_data.get('spiral_in', ''))
+            radius = str(pi_data.get('radius', ''))
             spiral_out = str(pi_data.get('spiral_out', ''))
         else:
             point_x = "0.0"
@@ -95,8 +95,8 @@ class AlignmentEditor(QWidget):
         # Add properties
         self._add_property_item(pi_item, "Point X", point_x, editable=True)
         self._add_property_item(pi_item, "Point Y", point_y, editable=True)
-        self._add_property_item(pi_item, "Radius", radius, editable=True)
         self._add_property_item(pi_item, "Spiral In", spiral_in, editable=True)
+        self._add_property_item(pi_item, "Radius", radius, editable=True)
         self._add_property_item(pi_item, "Spiral Out", spiral_out, editable=True)
         
         # Expand the item
@@ -189,7 +189,7 @@ class AlignmentEditor(QWidget):
         property_name = item.text(0)
         value = item.text(1)
         
-        if property_name in ["Point X", "Point Y", "Station", "Radius", "Spiral In", "Spiral Out"]:
+        if property_name in ["Point X", "Point Y", "Station", "Spiral In", "Radius", "Spiral Out"]:
             # Allow empty values
             if value.strip() == "":
                 return
@@ -271,8 +271,8 @@ class AlignmentEditor(QWidget):
                         pi_data['point'][0],
                         pi_data['point'][1],
                         pi_data.get('station', ''),
-                        pi_data.get('radius', ''),
                         pi_data.get('spiral_in', ''),
+                        pi_data.get('radius', ''),
                         pi_data.get('spiral_out', ''),
                         pi_data.get('description', '')
                     ])
@@ -303,10 +303,10 @@ class AlignmentEditor(QWidget):
                     pi_data['point'] = (pi_data.get('point', (0.0, 0.0))[0], y)
                 elif property_name == "Station":
                     pi_data['station'] = float(property_value) if property_value else None
-                elif property_name == "Radius":
-                    pi_data['radius'] = float(property_value) if property_value else None
                 elif property_name == "Spiral In":
                     pi_data['spiral_in'] = float(property_value) if property_value else None
+                elif property_name == "Radius":
+                    pi_data['radius'] = float(property_value) if property_value else None
                 elif property_name == "Spiral Out":
                     pi_data['spiral_out'] = float(property_value) if property_value else None
                 elif property_name == "Description":
