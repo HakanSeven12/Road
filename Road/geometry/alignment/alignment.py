@@ -1170,8 +1170,19 @@ class Alignment:
             coord_geom.extend(segment_geoms)
             
             # Track the end point of this segment for next iteration
-            if segment_geoms:
-                previous_segment_end = segment_geoms[-1]['End']
+            previous_segment_end = segment_geoms[-1]['End']
+
+        # Handle last segment to final PI
+        dist = math.sqrt(
+            (pi_list[-1]['point'][0] - previous_segment_end[0])**2 + 
+            (pi_list[-1]['point'][1] - previous_segment_end[1])**2
+        )
+        if dist > 1e-6:  # If there's a gap
+            coord_geom.append({
+                'Type': 'Line', 
+                'Start': previous_segment_end, 
+                'End': pi_list[-1]['point']
+            })
         
         alignment_data = {
             'name': name,
@@ -1200,13 +1211,7 @@ class Alignment:
         pt_current = pi_current['point']
         pt_next = pi_next['point'] if pi_next else None
         
-
-        # Curve parameters are at NEXT PI
-        radius = pi_current.get('radius', None)
-        spiral_in = pi_current.get('spiral_in', None)
-        spiral_out = pi_current.get('spiral_out', None)
-        
-        if not pt_next:
+        if pt_next is None:
             # Last segment - straight line only
             elements = []
             # Check if connecting line needed from previous segment
@@ -1221,8 +1226,12 @@ class Alignment:
                         'Start': previous_segment_end, 
                         'End': pt_current
                     })
-            elements.append({'Type': 'Line', 'Start': pt_previous, 'End': pt_next})
             return elements
+
+        # Curve parameters are at NEXT PI
+        radius = pi_current.get('radius', None)
+        spiral_in = pi_current.get('spiral_in', None)
+        spiral_out = pi_current.get('spiral_out', None)
         
         # Calculate direction to check for minimal deflection
         dir_in = math.atan2(pt_current[1] - pt_previous[1], pt_current[0] - pt_previous[0])
@@ -1250,7 +1259,6 @@ class Alignment:
                         'Start': previous_segment_end, 
                         'End': pt_current
                     })
-            elements.append({'Type': 'Line', 'Start': pt_current, 'End': pt_next})
             return elements
         
         # Check for spirals
