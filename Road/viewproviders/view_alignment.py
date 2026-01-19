@@ -203,7 +203,7 @@ class ViewProviderAlignment(ViewProviderGeoObject):
     def onChanged(self, vobj, prop):
         """Update Object visuals when a view property changed."""
         if prop == "Labels":
-            if not hasattr(vobj, 'Transformation'):
+            if not hasattr(vobj, 'Transformation') or not hasattr(vobj, 'Model'):
                 return
                 
             self.label_manager.clear_labels()

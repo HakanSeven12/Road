@@ -1214,15 +1214,15 @@ class Alignment:
         spiral_in = pi_next.get('spiral_in', None)
         spiral_out = pi_next.get('spiral_out', None)
         
-        # Calculate directions
-        dir_in = math.atan2(pt_next[1] - pt_current[1], pt_next[0] - pt_current[0])
-        
         if pi_after_next:
             pt_after_next = pi_after_next['point']
-            dir_out = math.atan2(pt_after_next[1] - pt_next[1], pt_after_next[0] - pt_next[0])
         else:
             # Last segment - straight line only
             return [{'Type': 'Line', 'Start': pt_current, 'End': pt_next}]
+        
+        # Calculate direction to check for minimal deflection
+        dir_in = math.atan2(pt_next[1] - pt_current[1], pt_next[0] - pt_current[0])
+        dir_out = math.atan2(pt_after_next[1] - pt_next[1], pt_after_next[0] - pt_next[0])
         
         # Calculate deflection angle
         delta = dir_out - dir_in
@@ -1235,52 +1235,87 @@ class Alignment:
         if abs(delta) < 1e-6 or radius is None:
             return [{'Type': 'Line', 'Start': pt_current, 'End': pt_next}]
         
-        rotation = 'cw' if delta > 0 else 'ccw'
-        delta_abs = abs(delta)
-        
         # Check for spirals
-        if spiral_in and spiral_out and spiral_in > 0 and spiral_out > 0:
+        if spiral_in or spiral_out:
             return Alignment._create_scs_geometry(
                 pt_current, pt_next, pt_after_next,
-                dir_in, dir_out, radius, spiral_in, spiral_out,
-                rotation, delta_abs, is_first_segment
+                radius, spiral_in, spiral_out, is_first_segment
             )
         else:
             return Alignment._create_simple_curve_geometry(
-                pt_current, pt_next, dir_in, dir_out,
-                radius, rotation, delta_abs, is_first_segment
+                pt_current, pt_next, pt_after_next,
+                radius, is_first_segment
             )
 
     @staticmethod
     def _create_simple_curve_geometry(
         pt_start: Tuple[float, float],
         pt_pi: Tuple[float, float],
-        dir_in: float,
-        dir_out: float,
+        pt_end: Tuple[float, float],
         radius: float,
-        rotation: str,
-        delta: float,
         is_first_segment: bool
     ) -> List[Dict]:
-        """Create Line + Curve geometry."""
+        """
+        Create Line + Curve geometry (simple curve without spirals).
+        
+        Args:
+            pt_start: Starting point of the segment
+            pt_pi: Point of Intersection
+            pt_end: End point of the segment (next PI or alignment end)
+            radius: Curve radius
+            is_first_segment: True if this is the first segment in alignment
+            
+        Returns:
+            List of geometry element dictionaries
+        """
         elements = []
         
-        tangent_length = radius * math.tan(delta / 2)
+        # Calculate incoming direction (from start to PI)
+        dir_in = math.atan2(pt_pi[1] - pt_start[1], pt_pi[0] - pt_start[0])
         
-        # PC (Point of Curvature)
+        # Calculate outgoing direction (from PI to end)
+        dir_out = math.atan2(pt_end[1] - pt_pi[1], pt_end[0] - pt_pi[0])
+        
+        # Calculate deflection angle
+        delta = dir_out - dir_in
+        
+        # Normalize delta to [-π, π]
+        while delta > math.pi:
+            delta -= 2 * math.pi
+        while delta < -math.pi:
+            delta += 2 * math.pi
+        
+        # Determine rotation direction
+        if delta > 0:
+            rotation = 'cw'
+        else:
+            rotation = 'ccw'
+        
+        # Use absolute value of delta for calculations
+        delta_abs = abs(delta)
+        
+        # Calculate tangent length from PI to PC/PT
+        tangent_length = radius * math.tan(delta_abs / 2)
+        
+        # PC (Point of Curvature) - start of curve
         pc_x = pt_pi[0] - tangent_length * math.cos(dir_in)
         pc_y = pt_pi[1] - tangent_length * math.sin(dir_in)
         
-        # PT (Point of Tangency)
+        # PT (Point of Tangency) - end of curve
         pt_x = pt_pi[0] + tangent_length * math.cos(dir_out)
         pt_y = pt_pi[1] + tangent_length * math.sin(dir_out)
         
-        # Center point
-        perp_angle = dir_in + math.pi / 2 if rotation == 'cw' else dir_in - math.pi / 2
+        # Calculate center point of curve
+        # Perpendicular angle depends on rotation direction
+        if rotation == 'cw':
+            perp_angle = dir_in + math.pi / 2
+        else:  # ccw
+            perp_angle = dir_in - math.pi / 2
+        
         center_x = pc_x + radius * math.cos(perp_angle)
         center_y = pc_y + radius * math.sin(perp_angle)
         
-        # Line to PC (if not first segment)
+        # Create Line element from start to PC (if not first segment)
         if not is_first_segment:
             elements.append({
                 'Type': 'Line',
@@ -1288,15 +1323,15 @@ class Alignment:
                 'End': (pc_x, pc_y)
             })
         
-        # Curve from PC to PT
-        # Geometry classes will compute: delta, length, chord, tangent, etc.
+        # Create Curve element from PC to PT
         elements.append({
             'Type': 'Curve',
             'Start': (pc_x, pc_y),
             'End': (pt_x, pt_y),
             'Center': (center_x, center_y),
             'PI': pt_pi,
-            'rot': rotation
+            'rot': rotation,
+            'radius': radius
         })
         
         return elements
@@ -1306,85 +1341,147 @@ class Alignment:
         pt_start: Tuple[float, float],
         pt_pi: Tuple[float, float],
         pt_end: Tuple[float, float],
-        dir_in: float,
-        dir_out: float,
         radius: float,
         spiral_in_length: float,
         spiral_out_length: float,
-        rotation: str,
-        delta: float,
         is_first_segment: bool
     ) -> List[Dict]:
-        """Create Line + Spiral + Curve + Spiral geometry."""
+        """
+        Create Spiral + Curve + Spiral geometry.
+        Handles cases where spirals can be zero (simple curve) or only one spiral exists.
+        
+        Args:
+            pt_start: Starting point of the segment
+            pt_pi: Point of Intersection
+            pt_end: End point of the segment (next PI or alignment end)
+            radius: Curve radius
+            spiral_in_length: Entry spiral length (can be 0 or None)
+            spiral_out_length: Exit spiral length (can be 0 or None)
+            is_first_segment: True if this is the first segment in alignment
+            
+        Returns:
+            List of geometry element dictionaries
+        """
         from scipy.special import fresnel
         
         elements = []
         
-        # Spiral angles
-        theta_in = spiral_in_length / (2 * radius)
-        theta_out = spiral_out_length / (2 * radius)
+        # Calculate incoming direction (from start to PI)
+        dir_in = math.atan2(pt_pi[1] - pt_start[1], pt_pi[0] - pt_start[0])
         
-        # Fresnel integrals for entry spiral
-        A_in = math.sqrt(spiral_in_length * radius * math.pi)
-        t_in = spiral_in_length / A_in
-        S_in, C_in = fresnel(t_in)
-        x_in = A_in * C_in
-        y_in = A_in * S_in
+        # Calculate outgoing direction (from PI to end)
+        dir_out = math.atan2(pt_end[1] - pt_pi[1], pt_end[0] - pt_pi[0])
         
-        # Fresnel integrals for exit spiral
-        A_out = math.sqrt(spiral_out_length * radius * math.pi)
-        t_out = spiral_out_length / A_out
-        S_out, C_out = fresnel(t_out)
-        x_out = A_out * C_out
-        y_out = A_out * S_out
+        # Calculate deflection angle
+        delta = dir_out - dir_in
         
-        # Spiral offsets
-        p_in = y_in - x_in * math.tan(theta_in)
-        p_out = y_out - x_out * math.tan(theta_out)
+        # Normalize delta to [-π, π]
+        while delta > math.pi:
+            delta -= 2 * math.pi
+        while delta < -math.pi:
+            delta += 2 * math.pi
+        
+        # Determine rotation direction
+        if delta > 0:
+            rotation = 'cw'
+        else:
+            rotation = 'ccw'
+        
+        # Use absolute value of delta for calculations
+        delta_abs = abs(delta)
+        
+        # Check if both spirals are zero or None - create simple curve
+        if (not spiral_in_length or spiral_in_length <= 0) and \
+        (not spiral_out_length or spiral_out_length <= 0):
+            return Alignment._create_simple_curve_geometry(
+                pt_start, pt_pi, pt_end, radius, is_first_segment
+            )
+        
+        # Normalize spiral lengths (treat None or negative as zero)
+        spiral_in_length = max(0.0, spiral_in_length or 0.0)
+        spiral_out_length = max(0.0, spiral_out_length or 0.0)
+        
+        # Calculate spiral angles
+        theta_in = spiral_in_length / (2 * radius) if spiral_in_length > 0 else 0.0
+        theta_out = spiral_out_length / (2 * radius) if spiral_out_length > 0 else 0.0
+        
+        # Calculate entry spiral parameters
+        if spiral_in_length > 0:
+            A_in = math.sqrt(spiral_in_length * radius * math.pi)
+            t_in = spiral_in_length / A_in
+            S_in, C_in = fresnel(t_in)
+            x_in = A_in * C_in
+            y_in = A_in * S_in
+            p_in = y_in - x_in * math.tan(theta_in)
+        else:
+            x_in = 0.0
+            y_in = 0.0
+            p_in = 0.0
+        
+        # Calculate exit spiral parameters
+        if spiral_out_length > 0:
+            A_out = math.sqrt(spiral_out_length * radius * math.pi)
+            t_out = spiral_out_length / A_out
+            S_out, C_out = fresnel(t_out)
+            x_out = A_out * C_out
+            y_out = A_out * S_out
+            p_out = y_out - x_out * math.tan(theta_out)
+        else:
+            x_out = 0.0
+            y_out = 0.0
+            p_out = 0.0
         
         # Remaining curve angle
-        delta_curve = delta - theta_in - theta_out
+        delta_curve = delta_abs - theta_in - theta_out
         if delta_curve < 0:
             raise ValueError(
                 f"Spiral lengths too long: total spiral angle ({theta_in + theta_out:.4f}) "
-                f"exceeds deflection angle ({delta:.4f})"
+                f"exceeds deflection angle ({delta_abs:.4f})"
             )
         
         # Total tangent length
-        total_tangent = (radius + p_in) * math.tan(delta / 2) + p_out
+        total_tangent = (radius + p_in) * math.tan(delta_abs / 2) + p_out
         
-        # TS (Tangent to Spiral) point
+        # TS (Tangent to Spiral) or TC (Tangent to Curve) point
         ts_x = pt_pi[0] - total_tangent * math.cos(dir_in)
         ts_y = pt_pi[1] - total_tangent * math.sin(dir_in)
         
-        # SC (Spiral to Curve) point
         sign = 1 if rotation == 'cw' else -1
         cos_in = math.cos(dir_in)
         sin_in = math.sin(dir_in)
         
-        sc_x = ts_x + x_in * cos_in - sign * y_in * sin_in
-        sc_y = ts_y + x_in * sin_in + sign * y_in * cos_in
-        
-        dir_sc = dir_in + sign * theta_in
+        # SC (Spiral to Curve) or same as TS if no entry spiral
+        if spiral_in_length > 0:
+            sc_x = ts_x + x_in * cos_in - sign * y_in * sin_in
+            sc_y = ts_y + x_in * sin_in + sign * y_in * cos_in
+            dir_sc = dir_in + sign * theta_in
+        else:
+            sc_x = ts_x
+            sc_y = ts_y
+            dir_sc = dir_in
         
         # Curve center
         center_angle = dir_sc + math.pi / 2 if rotation == 'cw' else dir_sc - math.pi / 2
         center_x = sc_x + radius * math.cos(center_angle)
         center_y = sc_y + radius * math.sin(center_angle)
         
-        # CS (Curve to Spiral) point
+        # CS (Curve to Spiral) or CT (Curve to Tangent) point
         dir_cs = dir_out - sign * theta_out
         cs_angle = center_angle + delta_curve if rotation == 'cw' else center_angle - delta_curve
         cs_x = center_x + radius * math.cos(cs_angle - math.pi)
         cs_y = center_y + radius * math.sin(cs_angle - math.pi)
         
-        # ST (Spiral to Tangent) point
-        cos_out = math.cos(dir_out)
-        sin_out = math.sin(dir_out)
-        st_x = cs_x + x_out * cos_out + sign * y_out * sin_out
-        st_y = cs_y + x_out * sin_out - sign * y_out * cos_out
+        # ST (Spiral to Tangent) or same as CS if no exit spiral
+        if spiral_out_length > 0:
+            cos_out = math.cos(dir_out)
+            sin_out = math.sin(dir_out)
+            st_x = cs_x + x_out * cos_out + sign * y_out * sin_out
+            st_y = cs_y + x_out * sin_out - sign * y_out * cos_out
+        else:
+            st_x = cs_x
+            st_y = cs_y
         
-        # Create elements (geometry classes will compute missing values)
+        # Create Line to start of curve/spiral (if not first segment)
         if not is_first_segment:
             elements.append({
                 'Type': 'Line',
@@ -1392,19 +1489,20 @@ class Alignment:
                 'End': (ts_x, ts_y)
             })
         
-        # Entry spiral
-        elements.append({
-            'Type': 'Spiral',
-            'Start': (ts_x, ts_y),
-            'End': (sc_x, sc_y),
-            'PI': pt_pi,
-            'length': spiral_in_length,
-            'radiusStart': float('inf'),
-            'radiusEnd': radius,
-            'rot': rotation
-        })
+        # Entry spiral (only if length > 0)
+        if spiral_in_length > 0:
+            elements.append({
+                'Type': 'Spiral',
+                'Start': (ts_x, ts_y),
+                'End': (sc_x, sc_y),
+                'PI': pt_pi,
+                'length': spiral_in_length,
+                'radiusStart': float('inf'),
+                'radiusEnd': radius,
+                'rot': rotation
+            })
         
-        # Circular curve
+        # Circular curve (always present)
         elements.append({
             'Type': 'Curve',
             'Start': (sc_x, sc_y),
@@ -1414,257 +1512,17 @@ class Alignment:
             'rot': rotation
         })
         
-        # Exit spiral
-        elements.append({
-            'Type': 'Spiral',
-            'Start': (cs_x, cs_y),
-            'End': (st_x, st_y),
-            'PI': pt_pi,
-            'length': spiral_out_length,
-            'radiusStart': radius,
-            'radiusEnd': float('inf'),
-            'rot': rotation
-        })
-        
-        return elements
-    
-    def extract_pis_advanced(self) -> List[Dict]:
-        """
-        Advanced PI extraction with geometric calculations.
-        Reconstructs PI points even when not explicitly stored in elements.
-        """
-        if not self.elements:
-            return []
-        
-        pi_list = []
-        
-        # First PI - start point
-        start_point = self.get_start_point()
-        pi_list.append({
-            'point': start_point,
-            'desc': 'Start Point'
-        })
-        
-        i = 0
-        while i < len(self.elements):
-            elem = self.elements[i]
-            elem_type = elem.get_type()
-            
-            if elem_type == 'Line':
-                # Check next element
-                if i + 1 < len(self.elements):
-                    next_elem = self.elements[i + 1]
-                    next_type = next_elem.get_type()
-                    
-                    if next_type == 'Curve':
-                        # Simple curve after line
-                        pi = self._calculate_pi_line_curve(elem, next_elem)
-                        if pi:
-                            pi_list.append(pi)
-                        i += 1
-                        
-                    elif next_type == 'Spiral':
-                        # Check for SCS group
-                        scs_result = self._extract_scs_group(i + 1)
-                        if scs_result:
-                            pi_list.append(scs_result['pi'])
-                            i += scs_result['skip']  # Skip processed elements
-                        else:
-                            i += 1
-                    else:
-                        i += 1
-                else:
-                    i += 1
-            
-            elif elem_type == 'Curve':
-                # Standalone curve
-                pi = self._calculate_pi_from_curve(elem)
-                if pi:
-                    pi_list.append(pi)
-                i += 1
-            
-            elif elem_type == 'Spiral':
-                # Check for SCS group starting here
-                scs_result = self._extract_scs_group(i)
-                if scs_result:
-                    pi_list.append(scs_result['pi'])
-                    i += scs_result['skip']
-                else:
-                    i += 1
-            else:
-                i += 1
-        
-        # Last PI - end point
-        end_point = self.get_end_point()
-        if not pi_list or pi_list[-1]['point'] != end_point:
-            pi_list.append({
-                'point': end_point,
-                'desc': 'End Point'
+        # Exit spiral (only if length > 0)
+        if spiral_out_length > 0:
+            elements.append({
+                'Type': 'Spiral',
+                'Start': (cs_x, cs_y),
+                'End': (st_x, st_y),
+                'PI': pt_pi,
+                'length': spiral_out_length,
+                'radiusStart': radius,
+                'radiusEnd': float('inf'),
+                'rot': rotation
             })
         
-        return pi_list
-
-    def _calculate_pi_line_curve(self, line, curve) -> Optional[Dict]:
-        """Calculate PI point from line-curve transition."""
-        # Get tangent direction at curve start
-        dir_start = curve.dir_start
-        
-        # Get line direction
-        line_dir = line.direction
-        
-        # Line end point (PC - Point of Curvature)
-        pc = line.get_end_point()
-        
-        # Calculate PI using tangent length
-        tangent_length = curve.tangent if hasattr(curve, 'tangent') else None
-        
-        if tangent_length:
-            # PI is at tangent_length back along line direction
-            pi_x = pc[0] + tangent_length * math.cos(line_dir)
-            pi_y = pc[1] + tangent_length * math.sin(line_dir)
-            
-            return {
-                'point': (pi_x, pi_y),
-                'radius': curve.radius,
-                'desc': curve.description or 'Curve'
-            }
-        elif hasattr(curve, 'pi_point') and curve.pi_point:
-            return {
-                'point': curve.pi_point,
-                'radius': curve.radius,
-                'desc': curve.description or 'Curve'
-            }
-        
-        return None
-
-    def _calculate_pi_from_curve(self, curve) -> Optional[Dict]:
-        """Calculate PI from standalone curve."""
-        # Use stored PI if available
-        if hasattr(curve, 'pi_point') and curve.pi_point:
-            return {
-                'point': curve.pi_point,
-                'radius': curve.radius,
-                'desc': curve.description or 'Curve'
-            }
-        
-        # Calculate PI from curve geometry
-        # PI is intersection of tangent lines at start and end
-        start = curve.get_start_point()
-        end = curve.get_end_point()
-        
-        dir_start = curve.dir_start
-        dir_end = curve.dir_end
-        
-        # Calculate intersection point
-        pi = self._calculate_tangent_intersection(
-            start, dir_start,
-            end, dir_end
-        )
-        
-        if pi:
-            return {
-                'point': pi,
-                'radius': curve.radius,
-                'desc': curve.description or 'Curve'
-            }
-        
-        return None
-
-    def _extract_scs_group(self, start_index: int) -> Optional[Dict]:
-        """
-        Extract SCS (Spiral-Curve-Spiral) group starting at index.
-        
-        Returns:
-            Dict with 'pi' and 'skip' (number of elements to skip)
-        """
-        if start_index + 2 >= len(self.elements):
-            return None
-        
-        elem1 = self.elements[start_index]
-        elem2 = self.elements[start_index + 1]
-        elem3 = self.elements[start_index + 2]
-        
-        # Check if it's SCS pattern
-        if (elem1.get_type() == 'Spiral' and
-            elem2.get_type() == 'Curve' and
-            elem3.get_type() == 'Spiral' and
-            elem1.radius_start == float('inf') and
-            elem1.radius_end != float('inf') and
-            elem3.radius_start != float('inf') and
-            elem3.radius_end == float('inf')):
-            
-            # Get PI from curve
-            pi_point = None
-            if hasattr(elem2, 'pi_point') and elem2.pi_point:
-                pi_point = elem2.pi_point
-            else:
-                # Calculate from geometry
-                pi_point = self._calculate_scs_pi(elem1, elem2, elem3)
-            
-            if pi_point:
-                return {
-                    'pi': {
-                        'point': pi_point,
-                        'radius': elem2.radius,
-                        'spiral_in': elem1.length,
-                        'spiral_out': elem3.length,
-                        'desc': elem2.description or 'SCS'
-                    },
-                    'skip': 3  # Skip all three elements
-                }
-        
-        return None
-
-    def _calculate_scs_pi(self, spiral_in, curve, spiral_out) -> Optional[Tuple[float, float]]:
-        """Calculate PI point for SCS group."""
-        # Use curve's stored PI if available
-        if hasattr(curve, 'pi_point') and curve.pi_point:
-            return curve.pi_point
-        
-        # Otherwise calculate from tangent lines
-        # This is complex - for now return None
-        # In practice, PI should be stored in curve element
-        return None
-
-    def _calculate_tangent_intersection(
-        self,
-        point1: Tuple[float, float],
-        dir1: float,
-        point2: Tuple[float, float],
-        dir2: float
-    ) -> Optional[Tuple[float, float]]:
-        """
-        Calculate intersection point of two lines defined by point and direction.
-        
-        Args:
-            point1: First line point (x, y)
-            dir1: First line direction (radians)
-            point2: Second line point (x, y)
-            dir2: Second line direction (radians)
-            
-        Returns:
-            Intersection point (x, y) or None if parallel
-        """
-        # Line 1: point1 + t1 * (cos(dir1), sin(dir1))
-        # Line 2: point2 + t2 * (cos(dir2), sin(dir2))
-        
-        cos_d1 = math.cos(dir1)
-        sin_d1 = math.sin(dir1)
-        cos_d2 = math.cos(dir2)
-        sin_d2 = math.sin(dir2)
-        
-        dx = point2[0] - point1[0]
-        dy = point2[1] - point1[1]
-        
-        denom = cos_d1 * sin_d2 - sin_d1 * cos_d2
-        
-        # Check if parallel
-        if abs(denom) < 1e-10:
-            return None
-        
-        t1 = (dx * sin_d2 - dy * cos_d2) / denom
-        
-        pi_x = point1[0] + t1 * cos_d1
-        pi_y = point1[1] + t1 * sin_d1
-        
-        return (pi_x, pi_y)
+        return elements
