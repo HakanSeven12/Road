@@ -1261,14 +1261,9 @@ class Alignment:
                     })
             return elements
         
-        # Check for spirals
-        if spiral_in or spiral_out:
-            curve_elements = Alignment._create_scs_geometry(
-                pt_previous,pt_current, pt_next,
-                radius, spiral_in, spiral_out)
-        else:
-            curve_elements = Alignment._create_simple_curve_geometry(
-                pt_previous,pt_current, pt_next,radius)
+        curve_elements = Alignment._create_curve_geometry(
+            pt_previous,pt_current, pt_next,
+            radius, spiral_in, spiral_out)
         
         # Add connecting line if there's a gap from previous segment to first element of current segment
         if previous_segment_end and curve_elements:
@@ -1288,87 +1283,7 @@ class Alignment:
         return curve_elements
 
     @staticmethod
-    def _create_simple_curve_geometry(
-        pt_start: Tuple[float, float],
-        pt_pi: Tuple[float, float],
-        pt_end: Tuple[float, float],
-        radius: float,
-    ) -> List[Dict]:
-        """
-        Create Line + Curve geometry (simple curve without spirals).
-        
-        Args:
-            pt_start: Starting point of the segment
-            pt_pi: Point of Intersection
-            pt_end: End point of the segment (next PI or alignment end)
-            radius: Curve radius
-            is_first_segment: True if this is the first segment in alignment
-            
-        Returns:
-            List of geometry element dictionaries
-        """
-        elements = []
-        
-        # Calculate incoming direction (from start to PI)
-        dir_in = math.atan2(pt_pi[1] - pt_start[1], pt_pi[0] - pt_start[0])
-        
-        # Calculate outgoing direction (from PI to end)
-        dir_out = math.atan2(pt_end[1] - pt_pi[1], pt_end[0] - pt_pi[0])
-        
-        # Calculate deflection angle
-        delta = dir_out - dir_in
-        
-        # Normalize delta to [-π, π]
-        while delta > math.pi:
-            delta -= 2 * math.pi
-        while delta < -math.pi:
-            delta += 2 * math.pi
-        
-        # Determine rotation direction
-        if delta > 0:
-            rotation = 'cw'
-        else:
-            rotation = 'ccw'
-        
-        # Use absolute value of delta for calculations
-        delta_abs = abs(delta)
-        
-        # Calculate tangent length from PI to PC/PT
-        tangent_length = radius * math.tan(delta_abs / 2)
-        
-        # PC (Point of Curvature) - start of curve
-        pc_x = pt_pi[0] - tangent_length * math.cos(dir_in)
-        pc_y = pt_pi[1] - tangent_length * math.sin(dir_in)
-        
-        # PT (Point of Tangency) - end of curve
-        pt_x = pt_pi[0] + tangent_length * math.cos(dir_out)
-        pt_y = pt_pi[1] + tangent_length * math.sin(dir_out)
-        
-        # Calculate center point of curve
-        # Perpendicular angle depends on rotation direction
-        if rotation == 'cw':
-            perp_angle = dir_in + math.pi / 2
-        else:  # ccw
-            perp_angle = dir_in - math.pi / 2
-        
-        center_x = pc_x + radius * math.cos(perp_angle)
-        center_y = pc_y + radius * math.sin(perp_angle)
-        
-        # Create Curve element from PC to PT
-        elements.append({
-            'Type': 'Curve',
-            'Start': (pc_x, pc_y),
-            'End': (pt_x, pt_y),
-            'Center': (center_x, center_y),
-            'PI': pt_pi,
-            'rot': rotation,
-            'radius': radius
-        })
-        
-        return elements
-
-    @staticmethod
-    def _create_scs_geometry(
+    def _create_curve_geometry(
         pt_start: Tuple[float, float],
         pt_pi: Tuple[float, float],
         pt_end: Tuple[float, float],
@@ -1420,17 +1335,6 @@ class Alignment:
         # Use absolute value of delta for calculations
         delta_abs = abs(delta)
         
-        # Check if both spirals are zero or None - create simple curve
-        if (not spiral_in_length or spiral_in_length <= 0) and \
-        (not spiral_out_length or spiral_out_length <= 0):
-            return Alignment._create_simple_curve_geometry(
-                pt_start, pt_pi, pt_end, radius
-            )
-        
-        # Normalize spiral lengths (treat None or negative as zero)
-        spiral_in_length = max(0.0, spiral_in_length or 0.0)
-        spiral_out_length = max(0.0, spiral_out_length or 0.0)
-        
         # Calculate spiral angles
         theta_in = spiral_in_length / (2 * radius) if spiral_in_length > 0 else 0.0
         theta_out = spiral_out_length / (2 * radius) if spiral_out_length > 0 else 0.0
@@ -1468,7 +1372,7 @@ class Alignment:
                 f"Spiral lengths too long: total spiral angle ({theta_in + theta_out:.4f}) "
                 f"exceeds deflection angle ({delta_abs:.4f})"
             )
-        
+
         # Total tangent length
         total_tangent = (radius + p_in) * math.tan(delta_abs / 2) + p_out
         
