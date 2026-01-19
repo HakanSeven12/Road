@@ -6,8 +6,7 @@ Allows adding, editing, and removing PI points to create/update alignment geomet
 """
 
 import FreeCAD as App
-import FreeCADGui as Gui
-from PySide2 import QtCore, QtGui, QtWidgets
+from PySide import QtCore, QtGui, QtWidgets
 
 
 class AlignmentEditor:
