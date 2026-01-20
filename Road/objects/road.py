@@ -3,12 +3,8 @@
 """Provides the object code for Road objects."""
 
 import FreeCAD
-
 import Part
-
 import math
-
-from ..geometry.first_iteration.alignment_old import transformation
 
 
 class Road:
@@ -52,7 +48,7 @@ class Road:
 
         sec_list = []
         base_shp = Part.makeCompound(com_list)
-        stations = transformation(obj.Alignment, 10000, 10000, 10000)
+        stations = obj.Alignment.Model.generate_stations()
         pos = obj.Profile.Placement.Base
         dy=FreeCAD.Vector(0, obj.Profile.Shape.BoundBox.YLength)
 
