@@ -33,15 +33,7 @@ class ProfileCreate:
 
     def Activated(self):
         """Command activation method"""
-        pass
-        """
-        profile = make_profile.create()
-        self.profile_frame.addObject(profile)
-
-        panel = task_profile_editor.run(profile)
+        panel = task_profile_editor.run(self.profile_frame)
         FreeCADGui.Control.showDialog(panel)
-
-        FreeCAD.ActiveDocument.recompute()
-        """
 
 FreeCADGui.addCommand("Profile Create", ProfileCreate())

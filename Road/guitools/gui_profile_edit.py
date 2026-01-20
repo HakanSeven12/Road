@@ -26,14 +26,14 @@ class ProfileEdit:
     def IsActive(self):
         """Define tool button activation situation"""
         for obj in FreeCADGui.Selection.getSelection():
-            if obj.Proxy.Type == "Road::Profile":
-                self.profile = obj
+            if obj.Proxy.Type == "Road::ProfileFrame":
+                self.profile_frame = obj
                 return True
         return False
 
     def Activated(self):
         """Command activation method"""
-        panel = task_profile_editor.run(self.profile)
+        panel = task_profile_editor.run(self.profile_frame)
         FreeCADGui.Control.showDialog(panel)
 
         FreeCAD.ActiveDocument.recompute()
