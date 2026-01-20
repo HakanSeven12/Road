@@ -1335,6 +1335,10 @@ class Alignment:
         # Use absolute value of delta for calculations
         delta_abs = abs(delta)
         
+        # Normalize spiral lengths (treat None or negative as zero)
+        spiral_in_length = max(0.0, spiral_in_length or 0.0)
+        spiral_out_length = max(0.0, spiral_out_length or 0.0)
+
         # Calculate spiral angles
         theta_in = spiral_in_length / (2 * radius) if spiral_in_length > 0 else 0.0
         theta_out = spiral_out_length / (2 * radius) if spiral_out_length > 0 else 0.0
@@ -1346,11 +1350,15 @@ class Alignment:
             S_in, C_in = fresnel(t_in)
             x_in = A_in * C_in
             y_in = A_in * S_in
-            p_in = y_in - x_in * math.tan(theta_in)
+            cx_in = x_in - radius * math.sin(theta_in)
+            cy_in = y_in + radius * math.cos(theta_in)
+            tangent_in = cy_in * math.tan(delta_abs / 2) + cx_in
+            long_in = x_in - y_in / math.tan(theta_in)
+
         else:
             x_in = 0.0
             y_in = 0.0
-            p_in = 0.0
+            tangent_in = radius / math.tan(delta_abs / 2)
         
         # Calculate exit spiral parameters
         if spiral_out_length > 0:
@@ -1359,11 +1367,15 @@ class Alignment:
             S_out, C_out = fresnel(t_out)
             x_out = A_out * C_out
             y_out = A_out * S_out
-            p_out = y_out - x_out * math.tan(theta_out)
+            cx_out = x_out - radius * math.sin(theta_out)
+            cy_out = y_out + radius * math.cos(theta_out)
+            tangent_out = cy_out * math.tan(delta_abs / 2) + cx_out
+            long_out = x_out - y_out / math.tan(theta_out)
+
         else:
             x_out = 0.0
             y_out = 0.0
-            p_out = 0.0
+            tangent_out = radius / math.tan(delta_abs / 2)
         
         # Remaining curve angle
         delta_curve = delta_abs - theta_in - theta_out
@@ -1373,12 +1385,9 @@ class Alignment:
                 f"exceeds deflection angle ({delta_abs:.4f})"
             )
 
-        # Total tangent length
-        total_tangent = (radius + p_in) * math.tan(delta_abs / 2) + p_out
-        
         # TS (Tangent to Spiral) or TC (Tangent to Curve) point
-        ts_x = pt_pi[0] - total_tangent * math.cos(dir_in)
-        ts_y = pt_pi[1] - total_tangent * math.sin(dir_in)
+        ts_x = pt_pi[0] - tangent_in * math.cos(dir_in)
+        ts_y = pt_pi[1] - tangent_in * math.sin(dir_in)
         
         sign = 1 if rotation == 'cw' else -1
         cos_in = math.cos(dir_in)
@@ -1417,11 +1426,15 @@ class Alignment:
         
         # Entry spiral (only if length > 0)
         if spiral_in_length > 0:
+            # Entry spiral PI is at the tangent intersection
+            pi_in_x = ts_x + long_in * math.cos(dir_in)
+            pi_in_y = ts_y + long_in * math.sin(dir_in)
+
             elements.append({
                 'Type': 'Spiral',
                 'Start': (ts_x, ts_y),
                 'End': (sc_x, sc_y),
-                'PI': pt_pi,
+                'PI': (pi_in_x, pi_in_y),
                 'length': spiral_in_length,
                 'radiusStart': float('inf'),
                 'radiusEnd': radius,
@@ -1440,11 +1453,15 @@ class Alignment:
         
         # Exit spiral (only if length > 0)
         if spiral_out_length > 0:
+            # Exit spiral PI is at the tangent intersection
+            pi_out_x = st_x - long_in * math.cos(dir_out)
+            pi_out_y = st_y - long_in * math.sin(dir_out)
+
             elements.append({
                 'Type': 'Spiral',
                 'Start': (cs_x, cs_y),
                 'End': (st_x, st_y),
-                'PI': pt_pi,
+                'PI': (pi_out_x, pi_out_y),
                 'length': spiral_out_length,
                 'radiusStart': radius,
                 'radiusEnd': float('inf'),
