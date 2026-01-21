@@ -3,6 +3,7 @@
 import math
 from typing import Dict, List, Tuple, Optional, Union
 from ...functions.coordinate_system import CoordinateSystem
+from ..profile.profile import Profile
 from .line import Line
 from .curve import Curve
 from .spiral import Spiral
@@ -20,35 +21,6 @@ class Alignment:
         
         Args:
             data: Dictionary containing alignment attributes and geometry elements
-                  Expected structure:
-                  {
-                      'name': str,
-                      'desc': str (optional),
-                      'length': float,
-                      'staStart': float,
-                      'start': (x, y) (optional) - alignment start point,
-                      'AlignPIs': [  # optional - Point of Intersection points
-                          {
-                              'station': float (optional),
-                              'point': (x, y),
-                              'desc': str (optional)
-                          },
-                          ...
-                      ],
-                      'StaEquation': [  # optional
-                          {
-                              'staAhead': float,
-                              'staBack': float,
-                              'staInternal': float (optional),
-                              'desc': str (optional)
-                          },
-                          ...
-                      ],
-                      'CoordGeom': [
-                          {geometry element data},
-                          ...
-                      ]
-                  }
         """
         # Alignment metadata
         self.name = data.get('name', None)
@@ -59,6 +31,9 @@ class Alignment:
         # Alignment start point (optional)
         self.start_point = data.get('start', None)
 
+        # Geometry elements list
+        self.elements: List[Union[Line, Curve, Spiral]] = []
+        
         # Coordinate system for transformations
         coord_sys_data = data['coordinateSystem'] if 'coordinateSystem' in data else {'system_type': 'global'}
         self.coordinate_system = CoordinateSystem(
@@ -86,9 +61,6 @@ class Alignment:
         elif 'stationEquations' in data and data['stationEquations']:  # Also handle lowercase version
             self._parse_station_equations(data['stationEquations'])
         
-        # Geometry elements list
-        self.elements: List[Union[Line, Curve, Spiral]] = []
-        
         # Parse coordinate geometry elements
         if 'CoordGeom' in data and data['CoordGeom']:
             self._parse_coord_geom(data['CoordGeom'])
@@ -96,6 +68,16 @@ class Alignment:
         # Validate and compute alignment properties
         #self._validate_alignment()
         self._compute_alignment_properties()
+    
+        # Profile data (optional)
+        self.profile = None
+        
+        # Parse profile if present
+        if 'Profile' in data and data['Profile']:
+            try:
+                self.profile = Profile(data['Profile'], parent_alignment=self)
+            except Exception as e:
+                print(f"Warning: Failed to parse profile: {str(e)}")
     
     def set_coordinate_system(self, system_type: str, 
                             origin: Optional[Tuple[float, float]] = None,
@@ -130,6 +112,74 @@ class Alignment:
         elif hasattr(first_elem, 'dir_start'):
             return first_elem.dir_start
         return 0.0
+    
+    # Get profile methods
+    def get_profile(self) -> Optional['Profile']:
+        """
+        Get the profile associated with this alignment.
+        
+        Returns:
+            Profile object or None if no profile is associated
+        """
+        return self.profile
+
+    def set_profile(self, profile_data: Dict):
+        """
+        Set or update the profile for this alignment.
+        
+        Args:
+            profile_data: Dictionary containing profile data
+        """
+        try:
+            self.profile = Profile(profile_data, parent_alignment=self)
+        except Exception as e:
+            raise ValueError(f"Failed to set profile: {str(e)}")
+
+    def has_profile(self) -> bool:
+        """Check if alignment has an associated profile"""
+        return self.profile is not None
+
+    def get_elevation_at_station(self, station: float, profalign_name: Optional[str] = None) -> Optional[float]:
+        """
+        Get design elevation at station from profile.
+        
+        Args:
+            station: Station to query
+            profalign_name: Name of ProfAlign (uses first if None)
+            
+        Returns:
+            Elevation at station or None if no profile exists
+        """
+        if self.profile is None:
+            return None
+        
+        return self.profile.get_elevation_at_station(station, profalign_name)
+
+    def get_3d_point_at_station(self, station: float, profalign_name: Optional[str] = None) -> Optional[Tuple[float, float, float]]:
+        """
+        Get 3D point coordinates (X, Y, Z) at station along alignment.
+        Combines horizontal alignment coordinates with profile elevation.
+        
+        Args:
+            station: Station to query
+            profalign_name: Name of ProfAlign (uses first if None)
+            
+        Returns:
+            (x, y, z) coordinates at station or None if profile is missing
+        """
+        if self.profile is None:
+            return None
+        
+        # Get horizontal coordinates
+        x, y = self.get_point_at_station(station)
+        
+        # Get elevation from profile
+        z = self.profile.get_elevation_at_station(station, profalign_name)
+        
+        if z is None:
+            return None
+        
+        return (x, y, z)
     
     def _parse_align_pis(self, align_pis_list: List[Dict]):
         """Parse and store alignment PI points"""
@@ -975,7 +1025,7 @@ class Alignment:
         
         global_end = self.elements[-1].get_end_point() if self.elements else None
         
-        return {
+        result = {
             'name': self.name,
             'desc': self.description,
             'length': self.length,
@@ -991,6 +1041,12 @@ class Alignment:
             'CoordGeom': [elem.to_dict() for elem in self.elements],
             'coordinateSystem': self.coordinate_system.to_dict()
         }
+        
+        # Add profile if present
+        if self.profile is not None:
+            result['Profile'] = self.profile.to_dict()
+        
+        return result
     
     def __repr__(self) -> str:
         """String representation of alignment"""
@@ -1049,7 +1105,7 @@ class Alignment:
 
     def __bool__(self) -> bool:
         """Alignment is True if it has elements"""
-        return len(self.elements) > 0
+        return hasattr(self, 'elements') and len(self.elements) > 0
 
     def __contains__(self, station: float) -> bool:
         """Check if station is within alignment range"""

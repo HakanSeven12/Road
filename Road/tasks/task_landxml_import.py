@@ -690,30 +690,17 @@ class TaskLandXMLImport(TaskPanel):
             try:
                 align_name = align_data.get('name', 'Unnamed Alignment')
                 alignment = make_alignment.create(align_name)
-                alignment.Model = Alignment(align_data)
+                alignment.Model = Alignment(align_data)  # Profile otomatik olarak yüklenecek
                 alignment.Model.coordinate_system.set_system('custom', alignment.Model.start_point, swap=True)
                 
                 print(f"Created alignment: {align_name}")
                 alignment_created += 1
                 
-                # Create Profile if present
-                if 'Profile' in align_data:
-                    try:
-                        profile_data = align_data['Profile']
-                        profile_name = profile_data.get('name', f'{align_name} Profile')
-                        
-                        # TODO: Create FreeCAD Profile object here
-                        # profile = make_profile.create(profile_name, alignment)
-                        # profile.Model = Profile(profile_data)
-                        
-                        print(f"TODO: Create profile '{profile_name}' for alignment '{align_name}'")
-                        # profile_created += 1
-                        
-                    except Exception as e:
-                        error_msg = f"Failed to create profile for alignment '{align_name}': {str(e)}"
-                        self.errors.append(error_msg)
-                        print(error_msg)
-                        profile_failed += 1
+                # Check if profile was loaded
+                if alignment.Model.has_profile():
+                    profile_created += 1
+                    profile_name = alignment.Model.profile.name
+                    print(f"  - Profile '{profile_name}' loaded with alignment")
                 
             except Exception as e:
                 error_msg = f"Failed to create alignment '{align_name}': {str(e)}"

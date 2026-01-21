@@ -181,7 +181,7 @@ class FrameManager:
             'center_origin': center_origin
         }
 
-    def create_profile_frame(self, model, placement, length, height, spacing=2000):
+    def create_profile_frame(self, placement, length, height, spacing=2000):
         """
         Create single frame for profile view
         
