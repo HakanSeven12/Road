@@ -192,12 +192,7 @@ class ProfileParser:
                 print(f"Warning: Failed to parse ProfAlign: {str(e)}")
                 continue
         
-        if profalign_list:
-            # Store as list if multiple, single dict if only one
-            if len(profalign_list) == 1:
-                profile_data['ProfAlign'] = profalign_list[0]
-            else:
-                profile_data['ProfAlign'] = profalign_list
+        profile_data['ProfAlign'] = profalign_list
         
         # Parse all ProfSurf elements (surface profiles)
         profsurf_list = []
@@ -212,7 +207,6 @@ class ProfileParser:
                 print(f"Warning: Failed to parse ProfSurf: {str(e)}")
                 continue
         
-        if profsurf_list:
-            profile_data['ProfSurf'] = profsurf_list
+        profile_data['ProfSurf'] = profsurf_list
         
         return profile_data

@@ -38,24 +38,13 @@ class Profile:
         # Multiple surface profiles (ProfSurf) - each has name and geometry
         self.profsurf_list = []
         
-        # Parse ProfAlign (can be single dict or list)
-        if 'ProfAlign' in data:
-            profalign_data = data['ProfAlign']
-            if isinstance(profalign_data, dict):
-                # Single ProfAlign
-                self._parse_profalign(profalign_data)
-            elif isinstance(profalign_data, list):
-                # Multiple ProfAlign
-                for pa_data in profalign_data:
-                    self._parse_profalign(pa_data)
+        # Parse ProfAlign
+        profalign_data = data['ProfAlign']
+        for pa_data in profalign_data:
+            self._parse_profalign(pa_data)
         
-        # Parse ProfSurf (usually a list)
-        if 'ProfSurf' in data and data['ProfSurf']:
-            if isinstance(data['ProfSurf'], list):
-                self._parse_profsurf_list(data['ProfSurf'])
-            else:
-                # Single ProfSurf as dict
-                self._parse_profsurf_list([data['ProfSurf']])
+        # Parse ProfSurf
+        self._parse_profsurf(data['ProfSurf'])
         
         # Compute profile properties
         self._compute_profile_properties()
@@ -89,6 +78,8 @@ class Profile:
             
             elif geom_type in ['ParaCurve', 'UnsymParaCurve', 'CircCurve']:
                 curves_data.append(geom_data)
+                pvi = geom_data['pvi']
+                profalign['pvi_points'].append(pvi)
         
         # Sort PVI points by station
         profalign['pvi_points'].sort(key=lambda p: p['station'])
@@ -244,7 +235,7 @@ class Profile:
             print(f"Warning: Failed to create curve: {str(e)}")
             return None
     
-    def _parse_profsurf_list(self, profsurf_list: List[Dict]):
+    def _parse_profsurf(self, profsurf_list: List[Dict]):
         """Parse surface profiles and convert to Tangent geometry"""
         
         for profsurf_data in profsurf_list:
