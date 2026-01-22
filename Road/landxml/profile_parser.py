@@ -67,20 +67,13 @@ class ProfileParser:
             List of (station, elevation) tuples
         """
         points = []
-        
-        # Find all P elements
-        p_elements = self.reader._find_all_elements(pntlist_elem, 'P')
-        
-        for p_elem in p_elements:
-            p_text = p_elem.text
-            if p_text:
-                coords = p_text.strip().replace(',', ' ').split()
-                if len(coords) >= 2:
-                    # First value is station, second is elevation
-                    station = float(coords[0])
-                    elevation = float(coords[1])
-                    points.append((station, elevation))
-        
+        content = pntlist_elem.text
+        if content:
+            coords = content.strip().replace(',', ' ').split()
+            # First value is station, second is elevation
+            for i in range(0, len(coords) - 1, 2):
+                points.append((float(coords[i]), float(coords[i+1])))
+                    
         return points
     
     def parse_profile_geometry_element(self, geom_elem: ET.Element, geom_type: str) -> Optional[Dict]:
@@ -114,12 +107,6 @@ class ProfileParser:
                 if len(coords) >= 2:
                     geom_data['station'] = float(coords[0])
                     geom_data['elevation'] = float(coords[1])
-        
-        elif geom_type == 'PntList2D':
-            # PntList2D contains list of points
-            points = self.parse_pntlist2d(geom_elem)
-            if points:
-                geom_data['points'] = points
         
         elif geom_type in ['CircCurve', 'ParaCurve', 'UnsymParaCurve']:
             # Civil3D format: PVI coordinates in element text content
