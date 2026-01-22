@@ -21,7 +21,7 @@ class Profile:
             data: Dictionary containing profile data
             parent_alignment: Reference to parent Alignment object (optional)
         """
-        print(data)
+        print(data['ProfAlign'])
         # Profile metadata
         self.name = data.get('name', None)
         self.description = data.get('desc', None)

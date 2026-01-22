@@ -30,32 +30,6 @@ class ProfileParser:
         """
         self.reader = reader
     
-    def parse_pvi(self, pvi_elem: ET.Element) -> Dict:
-        """
-        Parse PVI (Profile Vertical Intersection) element.
-        
-        Args:
-            pvi_elem: PVI XML element
-            
-        Returns:
-            Dictionary with parsed PVI data
-        """
-        pvi_data = {}
-        
-        # Parse PVI coordinates from text
-        pvi_text = pvi_elem.text
-        if pvi_text:
-            coords = pvi_text.strip().replace(',', ' ').split()
-            if len(coords) >= 2:
-                pvi_data['station'] = float(coords[0])
-                pvi_data['elevation'] = float(coords[1])
-        
-        # Parse attributes
-        if 'desc' in pvi_elem.attrib:
-            pvi_data['desc'] = pvi_elem.attrib['desc']
-        
-        return pvi_data
-    
     def parse_pntlist2d(self, pntlist_elem: ET.Element) -> List[tuple]:
         """
         Parse PntList2D element containing profile points.

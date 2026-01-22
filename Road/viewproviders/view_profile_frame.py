@@ -33,7 +33,7 @@ class ViewProviderProfileFrame(ViewProviderGeoObject):
         surface_draw_style.lineWidth = 2
 
         self.surface_color = coin.SoBaseColor()
-        self.surface_color.rgb = (0.5, 0.5, 0.5)  # Gray
+        self.surface_color.rgb = (0.0, 1.0, 0.0)  # Green
 
         self.surface_coords = coin.SoCoordinate3()
         self.surface_lines = coin.SoLineSet()
@@ -111,7 +111,6 @@ class ViewProviderProfileFrame(ViewProviderGeoObject):
 
     def _update_surface_profiles_from_shape(self, surface_compound):
         """Update surface profile visualization from Shape."""
-        import FreeCAD
         
         all_coords = []
         all_counts = []
@@ -132,10 +131,6 @@ class ViewProviderProfileFrame(ViewProviderGeoObject):
 
     def _update_design_profiles_from_shape(self, design_compound):
         """Update design profile visualization from Shape with element-based coloring."""
-        import FreeCAD
-        from ..geometry.profile.tangent import Tangent
-        from ..geometry.profile.parabola import Parabola
-        from ..geometry.profile.arc import Arc
         
         all_coords = []
         all_counts = []
@@ -159,7 +154,7 @@ class ViewProviderProfileFrame(ViewProviderGeoObject):
         # Color mapping
         color_map = {
             'Tangent': (1.0, 0.0, 0.0),    # Red
-            'ParaCurve': (0.0, 1.0, 0.0),  # Green
+            'ParaCurve': (0.55, 0.35, 0.95),  # Purple
             'CircCurve': (0.0, 0.0, 1.0)   # Blue
         }
         

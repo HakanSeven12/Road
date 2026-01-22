@@ -239,9 +239,6 @@ PROFILE_GEOMETRY_CONFIG = {
             'lengthOut': ('lengthOut', 'float'),
             'desc': ('desc', str)
         }
-    },
-    'PntList2D': {
-        'attr_map': {}
     }
 }
 
