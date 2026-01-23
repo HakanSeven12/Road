@@ -154,7 +154,7 @@ class ViewProviderProfileFrame(ViewProviderGeoObject):
         # Color mapping
         color_map = {
             'Tangent': (1.0, 0.0, 0.0),    # Red
-            'ParaCurve': (0.55, 0.35, 0.95),  # Purple
+            'ParaCurve': (1.0, 0.0, 1.0),  # Magenta
             'CircCurve': (0.0, 0.0, 1.0)   # Blue
         }
         

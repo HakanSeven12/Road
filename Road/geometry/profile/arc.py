@@ -11,7 +11,7 @@ class Arc(ProfileGeometry):
     Less common than parabolic, but used in some standards.
     """
 
-    def __init__(self, data: Dict, prev_grade: float, next_grade: float):
+    def __init__(self, data: Dict, grade_in: float, grade_out: float):
         """
         Initialize circular vertical curve.
         
@@ -21,8 +21,8 @@ class Arc(ProfileGeometry):
                 - radius: float (optional)
                 - pvi: dict with station/elevation (required)
                 - desc: str (optional)
-            prev_grade: Grade coming into curve
-            next_grade: Grade going out of curve
+            grade_in: Grade coming into curve
+            grade_out: Grade going out of curve
         """
         super().__init__(data)
         
@@ -45,8 +45,8 @@ class Arc(ProfileGeometry):
         self.sta_end = self.pvi_station + self.length / 2
         
         # Store grades
-        self.grade_in = prev_grade
-        self.grade_out = next_grade
+        self.grade_in = grade_in
+        self.grade_out = grade_out
         self.grade_change = self.grade_out - self.grade_in
         
         # Calculate radius if not provided

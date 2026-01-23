@@ -38,112 +38,92 @@ class Profile:
         # Multiple surface profiles (ProfSurf) - each has name and geometry
         self.profsurf_list = []
         
-        # Parse ProfAlign
-        profalign_data = data['ProfAlign']
-        for pa_data in profalign_data:
-            self._parse_profalign(pa_data)
-        
         # Parse ProfSurf
-        self._parse_profsurf(data['ProfSurf'])
+        profsurfs_data = data['ProfSurf']
+        for ps_data in profsurfs_data:
+            self._parse_profsurf(ps_data)
+
+        # Parse ProfAlign
+        profaligns_data = data['ProfAlign']
+        for pa_data in profaligns_data:
+            self._parse_profalign(pa_data)
         
         # Compute profile properties
         self._compute_profile_properties()
     
+    def _parse_profsurf(self, profsurf_data: Dict):
+        """Parse surface profiles and convert to Tangent geometry"""
+    
+        profsurf = {
+            'name': profsurf_data.get('name', 'Surface Profile'),
+            'description': profsurf_data.get('desc', None),
+            'geometry': []
+        }
+        
+        # Parse and sort points
+        points = profsurf_data.get('points', [])
+        if len(points) < 2:
+            return
+        
+        sorted_points = sorted(points, key=lambda p: float(p[0]))
+        
+        # Create tangent segments between consecutive points
+        for i in range(len(sorted_points) - 1):
+            sta1, elev1 = float(sorted_points[i][0]), float(sorted_points[i][1])
+            sta2, elev2 = float(sorted_points[i + 1][0]), float(sorted_points[i + 1][1])
+            
+            tangent = Tangent(
+                sta_start=sta1,
+                elev_start=elev1,
+                sta_end=sta2,
+                elev_end=elev2,
+                desc=f"{profsurf['name']} segment {i+1}"
+            )
+            profsurf['geometry'].append(tangent)
+        
+        self.profsurf_list.append(profsurf)
+        
     def _parse_profalign(self, profalign_data: Dict):
         """Parse a single vertical alignment (ProfAlign) and create geometry"""
         
+        geom_data = profalign_data.get('geometry', [])
         profalign = {
             'name': profalign_data.get('name', 'Design Profile'),
             'description': profalign_data.get('desc', None),
             'staStart': float(profalign_data['staStart']) if 'staStart' in profalign_data else None,
             'length': float(profalign_data['length']) if 'length' in profalign_data else None,
-            'pvi_points': [],
-            'geometry': []
+            'geometry': self._create_geometry_elements(geom_data)
         }
-        
-        raw_geometry = profalign_data.get('geometry', [])
-        curves_data = []
-        
-        # Extract PVI points and curve data
-        for geom_data in raw_geometry:
-            geom_type = geom_data.get('Type', None)
-            
-            if geom_type == 'PVI':
-                pvi = {
-                    'station': float(geom_data['station']),
-                    'elevation': float(geom_data['elevation']),
-                    'description': geom_data.get('desc', None)
-                }
-                profalign['pvi_points'].append(pvi)
-            
-            elif geom_type in ['ParaCurve', 'UnsymParaCurve', 'CircCurve']:
-                curves_data.append(geom_data)
-                pvi = geom_data['pvi']
-                profalign['pvi_points'].append(pvi)
-        
-        # Sort PVI points by station
-        profalign['pvi_points'].sort(key=lambda p: p['station'])
-        
-        if profalign['pvi_points']:
-            # Create geometry elements for this ProfAlign
-            geometry_elements = self._create_geometry_elements(
-                profalign['pvi_points'], 
-                curves_data
-            )
-            profalign['geometry'] = geometry_elements
-        
+
         self.profalign_list.append(profalign)
-    
-    def _create_geometry_elements(self, pvi_points: List[Dict], curves_data: List[Dict]) -> List:
-        """Create geometry elements from PVI points and curve data"""
-        
-        if len(pvi_points) < 2:
-            return []
-        
-        geometry_elements = []
-        
-        # Map curves to their PVI positions
-        curve_map = {}
-        for curve_data in curves_data:
-            pvi_data = curve_data.get('pvi', {})
-            if pvi_data:
-                pvi_station = float(pvi_data['station'])
-                for i, pvi in enumerate(pvi_points):
-                    if abs(pvi['station'] - pvi_station) < 1e-6:
-                        curve_map[i] = curve_data
-                        break
-        
-        # Build geometry elements
-        for i in range(len(pvi_points) - 1):
-            pvi_curr = pvi_points[i]
-            pvi_next = pvi_points[i + 1]
+
+    def _create_geometry_elements(self, geom_data: List[Dict]) -> List:
+        """Create geometry elements (Tangent, Parabola, Arc) from geometry data"""
+        elements = []
+        # Extract PVI points and curve data
+        for i in range(1, len(geom_data) - 1):
+            pvi_prev = geom_data[i - 1]['pvi']
+            pvi_curr = geom_data[i]['pvi']
+            pvi_next = geom_data[i + 1]['pvi']
             
-            # Calculate grade between PVIs
-            sta_diff = pvi_next['station'] - pvi_curr['station']
-            elev_diff = pvi_next['elevation'] - pvi_curr['elevation']
-            grade = elev_diff / sta_diff if sta_diff != 0 else 0.0
-            
+            # Calculate grade in
+            sta_diff_in = pvi_curr['station'] - pvi_prev['station']
+            elev_diff_in = pvi_curr['elevation'] - pvi_prev['elevation']
+            grade_in = elev_diff_in / sta_diff_in if sta_diff_in != 0 else 0.0
+
+            # Calculate grade out
+            sta_diff_out = pvi_next['station'] - pvi_curr['station']
+            elev_diff_out = pvi_next['elevation'] - pvi_curr['elevation']
+            grade_out = elev_diff_out / sta_diff_out if sta_diff_out != 0 else 0.0
+
             # Check if there's a curve at current PVI
-            if i in curve_map:
-                curve_data = curve_map[i]
-                
-                # Get previous grade
-                if geometry_elements:
-                    prev_elem = geometry_elements[-1]
-                    if isinstance(prev_elem, Tangent):
-                        prev_grade = prev_elem.grade
-                    else:
-                        prev_grade = prev_elem.grade_out
-                else:
-                    prev_grade = grade
-                
-                # Create curve
-                curve = self._create_curve(curve_data, prev_grade, grade)
+            if 'type' in geom_data[i]:
+                curve = self._create_curve(geom_data[i], grade_in, grade_out)
                 
                 if curve:
                     # Add tangent before curve if needed
-                    if geometry_elements:
-                        last_elem = geometry_elements[-1]
+                    if elements:
+                        last_elem = elements[-1]
                         last_sta_end = last_elem.get_station_range()[1]
                         curve_sta_start = curve.get_station_range()[0]
                         
@@ -154,61 +134,33 @@ class Profile:
                                 sta_end=curve_sta_start,
                                 elev_end=curve.elev_bvc
                             )
-                            geometry_elements.append(tangent)
+                            elements.append(tangent)
                     else:
-                        # First element is curve
+                        # Add tangent for first segment if needed
                         curve_sta_start = curve.get_station_range()[0]
-                        if pvi_curr['station'] < curve_sta_start - 1e-6:
+                        if pvi_prev['station'] < curve_sta_start - 1e-6:
                             tangent = Tangent(
-                                sta_start=pvi_curr['station'],
-                                elev_start=pvi_curr['elevation'],
+                                sta_start=pvi_prev['station'],
+                                elev_start=pvi_prev['elevation'],
                                 sta_end=curve_sta_start,
                                 elev_end=curve.elev_bvc
                             )
-                            geometry_elements.append(tangent)
+                            elements.append(tangent)
                     
-                    geometry_elements.append(curve)
+                    elements.append(curve)
                     
-                    # Add tangent after curve if needed
-                    curve_sta_end = curve.get_station_range()[1]
-                    if i + 1 < len(pvi_points) - 1:
-                        next_curve_data = curve_map.get(i + 1)
-                        if next_curve_data:
-                            next_curve_pvi = next_curve_data.get('pvi', {})
-                            next_curve_sta = float(next_curve_pvi['station'])
-                            next_curve_len = float(next_curve_data['length'])
-                            next_curve_start = next_curve_sta - next_curve_len / 2
-                            
-                            if next_curve_start > curve_sta_end + 1e-6:
-                                tangent = Tangent(
-                                    sta_start=curve_sta_end,
-                                    elev_start=curve.elev_evc,
-                                    sta_end=next_curve_start,
-                                    elev_end=curve.elev_evc + grade * (next_curve_start - curve_sta_end)
-                                )
-                                geometry_elements.append(tangent)
-                    else:
-                        # Last segment
-                        if pvi_next['station'] > curve_sta_end + 1e-6:
-                            tangent = Tangent(
-                                sta_start=curve_sta_end,
-                                elev_start=curve.elev_evc,
-                                sta_end=pvi_next['station'],
-                                elev_end=pvi_next['elevation']
-                            )
-                            geometry_elements.append(tangent)
             else:
                 # No curve - create tangent
-                if not geometry_elements:
+                if not elements:
                     tangent = Tangent(
-                        sta_start=pvi_curr['station'],
-                        elev_start=pvi_curr['elevation'],
-                        sta_end=pvi_next['station'],
-                        elev_end=pvi_next['elevation']
+                        sta_start=pvi_prev['station'],
+                        elev_start=pvi_prev['elevation'],
+                        sta_end=pvi_curr['station'],
+                        elev_end=pvi_curr['elevation']
                     )
-                    geometry_elements.append(tangent)
+                    elements.append(tangent)
                 else:
-                    last_elem = geometry_elements[-1]
+                    last_elem = elements[-1]
                     last_sta_end = last_elem.get_station_range()[1]
                     
                     if last_sta_end < pvi_next['station'] - 1e-6:
@@ -218,56 +170,22 @@ class Profile:
                             sta_end=pvi_next['station'],
                             elev_end=pvi_next['elevation']
                         )
-                        geometry_elements.append(tangent)
+                        elements.append(tangent)
         
-        return geometry_elements
+        return elements
     
-    def _create_curve(self, curve_data: Dict, prev_grade: float, next_grade: float):
+    def _create_curve(self, curve_data: Dict, grade_in: float, grade_out: float):
         """Create appropriate curve object"""
-        geom_type = curve_data.get('Type')
+        geom_type = curve_data.get('type')
         
         try:
             if geom_type in ['ParaCurve', 'UnsymParaCurve']:
-                return Parabola(curve_data, prev_grade, next_grade)
+                return Parabola(curve_data, grade_in, grade_out)
             elif geom_type == 'CircCurve':
-                return Arc(curve_data, prev_grade, next_grade)
+                return Arc(curve_data, grade_in, grade_out)
         except Exception as e:
             print(f"Warning: Failed to create curve: {str(e)}")
             return None
-    
-    def _parse_profsurf(self, profsurf_list: List[Dict]):
-        """Parse surface profiles and convert to Tangent geometry"""
-        
-        for profsurf_data in profsurf_list:
-            profsurf = {
-                'name': profsurf_data.get('name', 'Surface Profile'),
-                'description': profsurf_data.get('desc', None),
-                'surfType': profsurf_data.get('surfType', None),
-                'geometry': []
-            }
-            
-            # Parse and sort points
-            points = profsurf_data.get('points', [])
-            if len(points) < 2:
-                continue
-            
-            sorted_points = sorted(points, key=lambda p: float(p[0]))
-            
-            # Create tangent segments between consecutive points
-            for i in range(len(sorted_points) - 1):
-                sta1, elev1 = float(sorted_points[i][0]), float(sorted_points[i][1])
-                sta2, elev2 = float(sorted_points[i + 1][0]), float(sorted_points[i + 1][1])
-                
-                tangent = Tangent(
-                    sta_start=sta1,
-                    elev_start=elev1,
-                    sta_end=sta2,
-                    elev_end=elev2,
-                    desc=f"{profsurf['name']} segment {i+1}"
-                )
-                profsurf['geometry'].append(tangent)
-            
-            self.profsurf_list.append(profsurf)
     
     def _compute_profile_properties(self):
         """Compute overall profile properties"""
@@ -488,29 +406,34 @@ class Profile:
             'alignmentName': self.alignment_name,
             'profalignCount': len(self.profalign_list),
             'surfaceProfileCount': len(self.profsurf_list),
-            'profaligns': [
+            'ProfAlign': [
                 {
                     'name': pa['name'],
-                    'description': pa['description'],
+                    'desc': pa['description'],
+                    'staStart': pa['staStart'],
+                    'length': pa['length'],
                     'pviCount': len(pa['pvi_points']),
                     'geometryCount': len(pa['geometry']),
-                    'pviPoints': pa['pvi_points'],
-                    'geometry': [elem.to_dict() for elem in pa['geometry']]
+                    'geometry': [
+                        # Add PVI points back to geometry list
+                        *[{'Type': 'PVI', **pvi} for pvi in pa['pvi_points']],
+                        # Add curve/tangent geometry
+                        *[elem.to_dict() for elem in pa['geometry']]
+                    ]
                 }
                 for pa in self.profalign_list
             ],
-            'surfaces': [
+            'ProfSurf': [
                 {
                     'name': ps['name'],
-                    'description': ps['description'],
-                    'surfType': ps['surfType'],
+                    'desc': ps['description'],
                     'geometryCount': len(ps['geometry']),
                     'geometry': [elem.to_dict() for elem in ps['geometry']]
                 }
                 for ps in self.profsurf_list
             ]
         }
-    
+
     def __repr__(self) -> str:
         return (
             f"Profile(name='{self.name}', "

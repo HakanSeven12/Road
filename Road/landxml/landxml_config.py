@@ -208,7 +208,6 @@ PROFSURF_CONFIG = {
     'attr_map': {
         'name': ('name', str),
         'desc': ('desc', str),
-        'surfType': ('surfType', str)
     }
 }
 

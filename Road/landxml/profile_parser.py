@@ -66,33 +66,25 @@ class ProfileParser:
             return None
         
         config = PROFILE_GEOMETRY_CONFIG[geom_type]
-        geom_data = {'Type': geom_type}
+        geom_data = {}
+        
+        # PVI coordinates are in element text
+        pvi_text = geom_elem.text
+        if pvi_text:
+            coords = pvi_text.strip().replace(',', ' ').split()
+            if len(coords) >= 2:
+                geom_data['pvi'] = {
+                    'station': float(coords[0]),
+                    'elevation': float(coords[1])
+                }
+
+        if geom_type in ['CircCurve', 'ParaCurve', 'UnsymParaCurve']:
+            geom_data['type'] = geom_type
         
         # Parse attributes
         attributes = self.reader._parse_attributes(geom_elem, config['attr_map'])
         geom_data.update(attributes)
-        
-        # Special handling for different geometry types
-        if geom_type == 'PVI':
-            # PVI coordinates are in element text
-            pvi_text = geom_elem.text
-            if pvi_text:
-                coords = pvi_text.strip().replace(',', ' ').split()
-                if len(coords) >= 2:
-                    geom_data['station'] = float(coords[0])
-                    geom_data['elevation'] = float(coords[1])
-        
-        elif geom_type in ['CircCurve', 'ParaCurve', 'UnsymParaCurve']:
-            # Civil3D format: PVI coordinates in element text content
-            elem_text = geom_elem.text
-            if elem_text and elem_text.strip():
-                coords = elem_text.strip().replace(',', ' ').split()
-                if len(coords) >= 2:
-                    geom_data['pvi'] = {
-                        'station': float(coords[0]),
-                        'elevation': float(coords[1])
-                    }
-        
+
         return geom_data
     
     def parse_profalign(self, profalign_elem: ET.Element) -> Dict:

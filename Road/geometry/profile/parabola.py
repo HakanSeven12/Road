@@ -10,7 +10,7 @@ class Parabola(ProfileGeometry):
     Used for smooth transitions between grade lines.
     """
 
-    def __init__(self, data: Dict, prev_grade: float, next_grade: float):
+    def __init__(self, data: Dict, grade_in: float, grade_out: float):
         """
         Initialize parabolic curve.
         
@@ -21,8 +21,8 @@ class Parabola(ProfileGeometry):
                 - lengthOut: float (length after PVI, optional - if not provided, symmetric)
                 - pvi: dict with station/elevation (required from Civil3D format)
                 - desc: str (optional)
-            prev_grade: Grade coming into curve (from previous element)
-            next_grade: Grade going out of curve (to next element)
+            grade_in: Grade coming into curve (from previous element)
+            grade_out: Grade going out of curve (to next element)
         """
         super().__init__(data)
         
@@ -56,8 +56,8 @@ class Parabola(ProfileGeometry):
         self.sta_end = self.pvi_station + self.length_out
         
         # Store grades
-        self.grade_in = prev_grade
-        self.grade_out = next_grade
+        self.grade_in = grade_in
+        self.grade_out = grade_out
         self.grade_change = self.grade_out - self.grade_in
         
         # K value (rate of vertical curvature)
