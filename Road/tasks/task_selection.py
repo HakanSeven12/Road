@@ -152,3 +152,54 @@ class MultipleSelection(QWidget):
             item = self.list_widget.item(i)
             state = Qt.Checked if item.text() in label_set else Qt.Unchecked
             item.setCheckState(state)
+
+class SimpleComboBox(QWidget):
+    """Simple combo box widget for selecting from a list of strings."""
+    
+    def __init__(self, items=None, title="Select"):
+        super().__init__()
+        self._setup_ui(title)
+        if items:
+            self.update_items(items)
+
+    def _setup_ui(self, title):
+        """Initialize the user interface."""
+        self.setWindowTitle(title)
+        
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        
+        self.combo_box = QComboBox()
+        layout.addWidget(self.combo_box)
+
+    def update_items(self, items):
+        """
+        Update combo box with new items.
+        
+        Args:
+            items: List of strings to populate combo box
+        """
+        current = self.combo_box.currentText()
+        self.combo_box.clear()
+        if items:
+            self.combo_box.addItems(items)
+            # Restore previous selection if it exists
+            index = self.combo_box.findText(current)
+            if index >= 0:
+                self.combo_box.setCurrentIndex(index)
+
+    @property
+    def selected_item(self):
+        """Get the currently selected item."""
+        return self.combo_box.currentText()
+    
+    def set_selected(self, item):
+        """
+        Set the current selection by item name.
+        
+        Args:
+            item: String of the item to select
+        """
+        index = self.combo_box.findText(item)
+        if index >= 0:
+            self.combo_box.setCurrentIndex(index)

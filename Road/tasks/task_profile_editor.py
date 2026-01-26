@@ -375,12 +375,3 @@ class ProfileEditor(QWidget):
             print("No profile reference available")
         
         FreeCAD.ActiveDocument.recompute()
-
-
-def run(profile=None):
-    """Run the PVI editor task panel."""
-    import FreeCADGui
-    from .task_panel import TaskPanel
-    main_window = FreeCADGui.getMainWindow()
-    panel = TaskPanel(ProfileEditor(main_window, profile))
-    return panel

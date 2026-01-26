@@ -5,8 +5,6 @@
 import FreeCAD, FreeCADGui
 
 from ..variables import icons_path
-from ..tasks import task_set_prop
-from ..utils import get_group
 from ..tasks.task_selection import MultipleSelection
 
 
@@ -26,17 +24,6 @@ class TerrainAddCluster:
     def IsActive(self):
         """Define tool button activation situation"""
         return True
-
-    def Activated(self):
-        """
-        Command activation method
-        """
-        terrain = FreeCADGui.Selection.getSelection()[0]
-        clusters = get_group.get("Clusters")
-        panel = task_set_prop.TaskSetProperty(terrain, "Clusters", clusters)
-        FreeCADGui.Control.showDialog(panel)
-        
-        FreeCAD.ActiveDocument.recompute()
 
     def Activated(self):
         """Command activation method"""
