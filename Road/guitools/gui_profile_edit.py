@@ -35,19 +35,13 @@ class ProfileEdit:
         """Command activation method"""
         alignments = FreeCAD.ActiveDocument.getObject("Alignments")
         self.alignment_selector = SingleSelection(alignments)
-        self.alignment_selector.combo_box.currentTextChanged.connect(self.profile_update)
-        
-        # Create profile selector with SimpleComboBox
         self.profile_selector = SimpleComboBox(title="Select Profile")
-        self.profile_selector.combo_box.currentTextChanged.connect(self.editor_update)
-        
-        # Initialize editor as None
-        self.editor = None
-        
-        self.profile_update()
-        
-        # Create initial editor
         self.editor = ProfileEditor(profile=self.profile_frame)
+
+        self.alignment_selector.combo_box.currentTextChanged.connect(self.profile_update)
+        self.profile_selector.combo_box.currentTextChanged.connect(self.editor_update)
+        self.profile_update()
+        self.editor_update()
         
         self.form = [self.alignment_selector, self.profile_selector, self.editor]
         FreeCADGui.Control.showDialog(self)
