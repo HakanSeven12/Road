@@ -33,7 +33,7 @@ class ViewProviderProfileFrame(ViewProviderGeoObject):
         surface_draw_style.lineWidth = 2
 
         self.surface_color = coin.SoBaseColor()
-        self.surface_color.rgb = (0.0, 1.0, 0.0)  # Green
+        self.surface_color.rgb = (1.0, 0.0, 1.0)  # Magenta
 
         self.surface_coords = coin.SoCoordinate3()
         self.surface_lines = coin.SoLineSet()
@@ -136,56 +136,27 @@ class ViewProviderProfileFrame(ViewProviderGeoObject):
         all_counts = []
         all_colors = []
         
-        # Get parent alignment to access profile model
-        profiles = self.Object.getParentGroup()
-        if profiles is None:
-            return
-        
-        alignment = profiles.getParentGroup()
-        if alignment is None:
-            return
-        
-        alignment_model = alignment.Model
-        if not alignment_model or not alignment_model.has_profile():
-            return
-        
-        profile = alignment_model.get_profile()
-        
+        # Discretization map
+        discretize_map = {
+            'Part::GeomLine':         2,  # Tangent
+            'Part::GeomCircle':       50, # CircCurve
+            'Part::GeomBSplineCurve': 50  # ParaCurve
+        }
         # Color mapping
         color_map = {
-            'Tangent': (1.0, 0.0, 0.0),    # Red
-            'ParaCurve': (1.0, 0.0, 1.0),  # Magenta
-            'CircCurve': (0.0, 0.0, 1.0)   # Blue
+            'Part::GeomLine':         (1.0, 0.0, 0.0),  # Red
+            'Part::GeomCircle':       (0.0, 1.0, 0.0),  # Green
+            'Part::GeomBSplineCurve': (0.0, 0.0, 1.0)   # Blue
         }
+
         
-        if design_compound.SubShapes:
-            # Get geometry elements to match with shapes
-            profalign_names = profile.get_profalign_names()
-            
-            shape_index = 0
-            for profalign_name in profalign_names:
-                geometry_elements = profile.get_geometry_elements(profalign_name)
-                
-                for elem in geometry_elements:
-                    if shape_index >= len(design_compound.SubShapes):
-                        break
-                    
-                    shape = design_compound.SubShapes[shape_index]
-                    
-                    # Extract points from shape
-                    if hasattr(shape, 'Vertexes'):
-                        points = [v.Point for v in shape.Vertexes]
-                        if len(points) > 1:
-                            all_coords.extend(points)
-                            all_counts.append(len(points))
-                            
-                            # Determine color based on element type
-                            elem_dict = elem.to_dict()
-                            elem_type = elem_dict.get('Type', 'Tangent')
-                            color = color_map.get(elem_type, (1.0, 1.0, 1.0))
-                            all_colors.append(color)
-                    
-                    shape_index += 1
+        # Get geometry elements to match with shapes
+        for shape in design_compound.SubShapes:
+            for edge in shape.Edges:
+                points = edge.discretize(discretize_map[edge.Curve.TypeId])
+                all_coords.extend(points)
+                all_counts.append(len(points))
+                all_colors.extend([color_map[edge.Curve.TypeId] ] * len(points))
         
         # Update Coin3D nodes
         if all_coords:

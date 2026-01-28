@@ -348,7 +348,7 @@ class ProfileEditor(QWidget):
                         geometry_data.append(curve_data)
                 
                 # Reconstruct profile with new geometry
-                from Road.geometry.profile.profile import Profile
+                from Road.geometry.profile.profiles import Profiles
                 
                 profile_data = {
                     'name': model.name,
@@ -363,7 +363,7 @@ class ProfileEditor(QWidget):
                 }
                 
                 # Create new profile
-                self.profile.Model = Profile(profile_data, model.parent_alignment)
+                self.profile.Model = Profiles(profile_data)
                 
                 print("Profile updated successfully")
                 

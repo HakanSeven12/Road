@@ -3,7 +3,7 @@
 import math
 from typing import Dict, List, Tuple, Optional, Union
 from ...functions.coordinate_system import CoordinateSystem
-from ..profile.profile import Profile
+from ..profile.profiles import Profiles
 from .line import Line
 from .curve import Curve
 from .spiral import Spiral
@@ -70,12 +70,12 @@ class Alignment:
         self._compute_alignment_properties()
     
         # Profile data (optional)
-        self.profile = None
+        self.profiles = None
         
         # Parse profile if present
         if 'Profile' in data and data['Profile']:
             try:
-                self.profile = Profile(data['Profile'], parent_alignment=self)
+                self.profiles = Profiles(data['Profile'])
             except Exception as e:
                 print(f"Warning: Failed to parse profile: {str(e)}")
     
@@ -113,68 +113,63 @@ class Alignment:
             return first_elem.dir_start
         return 0.0
     
-    # Get profile methods
-    def get_profile(self) -> Optional['Profile']:
+    def get_profiles(self) -> Optional['Profiles']:
         """
-        Get the profile associated with this alignment.
+        Get the profiles associated with this alignment.
         
         Returns:
             Profile object or None if no profile is associated
         """
-        return self.profile
+        return self.profiles
 
-    def set_profile(self, profile_data: Dict):
+    def set_profiles(self, profile_data: Dict):
         """
-        Set or update the profile for this alignment.
+        Set or update the profiles for this alignment.
         
         Args:
             profile_data: Dictionary containing profile data
         """
         try:
-            self.profile = Profile(profile_data, parent_alignment=self)
+            self.profiles = Profiles(profile_data)
         except Exception as e:
-            raise ValueError(f"Failed to set profile: {str(e)}")
+            raise ValueError(f"Failed to set profiles: {str(e)}")
 
-    def has_profile(self) -> bool:
-        """Check if alignment has an associated profile"""
-        return self.profile is not None
-
-    def get_elevation_at_station(self, station: float, profalign_name: Optional[str] = None) -> Optional[float]:
+    def get_elevation_at_station(self, profile_name: str, station: float = 0.0) -> Optional[float]:
         """
         Get design elevation at station from profile.
         
         Args:
             station: Station to query
-            profalign_name: Name of ProfAlign (uses first if None)
+            profile_name: Name of the profile to query
             
         Returns:
             Elevation at station or None if no profile exists
         """
-        if self.profile is None:
+        if self.profiles is None:
             return None
-        
-        return self.profile.get_elevation_at_station(station, profalign_name)
 
-    def get_3d_point_at_station(self, station: float, profalign_name: Optional[str] = None) -> Optional[Tuple[float, float, float]]:
+        return self.profiles.get_elevation_at_station(profile_name, station)
+
+    def get_3d_point_at_station(self, profile_name: str, station: float) -> Optional[Tuple[float, float, float]]:
         """
         Get 3D point coordinates (X, Y, Z) at station along alignment.
         Combines horizontal alignment coordinates with profile elevation.
         
         Args:
             station: Station to query
-            profalign_name: Name of ProfAlign (uses first if None)
+            profile_name: Name of the profile to query
             
         Returns:
             (x, y, z) coordinates at station or None if profile is missing
         """
-        if self.profile is None:
+        if self.profiles is None:
             return None
         
         # Get horizontal coordinates
         x, y = self.get_point_at_station(station)
         
         # Get elevation from profile
-        z = self.profile.get_elevation_at_station(station, profalign_name)
+        z = self.profiles.get_elevation_at_station(profile_name, station)
         
         if z is None:
             return None
@@ -1043,9 +1038,9 @@ class Alignment:
         }
         
         # Add profile if present
-        if self.profile is not None:
-            result['Profile'] = self.profile.to_dict()
-        
+        if self.profiles is not None:
+            result['Profile'] = self.profiles.to_dict()
+
         return result
     
     def __repr__(self) -> str:

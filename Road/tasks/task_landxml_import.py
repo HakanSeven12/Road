@@ -690,16 +690,16 @@ class TaskLandXMLImport(TaskPanel):
             try:
                 align_name = align_data.get('name', 'Unnamed Alignment')
                 alignment = make_alignment.create(align_name)
-                alignment.Model = Alignment(align_data)  # Profile otomatik olarak yüklenecek
+                alignment.Model = Alignment(align_data)
                 alignment.Model.coordinate_system.set_system('custom', alignment.Model.start_point, swap=True)
                 
                 print(f"Created alignment: {align_name}")
                 alignment_created += 1
                 
                 # Check if profile was loaded
-                if alignment.Model.has_profile():
+                if alignment.Model.get_profiles():
                     profile_created += 1
-                    profile_name = alignment.Model.profile.name
+                    profile_name = alignment.Model.profiles.name
                     print(f"  - Profile '{profile_name}' loaded with alignment")
                 
             except Exception as e:

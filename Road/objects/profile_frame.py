@@ -2,8 +2,10 @@
 
 """Provides the object code for Profile Frame objects."""
 
-import FreeCAD, Part, MeshPart
+import FreeCAD, Part
 from .geo_object import GeoObject
+from..functions.project_shape_to_mesh import project_shape_to_mesh
+from ..geometry.profile.profile import Profile
 from ..geometry.profile.tangent import Tangent
 from ..geometry.profile.parabola import Parabola
 from ..geometry.profile.arc import Arc
@@ -40,134 +42,59 @@ class ProfileFrame(GeoObject):
     def execute(self, obj):
         """Do something when doing a recomputation."""
 
-        profiles = obj.getParentGroup()
+        profiles_obj = obj.getParentGroup()
+        alignment = profiles_obj.getParentGroup()
+        
+        profiles = alignment.Model.get_profiles()
         if profiles is None:
             return
             
-        alignment = profiles.getParentGroup()
-        if alignment is None:
-            return
-
-        # Get alignment model
-        alignment_model = alignment.Model
-        
-        if alignment_model is None:
-            return
-        
-        try:
-            if not alignment_model.elements:
-                return
-        except (AttributeError, TypeError):
-            return
-        
-        length = alignment_model.get_length()
+        length = alignment.Model.get_length()
         obj.Length = length if length else 1000
-        
-        # Dictionary to store surface profile data temporarily
+
         surface_profiles = {}
         horizon = math.inf
         
-        # Process each terrain to get surface profiles
         for terrain in obj.Terrains:
-            flat_points = []
-            
-            # Get intersection points between alignment and terrain
-            for edge in alignment.Shape.Edges:
-                params = MeshPart.findSectionParameters(
-                    edge, terrain.Mesh, FreeCAD.Vector(0, 0, 1))
-                params.insert(0, edge.FirstParameter+1)
-                params.append(edge.LastParameter-1)
+            points = project_shape_to_mesh(alignment, terrain)
 
-                values = [edge.valueAt(glp) for glp in params]
-                flat_points.extend(values)
-
-            # Project points onto terrain mesh
-            projected_points = MeshPart.projectPointsOnMesh(
-                flat_points, terrain.Mesh, FreeCAD.Vector(0, 0, 1))
-            
             # Convert projected points to station-elevation pairs
-            station_elevation = []
-            for point in projected_points:
+            pvi_points = []
+            for p in points:
                 # Convert to alignment coordinate system
-                point = point.sub(alignment.Placement.Base).multiply(0.001)
+                point = p.sub(alignment.Placement.Base).multiply(0.001)
                 
                 # Get station and offset from alignment
-                station, offset = alignment_model.get_station_offset(
+                station, offset = alignment.Model.get_station_offset(
                     (point.x, point.y), 
                     input_system='current'
                 )
                 
                 if station is not None: 
-                    station_elevation.append([station, point.z])
+                    pvi_points.append({'station': station, 'elevation': point.z})
                     if point.z < horizon: 
                         horizon = point.z
 
             # Sort by station
-            station_elevation.sort(key=lambda x: x[0])
-            
-            # Store surface profile data
-            surface_profiles[terrain.Label] = station_elevation
-        
-        # Add surface profiles to alignment's profile model
-        if alignment_model.has_profile():
-            profile = alignment_model.get_profile()
-            
-            # Add surface profiles as ProfSurf to the profile
-            for terrain_name, station_elevation in surface_profiles.items():
-                # Check if this surface already exists in profile
-                existing_surfaces = profile.get_surface_names()
-                
-                if terrain_name not in existing_surfaces:
-                    # Create new ProfSurf data
-                    profsurf_data = {
-                        'name': terrain_name,
-                        'surfType': 'Terrain',
-                        'geometry': []
-                    }
-                    
-                    # Create Tangent segments from points
-                    for i in range(len(station_elevation) - 1):
-                        sta1, elev1 = station_elevation[i]
-                        sta2, elev2 = station_elevation[i + 1]
-                        
-                        tangent = Tangent(
-                            sta_start=sta1,
-                            elev_start=elev1,
-                            sta_end=sta2,
-                            elev_end=elev2,
-                            desc=f"{terrain_name} segment {i+1}"
-                        )
-                        profsurf_data['geometry'].append(tangent)
-                    
-                    # Add to profile's profsurf_list
-                    profile.profsurf_list.append(profsurf_data)
-                else:
-                    # Update existing surface
-                    for profsurf in profile.profsurf_list:
-                        if profsurf['name'] == terrain_name:
-                            # Recreate geometry from points
-                            profsurf['geometry'] = []
-                            
-                            for i in range(len(station_elevation) - 1):
-                                sta1, elev1 = station_elevation[i]
-                                sta2, elev2 = station_elevation[i + 1]
-                                
-                                tangent = Tangent(
-                                    sta_start=sta1,
-                                    elev_start=elev1,
-                                    sta_end=sta2,
-                                    elev_end=elev2,
-                                    desc=f"{terrain_name} segment {i+1}"
-                                )
-                                profsurf['geometry'].append(tangent)
-                            break
-            
+            pvi_points.sort(key=lambda x: x['station'])
+
+            if terrain.Label in profiles.get_surface_names():
+                pr = profiles.get_surface_by_name(terrain.Label)
+                pr.update(pvi_points)
+
+            else:
+                # Create new surface profile
+                pr = Profile(
+                    name=terrain.Label,
+                    description="Surface profile",
+                    geometry=pvi_points
+                )
+                profiles.surface_profiles.append(pr)
+
+    
             # Get design profile elevations for horizon calculation
-            profalign_names = profile.get_profalign_names()
-            for profalign_name in profalign_names:
-                # Get profile geometry elements to find elevation range
-                geometry_elements = profile.get_geometry_elements(profalign_name)
-                for elem in geometry_elements:
+            for dp in profiles.design_profiles:
+                for elem in dp.get_elements():
                     sta_start, sta_end = elem.get_station_range()
                     try:
                         elev_start = elem.get_elevation_at_station(sta_start)
@@ -197,47 +124,38 @@ class ProfileFrame(GeoObject):
         
         # 2. Surface profiles compound
         surface_shapes = []
-        if alignment_model.has_profile():
-            profile = alignment_model.get_profile()
-            surface_names = profile.get_surface_names()
-            
-            for surface_name in surface_names:
-                surface_geometry = profile.get_surface_geometry_elements(surface_name)
-                
-                for tangent in surface_geometry:
-                    try:
-                        shape = self._generate_profile_shape_from_element(
-                            tangent, obj.Horizon
-                        )
-                        if shape:
-                            surface_shapes.append(shape)
-                    except Exception as e:
-                        FreeCAD.Console.PrintWarning(
-                            f"Failed to generate surface profile shape: {str(e)}\n"
-                        )
+        for sp in profiles.surface_profiles:
+            for elem in sp.get_elements():
+                try:
+                    shape = self._generate_profile_shape_from_element(
+                        elem, obj.Horizon)
+                    if shape:
+                        surface_shapes.append(shape)
+                        
+                except Exception as e:
+                    FreeCAD.Console.PrintWarning(
+                        f"Failed to generate surface profile shape: {str(e)}\n"
+                    )
         
         surface_compound = Part.Compound(surface_shapes) if surface_shapes else Part.Shape()
         
         # 3. Design profiles compound
         design_shapes = []
-        if alignment_model.has_profile():
-            profile = alignment_model.get_profile()
-            profalign_names = profile.get_profalign_names()
+
+        for dp in profiles.design_profiles:
+            geometry_elements = dp.get_elements()
             
-            for profalign_name in profalign_names:
-                geometry_elements = profile.get_geometry_elements(profalign_name)
-                
-                for elem in geometry_elements:
-                    try:
-                        shape = self._generate_profile_shape_from_element(
-                            elem, obj.Horizon
-                        )
-                        if shape:
-                            design_shapes.append(shape)
-                    except Exception as e:
-                        FreeCAD.Console.PrintWarning(
-                            f"Failed to generate design profile shape: {str(e)}\n"
-                        )
+            for elem in geometry_elements:
+                try:
+                    shape = self._generate_profile_shape_from_element(
+                        elem, obj.Horizon)
+                    if shape:
+                        design_shapes.append(shape)
+
+                except Exception as e:
+                    FreeCAD.Console.PrintWarning(
+                        f"Failed to generate design profile shape: {str(e)}\n"
+                    )
         
         design_compound = Part.Compound(design_shapes) if design_shapes else Part.Shape()
         
