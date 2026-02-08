@@ -33,7 +33,7 @@ class ViewProviderProfileFrame(ViewProviderGeoObject):
         surface_draw_style.lineWidth = 2
 
         self.surface_color = coin.SoBaseColor()
-        self.surface_color.rgb = (1.0, 0.0, 1.0)  # Magenta
+        self.surface_color.rgb = (0.0, 1.0, 0.0)  # Green
 
         self.surface_coords = coin.SoCoordinate3()
         self.surface_lines = coin.SoLineSet()
@@ -145,7 +145,7 @@ class ViewProviderProfileFrame(ViewProviderGeoObject):
         # Color mapping
         color_map = {
             'Part::GeomLine':         (1.0, 0.0, 0.0), # Red
-            'Part::GeomBSplineCurve': (0.0, 1.0, 0.0), # Green
+            'Part::GeomBSplineCurve': (0.0, 0.0, 1.0), # Blue
             'Part::GeomCircle':       (0.0, 0.0, 1.0)  # Blue
         }
 
