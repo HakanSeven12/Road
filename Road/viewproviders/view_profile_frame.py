@@ -139,14 +139,14 @@ class ViewProviderProfileFrame(ViewProviderGeoObject):
         # Discretization map
         discretize_map = {
             'Part::GeomLine':         2,  # Tangent
-            'Part::GeomCircle':       50, # CircCurve
-            'Part::GeomBSplineCurve': 50  # ParaCurve
+            'Part::GeomBSplineCurve': 50, # ParaCurve
+            'Part::GeomCircle':       50  # CircCurve
         }
         # Color mapping
         color_map = {
-            'Part::GeomLine':         (1.0, 0.0, 0.0),  # Red
-            'Part::GeomCircle':       (0.0, 1.0, 0.0),  # Green
-            'Part::GeomBSplineCurve': (0.0, 0.0, 1.0)   # Blue
+            'Part::GeomLine':         (1.0, 0.0, 0.0), # Red
+            'Part::GeomBSplineCurve': (0.0, 1.0, 0.0), # Green
+            'Part::GeomCircle':       (0.0, 0.0, 1.0)  # Blue
         }
 
         
@@ -156,7 +156,7 @@ class ViewProviderProfileFrame(ViewProviderGeoObject):
                 points = edge.discretize(discretize_map[edge.Curve.TypeId])
                 all_coords.extend(points)
                 all_counts.append(len(points))
-                all_colors.extend([color_map[edge.Curve.TypeId] ] * len(points))
+                all_colors.extend([color_map[edge.Curve.TypeId] ] * (len(points)-1))
         
         # Update Coin3D nodes
         if all_coords:
