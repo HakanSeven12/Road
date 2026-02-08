@@ -35,16 +35,15 @@ class Profiles:
         for profalign_data in data.get('ProfAlign', []):
             name = profalign_data.get('name', 'Design Profile'),
             description = profalign_data.get('desc', None),
-            geom_data = profalign_data.get('geometry', [])
-            pa = Profile(name, description, geom_data)
+            geometry = profalign_data.get('geometry', [])
+            pa = Profile(name, description, geometry)
             self.design_profiles.append(pa)
 
         for profsurf_data in data.get('ProfSurf', []):
             name = profsurf_data.get('name', 'Surface Profile'),
             description = profsurf_data.get('desc', None),
-            points = profsurf_data.get('points', [])
-            geom_data = [{'pvi': {'station': float(pt[0]), 'elevation': float(pt[1])}} for pt in points]
-            ps = Profile(name, description, geom_data)
+            geometry = profsurf_data.get('geometry', [])
+            ps = Profile(name, description, geometry)
             self.surface_profiles.append(ps)
     
     def get_elevation_at_station(self, profile_name: str, station: float = 0.0) -> Optional[float]:
@@ -110,8 +109,8 @@ class Profiles:
             'name': self.name,
             'desc': self.description,
             'staStart': self.start_station,
-            'ProfAlign': [dp.data for dp in self.design_profiles],
-            'ProfSurf': [sp.data for sp in self.surface_profiles]
+            'ProfAlign': [dp.to_dict() for dp in self.design_profiles],
+            'ProfSurf': [sp.to_dict() for sp in self.surface_profiles]
         }
 
     def __repr__(self) -> str:

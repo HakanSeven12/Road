@@ -146,7 +146,7 @@ class ProfileParser:
         if pntlist_elem is not None:
             points = self.parse_pntlist2d(pntlist_elem)
             if points:
-                profsurf_data['points'] = points
+                profsurf_data['geometry'] = [{'pvi': {'station': float(pt[0]), 'elevation': float(pt[1])}} for pt in points]
         
         return profsurf_data
     

@@ -159,7 +159,7 @@ class Profile:
         return {
             'name': self.name,
             'desc': self.description,
-            'data': self.data
+            'geometry': self.data
         }
 
     def __repr__(self) -> str:
