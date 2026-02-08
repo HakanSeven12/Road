@@ -61,7 +61,7 @@ class Profile:
             grade_out = elev_diff_out / sta_diff_out if sta_diff_out != 0 else 0.0
 
             geom_type = data[i].get('type')
-            if geom_type == 'PVI':
+            if geom_type is None:
                 tangent = Tangent(
                     sta_start=last_end['station'],
                     elev_start=last_end['elevation'],
