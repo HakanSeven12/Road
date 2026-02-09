@@ -36,7 +36,7 @@ class ProfileEdit:
         alignments = FreeCAD.ActiveDocument.getObject("Alignments")
         self.alignment_selector = SingleSelection(alignments)
         self.profile_selector = SimpleComboBox(title="Select Profile")
-        self.editor = ProfileEditor(profile=self.profile_frame)
+        self.editor = ProfileEditor()
 
         self.alignment_selector.combo_box.currentTextChanged.connect(self.profile_update)
         self.profile_selector.combo_box.currentTextChanged.connect(self.editor_update)
@@ -67,8 +67,7 @@ class ProfileEdit:
         
         # Update editor's PVI data
         if  selected_profalign:
-            self.editor.pvi_data = selected_profalign.data
-            self.editor.load_data()
+            self.editor.load_data(selected_profalign)
 
     def needsFullSpace(self):
         return True

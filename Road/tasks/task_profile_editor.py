@@ -5,24 +5,66 @@
 import FreeCAD
 from PySide.QtWidgets import (QVBoxLayout, QPushButton, QTreeWidget, QTreeWidgetItem, 
                                QWidget, QHBoxLayout, QFileDialog, QComboBox, QLineEdit,
-                               QDoubleSpinBox, QLabel)
+                               QDoubleSpinBox, QLabel, QStyledItemDelegate)
 from PySide.QtCore import Qt
 import csv
+
+
+class ComboBoxDelegate(QStyledItemDelegate):
+    """Custom delegate to show ComboBox for Curve Type property."""
+    
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.curve_types = ["", "ParaCurve", "UnsymParaCurve", "CircCurve"]
+        self.tree_widget = parent
+    
+    def createEditor(self, parent, option, index):
+        """Create ComboBox editor for Curve Type."""
+        if index.column() == 1:  # Value column
+            # Get the item from tree widget
+            item = self.tree_widget.itemFromIndex(index)
+            if item and item.parent():
+                # Get the row index
+                row = item.parent().indexOfChild(item)
+                # Get sibling item in column 0 (property name)
+                property_item = item.parent().child(row)
+                if property_item:
+                    # Check column 0 text
+                    property_name = property_item.text(0)
+                    if property_name == "Curve Type":
+                        combo = QComboBox(parent)
+                        combo.addItems(self.curve_types)
+                        return combo
+        
+        return super().createEditor(parent, option, index)
+    
+    def setEditorData(self, editor, index):
+        """Set current value in ComboBox."""
+        if isinstance(editor, QComboBox):
+            current_text = index.data()
+            idx = editor.findText(current_text)
+            if idx >= 0:
+                editor.setCurrentIndex(idx)
+        else:
+            super().setEditorData(editor, index)
+    
+    def setModelData(self, editor, model, index):
+        """Save ComboBox selection back to model."""
+        if isinstance(editor, QComboBox):
+            model.setData(index, editor.currentText())
+        else:
+            super().setModelData(editor, model, index)
 
 
 class ProfileEditor(QWidget):
     """Tree widget for editing profile PVI (Point of Vertical Intersection) points."""
     
-    def __init__(self, parent=None, profile=None):
+    def __init__(self):
         super().__init__()
         
         # Store profile reference
-        self.profile = profile
+        self.profile = None
         self.pvi_data = []
-        
-        # Load existing PVI data from profile if available
-        if profile and hasattr(profile, 'profalign_list') and profile.profalign_list:
-            self.pvi_data = profile.profalign_list[0]['pvi_points'].copy()
         
         # Main layout
         main_layout = QVBoxLayout()
@@ -49,6 +91,10 @@ class ProfileEditor(QWidget):
         self.tree_widget.setColumnWidth(0, 150)
         self.tree_widget.itemChanged.connect(self.on_item_changed)
         
+        # Set custom delegate for ComboBox in Curve Type
+        self.combo_delegate = ComboBoxDelegate(self.tree_widget)
+        self.tree_widget.setItemDelegateForColumn(1, self.combo_delegate)
+        
         main_layout.addWidget(self.tree_widget)
         
         # Bottom button layout
@@ -67,9 +113,6 @@ class ProfileEditor(QWidget):
         main_layout.addLayout(bottom_button_layout)
         self.setLayout(main_layout)
         
-        # Load existing data
-        self.load_data()
-    
     def add_pvi(self, pvi_data=None):
         """Add a new PVI point to the tree."""
         # Create root item for PVI
@@ -80,16 +123,17 @@ class ProfileEditor(QWidget):
         
         # Get default values
         if pvi_data:
-            station = str(pvi_data.get('station', 0.0))
-            elevation = str(pvi_data.get('elevation', 0.0))
-            curve_length = str(pvi_data.get('curve_length', ''))
-            curve_type = pvi_data.get('curve_type', 'ParaCurve')
-            description = pvi_data.get('description', '')
+            station = str(pvi_data.get('pvi', {}).get('station', 0.0))
+            elevation = str(pvi_data.get('pvi', {}).get('elevation', 0.0))
+            curve_length = str(pvi_data.get('length', ''))
+            # Map curve types for display
+            curve_type = pvi_data.get('type', '')
+            description = pvi_data.get('desc', '')
         else:
             station = "0.0"
             elevation = "0.0"
             curve_length = ""
-            curve_type = "ParaCurve"
+            curve_type = ""  # None (Tangent)
             description = ""
         
         # Add properties
@@ -129,7 +173,7 @@ class ProfileEditor(QWidget):
         self._add_property_item(pvi_item, "Station", "0.0", editable=True)
         self._add_property_item(pvi_item, "Elevation", "0.0", editable=True)
         self._add_property_item(pvi_item, "Curve Length", "", editable=True)
-        self._add_property_item(pvi_item, "Curve Type", "ParaCurve", editable=True)
+        self._add_property_item(pvi_item, "Curve Type", "", editable=True)
         self._add_property_item(pvi_item, "Description", "", editable=True)
         
         # Insert at index
@@ -191,22 +235,25 @@ class ProfileEditor(QWidget):
         
         if property_name in ["Station", "Elevation", "Curve Length"]:
             # Allow empty values for optional fields
-            if value.strip() == "" and property_name == "Curve Length":
+            if value.strip() == "" and property_name in ["Curve Length", "Curve Type"]:
                 return
             
             # Validate numeric value
             try:
-                float(value)
+                if value.strip() != "":
+                    float(value)
             except ValueError:
                 # Invalid number, revert to previous value or empty
                 item.setText(1, "0.0" if property_name != "Curve Length" else "")
     
-    def load_data(self):
-        """Load PVI data from profile into tree."""
+    def load_data(self, profile):
+        """Load PVI data from self.pvi_data into tree."""
         self.tree_widget.clear()
+        self.profile = profile
+        self.pvi_data = profile.data
         
-        for pvi_data in self.pvi_data:
-            self.add_pvi(pvi_data)
+        for pvi_entry in self.pvi_data:
+            self.add_pvi(pvi_entry)
     
     def load_from_csv(self):
         """Load PVI data from CSV file."""
@@ -232,11 +279,13 @@ class ProfileEditor(QWidget):
                         continue
                     
                     pvi_data = {
-                        'station': float(row_data[0]) if row_data[0] else 0.0,
-                        'elevation': float(row_data[1]) if row_data[1] else 0.0,
-                        'curve_length': row_data[2] if len(row_data) > 2 else '',
-                        'curve_type': row_data[3] if len(row_data) > 3 else 'ParaCurve',
-                        'description': row_data[4] if len(row_data) > 4 else ''
+                        'pvi': {
+                            'station': float(row_data[0]) if row_data[0] else 0.0,
+                            'elevation': float(row_data[1]) if row_data[1] else 0.0,
+                        },
+                        'length': float(row_data[2]) if len(row_data) > 2 and row_data[2] else None,
+                        'type': row_data[3] if len(row_data) > 3 else '',
+                        'desc': row_data[4] if len(row_data) > 4 else ''
                     }
                     
                     self.add_pvi(pvi_data)
@@ -265,25 +314,25 @@ class ProfileEditor(QWidget):
                 pvi_list = self.get_pvi_data()
                 for pvi_data in pvi_list:
                     csv_writer.writerow([
-                        pvi_data['station'],
-                        pvi_data['elevation'],
-                        pvi_data.get('curve_length', ''),
-                        pvi_data.get('curve_type', 'ParaCurve'),
-                        pvi_data.get('description', '')
+                        pvi_data['pvi']['station'],
+                        pvi_data['pvi']['elevation'],
+                        pvi_data.get('length', ''),
+                        pvi_data.get('type', ''),
+                        pvi_data.get('desc', '')
                     ])
                     
         except Exception as e:
             print(f"Error saving CSV: {e}")
     
     def get_pvi_data(self):
-        """Extract PVI data from tree widget."""
+        """Extract PVI data from tree widget in format compatible with Profile.data."""
         pvi_list = []
         
         for i in range(self.tree_widget.topLevelItemCount()):
             pvi_item = self.tree_widget.topLevelItem(i)
             
             # Extract property values
-            pvi_data = {}
+            pvi_data = {'pvi': {}}
             
             for j in range(pvi_item.childCount()):
                 property_item = pvi_item.child(j)
@@ -291,15 +340,18 @@ class ProfileEditor(QWidget):
                 property_value = property_item.text(1)
                 
                 if property_name == "Station":
-                    pvi_data['station'] = float(property_value) if property_value else 0.0
+                    pvi_data['pvi']['station'] = float(property_value) if property_value else 0.0
                 elif property_name == "Elevation":
-                    pvi_data['elevation'] = float(property_value) if property_value else 0.0
+                    pvi_data['pvi']['elevation'] = float(property_value) if property_value else 0.0
                 elif property_name == "Curve Length":
-                    pvi_data['curve_length'] = float(property_value) if property_value else None
+                    if property_value:
+                        pvi_data['length'] = float(property_value)
                 elif property_name == "Curve Type":
-                    pvi_data['curve_type'] = property_value if property_value else 'ParaCurve'
+                    if property_value:
+                        pvi_data['type'] = property_value
                 elif property_name == "Description":
-                    pvi_data['description'] = property_value if property_value else None
+                    if property_value:
+                        pvi_data['desc'] = property_value
             
             pvi_list.append(pvi_data)
         
@@ -314,58 +366,20 @@ class ProfileEditor(QWidget):
             print("Error: At least 2 PVI points are required")
             return
         
-        # Update profile if available
+        # Update profile.data directly
+        # This will be used by Profile.update() method
+        self.pvi_data = pvi_list
+        
+        # If profile reference exists, update it
         if self.profile:
-            model = self.profile.Model
             try:
-                # Create geometry data for profile reconstruction
-                geometry_data = []
+                # Get the profile object from ProfileFrame
+                self.profile.update(pvi_list)
                 
-                # Add PVI points
-                for pvi in pvi_list:
-                    geometry_data.append({
-                        'Type': 'PVI',
-                        'station': pvi['station'],
-                        'elevation': pvi['elevation'],
-                        'desc': pvi.get('description', None)
-                    })
+                # Trigger ProfileFrame recompute
+                FreeCAD.ActiveDocument.recompute()
                 
-                # Add curves between PVIs
-                for i in range(len(pvi_list) - 1):
-                    curr_pvi = pvi_list[i]
-                    next_pvi = pvi_list[i + 1]
-                    
-                    # If curve length is specified, add curve at current PVI
-                    if curr_pvi.get('curve_length') and i > 0:
-                        curve_data = {
-                            'Type': curr_pvi.get('curve_type', 'ParaCurve'),
-                            'length': curr_pvi['curve_length'],
-                            'pvi': {
-                                'station': curr_pvi['station'],
-                                'elevation': curr_pvi['elevation']
-                            }
-                        }
-                        geometry_data.append(curve_data)
-                
-                # Reconstruct profile with new geometry
-                from Road.geometry.profile.profiles import Profiles
-                
-                profile_data = {
-                    'name': model.name,
-                    'staStart': pvi_list[0]['station'],
-                    'staEnd': pvi_list[-1]['station'],
-                    'ProfAlign': {
-                        'name': model.profalign_list[0]['name'] if model.profalign_list else 'Design Profile',
-                        'staStart': pvi_list[0]['station'],
-                        'length': pvi_list[-1]['station'] - pvi_list[0]['station'],
-                        'geometry': geometry_data
-                    }
-                }
-                
-                # Create new profile
-                self.profile.Model = Profiles(profile_data)
-                
-                print("Profile updated successfully")
+                print(f"Profile '{self.profile.name}' updated successfully with {len(pvi_list)} PVI points")
                 
             except Exception as e:
                 print(f"Error updating profile: {e}")
@@ -373,5 +387,3 @@ class ProfileEditor(QWidget):
                 traceback.print_exc()
         else:
             print("No profile reference available")
-        
-        FreeCAD.ActiveDocument.recompute()
