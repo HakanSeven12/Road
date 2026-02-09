@@ -33,15 +33,15 @@ class Profiles:
     def _parse_profiles(self, data: Dict):
         """Parse profiles from LandXML data dictionary"""
         for profalign_data in data.get('ProfAlign', []):
-            name = profalign_data.get('name', 'Design Profile'),
-            description = profalign_data.get('desc', None),
+            name = profalign_data.get('name', 'Design Profile')
+            description = profalign_data.get('desc', None)
             geometry = profalign_data.get('geometry', [])
             pa = Profile(name, description, geometry)
             self.design_profiles.append(pa)
 
         for profsurf_data in data.get('ProfSurf', []):
-            name = profsurf_data.get('name', 'Surface Profile'),
-            description = profsurf_data.get('desc', None),
+            name = profsurf_data.get('name', 'Surface Profile')
+            description = profsurf_data.get('desc', None)
             geometry = profsurf_data.get('geometry', [])
             ps = Profile(name, description, geometry)
             self.surface_profiles.append(ps)

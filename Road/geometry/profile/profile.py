@@ -166,7 +166,7 @@ class Profile:
         return (
             f"Profile(name='{self.name}', "
             f"elements={len(self.elements)}, "
-            f"sta_range=[{self.start_station}, {self.end_station}])",
+            f"sta_range=[{self.start_station}, {self.end_station}]),"
             f"data={self.data})"
         )
     
