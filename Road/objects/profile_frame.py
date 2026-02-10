@@ -51,9 +51,6 @@ class ProfileFrame(GeoObject):
             
         length = alignment.Model.get_length()
         obj.Length = length if length else 1000
-
-        surface_profiles = {}
-        horizon = math.inf
         
         for terrain in obj.Terrains:
             points = project_shape_to_mesh(alignment, terrain)
@@ -72,8 +69,6 @@ class ProfileFrame(GeoObject):
                 
                 if station is not None: 
                     pvi_points.append({'station': station, 'elevation': point.z})
-                    if point.z < horizon: 
-                        horizon = point.z
 
             # Sort by station
             pvi_points.sort(key=lambda x: x['station'])
@@ -87,28 +82,28 @@ class ProfileFrame(GeoObject):
                 pr = Profile(
                     name=terrain.Label,
                     description="Surface profile",
-                    geometry=pvi_points
+                    data=pvi_points
                 )
                 profiles.surface_profiles.append(pr)
+        
+        horizon = math.inf
+        # Get surface profile elevations for horizon calculation
+        for sp in profiles.surface_profiles:
+            pvi_points = sp.get_pvi_points()
+            for pvi in pvi_points:
+                if pvi['elevation'] < horizon:
+                    horizon = pvi['elevation']
 
-    
-            # Get design profile elevations for horizon calculation
-            for dp in profiles.design_profiles:
-                for elem in dp.get_elements():
-                    sta_start, sta_end = elem.get_station_range()
-                    try:
-                        elev_start = elem.get_elevation_at_station(sta_start)
-                        elev_end = elem.get_elevation_at_station(sta_end)
-                        if elev_start < horizon:
-                            horizon = elev_start
-                        if elev_end < horizon:
-                            horizon = elev_end
-                    except:
-                        pass
+        # Get design profile elevations for horizon calculation
+        for dp in profiles.design_profiles:
+            pvi_points = dp.get_pvi_points()
+            for pvi in pvi_points:
+                if pvi['elevation'] < horizon:
+                    horizon = pvi['elevation']
 
         # Set horizon
         obj.Horizon = math.floor(horizon / 5) * 5 if horizon != math.inf else 0
-
+        
         # Build Shape structure
         # Shape contains 3 compounds:
         # 1. Frame border
@@ -175,6 +170,8 @@ class ProfileFrame(GeoObject):
         """
         try:
             sta_start, sta_end = element.get_station_range()
+            if sta_end == sta_start:
+                return None
             
             if isinstance(element, Tangent):
                 # Tangent is a straight line
@@ -192,7 +189,7 @@ class ProfileFrame(GeoObject):
                 step = 1.0  # 1 meter intervals for smooth curves
                 current_sta = sta_start
                 
-                while current_sta <= sta_end:
+                while current_sta < sta_end:
                     elevation = element.get_elevation_at_station(current_sta)
                     points.append(
                         FreeCAD.Vector(
