@@ -10,52 +10,6 @@ from PySide.QtCore import Qt
 import csv
 
 
-class ComboBoxDelegate(QStyledItemDelegate):
-    """Custom delegate to show ComboBox for Curve Type property."""
-    
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.curve_types = ["", "ParaCurve", "UnsymParaCurve", "CircCurve"]
-        self.tree_widget = parent
-    
-    def createEditor(self, parent, option, index):
-        """Create ComboBox editor for Curve Type."""
-        if index.column() == 1:  # Value column
-            # Get the item from tree widget
-            item = self.tree_widget.itemFromIndex(index)
-            if item and item.parent():
-                # Get the row index
-                row = item.parent().indexOfChild(item)
-                # Get sibling item in column 0 (property name)
-                property_item = item.parent().child(row)
-                if property_item:
-                    # Check column 0 text
-                    property_name = property_item.text(0)
-                    if property_name == "Curve Type":
-                        combo = QComboBox(parent)
-                        combo.addItems(self.curve_types)
-                        return combo
-        
-        return super().createEditor(parent, option, index)
-    
-    def setEditorData(self, editor, index):
-        """Set current value in ComboBox."""
-        if isinstance(editor, QComboBox):
-            current_text = index.data()
-            idx = editor.findText(current_text)
-            if idx >= 0:
-                editor.setCurrentIndex(idx)
-        else:
-            super().setEditorData(editor, index)
-    
-    def setModelData(self, editor, model, index):
-        """Save ComboBox selection back to model."""
-        if isinstance(editor, QComboBox):
-            model.setData(index, editor.currentText())
-        else:
-            super().setModelData(editor, model, index)
-
-
 class ProfileEditor(QWidget):
     """Tree widget for editing profile PVI (Point of Vertical Intersection) points."""
     
@@ -90,10 +44,6 @@ class ProfileEditor(QWidget):
         self.tree_widget.setHeaderLabels(["Property", "Value"])
         self.tree_widget.setColumnWidth(0, 150)
         self.tree_widget.itemChanged.connect(self.on_item_changed)
-        
-        # Set custom delegate for ComboBox in Curve Type
-        self.combo_delegate = ComboBoxDelegate(self.tree_widget)
-        self.tree_widget.setItemDelegateForColumn(1, self.combo_delegate)
         
         main_layout.addWidget(self.tree_widget)
         
@@ -214,6 +164,19 @@ class ProfileEditor(QWidget):
             property_item.setFlags(property_item.flags() | Qt.ItemIsEditable)
         else:
             property_item.setFlags(property_item.flags() & ~Qt.ItemIsEditable)
+        
+        # Create persistent ComboBox for Curve Type
+        if property_name == "Curve Type":
+            combo = QComboBox()
+            combo.addItems(["", "ParaCurve", "UnsymParaCurve", "CircCurve"])
+            # Set current value
+            idx = combo.findText(value)
+            if idx >= 0:
+                combo.setCurrentIndex(idx)
+            # Store property item reference for updates
+            combo.setProperty("property_item", property_item)
+            combo.currentTextChanged.connect(lambda text, item=property_item: item.setText(1, text))
+            self.tree_widget.setItemWidget(property_item, 1, combo)
         
         return property_item
     
