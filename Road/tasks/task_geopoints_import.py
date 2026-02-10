@@ -34,16 +34,15 @@ class TaskGeoPointsImport(TaskPanel):
         
         file_buttons_layout = QtWidgets.QHBoxLayout()
         self.add_button = QtWidgets.QPushButton("Add Files")
-        self.remove_button = QtWidgets.QPushButton("Remove")
+        self.remove_button = QtWidgets.QPushButton("Remove Files")
         file_buttons_layout.addWidget(self.add_button)
         file_buttons_layout.addWidget(self.remove_button)
-        file_buttons_layout.addStretch()
         
         self.selected_files_list = QtWidgets.QListWidget()
         self.selected_files_list.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
         
-        file_layout.addLayout(file_buttons_layout)
         file_layout.addWidget(self.selected_files_list)
+        file_layout.addLayout(file_buttons_layout)
         file_group.setLayout(file_layout)
         
         # Column configuration group
