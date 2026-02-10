@@ -44,7 +44,7 @@ class Profile:
         """Create geometry elements (Tangent, Parabola, Arc) from geometry data"""
         self.elements.clear()
         # Extract PVI points and curve data
-        last_end = data[0]['pvi']
+        last_end = data[0]['pvi'].copy()
         for i in range(1, len(data) - 1):
             pvi_prev = data[i - 1]['pvi']
             pvi_curr = data[i]['pvi']
