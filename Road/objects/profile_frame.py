@@ -86,24 +86,36 @@ class ProfileFrame(GeoObject):
                 )
                 profiles.surface_profiles.append(pr)
         
-        horizon = math.inf
-        # Get surface profile elevations for horizon calculation
+        min_elevation = math.inf
+        max_elevation = -math.inf
+        
+        # Get surface profile elevations for horizon and max elevation calculation
         for sp in profiles.surface_profiles:
             pvi_points = sp.get_pvi_points()
             for pvi in pvi_points:
-                if pvi['elevation'] < horizon:
-                    horizon = pvi['elevation']
+                if pvi['elevation'] < min_elevation:
+                    min_elevation = pvi['elevation']
+                if pvi['elevation'] > max_elevation:
+                    max_elevation = pvi['elevation']
 
-        # Get design profile elevations for horizon calculation
+        # Get design profile elevations for horizon and max elevation calculation
         for dp in profiles.design_profiles:
             pvi_points = dp.get_pvi_points()
             for pvi in pvi_points:
-                if pvi['elevation'] < horizon:
-                    horizon = pvi['elevation']
+                if pvi['elevation'] < min_elevation:
+                    min_elevation = pvi['elevation']
+                if pvi['elevation'] > max_elevation:
+                    max_elevation = pvi['elevation']
 
-        # Set horizon
-        obj.Horizon = math.floor(horizon / 5) * 5 if horizon != math.inf else 0
-        
+        # Set horizon and height
+        if min_elevation != math.inf and max_elevation != -math.inf:
+            obj.Horizon = math.floor(min_elevation / 5) * 5
+            height_diff = max_elevation - obj.Horizon
+            obj.Height = math.ceil(height_diff / 5) * 5
+        else:
+            obj.Horizon = 0
+            obj.Height = 15
+
         # Build Shape structure
         # Shape contains 3 compounds:
         # 1. Frame border
