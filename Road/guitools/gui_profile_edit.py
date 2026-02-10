@@ -67,7 +67,7 @@ class ProfileEdit:
         
         # Update editor's PVI data
         if  selected_profalign:
-            self.editor.load_data(selected_profalign)
+            self.editor.load_data(alignment, selected_profalign)
 
     def needsFullSpace(self):
         return True

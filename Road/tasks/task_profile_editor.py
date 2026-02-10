@@ -17,6 +17,7 @@ class ProfileEditor(QWidget):
         super().__init__()
         
         # Store profile reference
+        self.alignment = None
         self.profile = None
         self.pvi_data = []
         
@@ -209,9 +210,11 @@ class ProfileEditor(QWidget):
                 # Invalid number, revert to previous value or empty
                 item.setText(1, "0.0" if property_name != "Curve Length" else "")
     
-    def load_data(self, profile):
+    def load_data(self, alignment, profile):
         """Load PVI data from self.pvi_data into tree."""
         self.tree_widget.clear()
+
+        self.alignment = alignment
         self.profile = profile
         self.pvi_data = profile.data
         
@@ -340,6 +343,10 @@ class ProfileEditor(QWidget):
                 self.profile.update(pvi_list)
                 
                 # Trigger ProfileFrame recompute
+                for obj in self.alignment.Group:
+                    if obj.Proxy.Type == "Road::Profiles":
+                        for profile_obj in obj.Group:
+                            profile_obj.touch()
                 FreeCAD.ActiveDocument.recompute()
                 
                 print(f"Profile '{self.profile.name}' updated successfully with {len(pvi_list)} PVI points")
