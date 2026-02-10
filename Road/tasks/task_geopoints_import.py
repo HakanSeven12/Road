@@ -27,7 +27,15 @@ class TaskGeoPointsImport(TaskPanel):
         self.form.SelectedFilesLW.itemSelectionChanged.connect(self.preview)
         self.form.PointGroupChB.stateChanged.connect(self.toggle_cluster_selection)
         self.form.CreateGroupB.clicked.connect(self.show_cluster_creation_ui)
-
+        
+        # Add connections for column number changes
+        self.form.PointNameLE.textChanged.connect(self.preview)
+        self.form.NorthingLE.textChanged.connect(self.preview)
+        self.form.EastingLE.textChanged.connect(self.preview)
+        self.form.ElevationLE.textChanged.connect(self.preview)
+        self.form.DescriptionLE.textChanged.connect(self.preview)
+        self.form.DelimiterCB.currentTextChanged.connect(self.preview)
+        
     def load_clusters(self):
         """Load clusters into the combo box."""
         clusters = get_group.get("Clusters")
