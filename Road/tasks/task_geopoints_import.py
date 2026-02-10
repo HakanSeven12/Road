@@ -95,7 +95,7 @@ class TaskGeoPointsImport(TaskPanel):
         elevation = int(text) - 1 if (text := self.form.ElevationLE.text()).isdigit() else None
         description = int(text) - 1 if (text := self.form.DescriptionLE.text()).isdigit() else None
 
-        indices = [name, northing, easting, elevation, description]
+        indices = [name, easting, northing, elevation, description]
 
         if operation == "Preview":
             self.preview_data(reader, indices)
