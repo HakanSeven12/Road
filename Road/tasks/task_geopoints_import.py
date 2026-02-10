@@ -48,7 +48,11 @@ class TaskGeoPointsImport(TaskPanel):
         """Add selected files to the list widget."""
         path = FreeCAD.ParamGet("User parameter:BaseApp/Preferences/General").GetString("FileOpenSavePath")
         file_names, _ = QtWidgets.QFileDialog.getOpenFileNames(None, "Select files", path, 'All Files (*.*)')
-        self.form.SelectedFilesLW.addItems(file_names)
+        
+        for file_path in file_names:
+            item = QtWidgets.QListWidgetItem(os.path.basename(file_path))
+            item.setData(QtCore.Qt.UserRole, file_path)  # Store full path in item data
+            self.form.SelectedFilesLW.addItem(item)
 
     def remove_file(self):
         """Remove selected files from the list widget."""
@@ -97,7 +101,7 @@ class TaskGeoPointsImport(TaskPanel):
             self.preview_data(reader, indices)
         elif operation == "Import":
             self.import_data(reader, indices)
-
+            
     def preview_data(self, reader, indices):
         """Fill the preview table with file data."""
         table_widget = self.form.PreviewTW
@@ -109,7 +113,10 @@ class TaskGeoPointsImport(TaskPanel):
                 if index is None: continue
                 if index < len(row):
                     table_widget.setItem(numRows, col, QtWidgets.QTableWidgetItem(row[index]))
-
+        
+        # Resize columns to fit content
+        table_widget.resizeColumnsToContents()
+        
     def import_data(self, reader, indices):
         """Import data from the file into the selected cluster."""
         cluster = self.get_selected_group()
@@ -159,7 +166,7 @@ class TaskGeoPointsImport(TaskPanel):
         """Preview the selected file."""
         selected_file = self.form.SelectedFilesLW.selectedItems()
         if selected_file:
-            file_path = selected_file[0].text()
+            file_path = selected_file[0].data(QtCore.Qt.UserRole)  # Get full path from item data
             self.form.PreviewL.setText(f"Preview: {os.path.basename(file_path)}")
             with open(file_path, 'r') as file:
                 self.file_reader(file, "Preview")
@@ -177,7 +184,7 @@ class TaskGeoPointsImport(TaskPanel):
             return
 
         for i in range(self.form.SelectedFilesLW.count()):
-            file_path = self.form.SelectedFilesLW.item(i).text()
+            file_path = self.form.SelectedFilesLW.item(i).data(QtCore.Qt.UserRole)  # Get full path from item data
             with open(file_path, 'r') as file:
                 self.file_reader(file, "Import")
 
