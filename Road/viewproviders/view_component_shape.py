@@ -2,22 +2,25 @@
 
 """Provides the viewprovider code for Shape objects."""
 
-import FreeCAD
 from pivy import coin
+from .view_geo_object import ViewProviderGeoObject
 
 from ..variables import icons_path
 from ..utils.get_group import create_project
 
 
-class ViewProviderComponentShape:
+class ViewProviderComponentShape(ViewProviderGeoObject):
     """This class is about Shape Object view features."""
     def __init__(self, vobj):
         """Set view properties."""
+        super().__init__(vobj, "ComponentShape")
 
         vobj.Proxy = self
 
     def attach(self, vobj):
         """Create Object visuals in 3D view."""
+        super().attach(vobj)
+
         self.Object = vobj.Object
 
         self.draw_style = coin.SoDrawStyle()
@@ -76,69 +79,31 @@ class ViewProviderComponentShape:
         structure_selection.addChild(faces)
         structure_selection.addChild(self.label)
 
-        self.structure = coin.SoGeoSeparator()
-        self.structure.addChild(structure_selection)
-
-        vobj.addDisplayMode(self.structure, "Faces")
+        self.standard.addChild(structure_selection)
 
     def updateData(self, obj, prop):
         """Update Object visuals when a data property changed."""
-        if prop == "Placement":
-            placement = obj.getPropertyByName(prop)
-            origin = create_project()
-            geo_system = ["UTM", origin.UtmZone, "FLAT"]
+        super().updateData(obj, prop)
+        
+        if prop == "Shape":
+            if obj.Shape.Faces:
+                index = 0
+                points, indexes = [], []
+                for face in obj.Shape.Faces:
+                    vertices, triangles = face.tessellate(1)
+                    points.extend(vertices)
+                    for tri in triangles:
+                        indexes.extend([i + index for i in tri])
+                        indexes.append(-1)
+                    index += len(vertices)
 
-            self.structure.geoSystem.setValues(geo_system)
-            self.structure.geoCoords.setValue(placement.Base.x, placement.Base.y, placement.Base.z)
+                #Set contour system.
+                self.face_coords.point.values = points
+                self.faces.coordIndex.values = indexes
 
-        elif prop == "Shape":
-            shape = obj.getPropertyByName(prop).copy()
-            shape.Placement.move(obj.Placement.Base.negative())
-
-            index = 0
-            points, indexes = [], []
-            for face in shape.Faces:
-                vertices, triangles = face.tessellate(1)
-                points.extend(vertices)
-                for tri in triangles:
-                    indexes.extend([i + index for i in tri])
-                    indexes.append(-1)
-                index += len(vertices)
-
-            #Set contour system.
-            self.face_coords.point.values = points
-            self.faces.coordIndex.values = indexes
-
-            component = obj.getParentGroup()
-            if component:
-                side = coin.SoAsciiText.LEFT if component.Side == "Right" else coin.SoAsciiText.RIGHT
-                self.text.justification = side
-                self.location.translation = shape.CenterOfMass
-                self.text.string.setValues([obj.Label])
-
-
-    def getDisplayModes(self,vobj):
-        """Return a list of display modes."""
-        modes = ["Faces"]
-        return modes
-
-    def getDefaultDisplayMode(self):
-        """Return the name of the default display mode."""
-        return "Faces"
-
-    def setDisplayMode(self,mode):
-        """Map the display mode defined in attach with 
-        those defined in getDisplayModes."""
-        return mode
-
-    def getIcon(self):
-        """Return object treeview icon."""
-        return icons_path + "/ComponentShape.svg"
-
-    def dumps(self):
-        """Called during document saving"""
-        return None
-
-    def loads(self, state):
-        """Called during document restore."""
-        return None
+                component = obj.getParentGroup()
+                if component:
+                    side = coin.SoAsciiText.LEFT if component.Side == "Right" else coin.SoAsciiText.RIGHT
+                    self.text.justification = side
+                    self.location.translation = obj.Shape.CenterOfMass
+                    self.text.string.setValues([obj.Label])

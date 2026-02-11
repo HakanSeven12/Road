@@ -8,7 +8,7 @@ from ..objects.component_shape import ComponentShape
 from ..viewproviders.view_component_shape import ViewProviderComponentShape
 
 def create(label="Shape"):
-    obj = FreeCAD.ActiveDocument.addObject("App::FeaturePython", "ComponentShape")
+    obj = FreeCAD.ActiveDocument.addObject("Part::FeaturePython", "ComponentShape")
 
     ComponentShape(obj)
     ViewProviderComponentShape(obj.ViewObject)

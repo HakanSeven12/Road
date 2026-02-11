@@ -26,8 +26,11 @@ class ComponentLine(GeoObject):
 
     def execute(self, obj):
         """Do something when doing a recomputation."""
+        component = obj.getParentGroup()
+        structure = component.getParentGroup()
+        obj.Placement = structure.Placement
+
         if obj.Start and obj.End:
-            obj.Placement = obj.Start.Placement
             start = obj.Start.Placement.Base - obj.Placement.Base
             end = obj.End.Placement.Base - obj.Placement.Base
             obj.Shape = Part.makeLine(start, end)

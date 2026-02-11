@@ -1,25 +1,18 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
 
 """Provides the object code for Component Shape objects."""
-import FreeCAD
 import Part
+from .geo_object import GeoObject
 
 
-class ComponentShape:
+class ComponentShape(GeoObject):
     """This class is about Component Shape Object data features."""
 
     def __init__(self, obj):
         """Set data properties."""
+        super().__init__(obj)
 
         self.Type = "Road::ComponentShape"
-
-        obj.addProperty(
-            "App::PropertyPlacement", "Placement", "Base",
-            "Placement").Placement = FreeCAD.Placement()
-
-        obj.addProperty(
-            "Part::PropertyPartShape", "Shape", "Base",
-            "Alignment Shape").Shape = Part.Shape()
 
         obj.addProperty(
             "App::PropertyLinkList", "Lines", "Geometry",
@@ -37,5 +30,6 @@ class ComponentShape:
         sorted = Part.sortEdges(edges)
         if not sorted: return
         wire = Part.Wire(sorted[0])
+        wire.Placement.move(obj.Placement.Base.negative())
         if wire.isClosed():
             obj.Shape = Part.Face(wire)
