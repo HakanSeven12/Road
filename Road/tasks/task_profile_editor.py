@@ -144,7 +144,7 @@ class ProfileEditor(QWidget):
         self.load_data(profile_name)
         
         print(f"New profile '{profile_name}' created successfully")
-        
+
     def add_pvi(self, pvi_data=None):
         """Add a new PVI point to the tree."""
         # Create root item for PVI
@@ -157,22 +157,38 @@ class ProfileEditor(QWidget):
         if pvi_data:
             station = str(pvi_data.get('pvi', {}).get('station', 0.0))
             elevation = str(pvi_data.get('pvi', {}).get('elevation', 0.0))
-            curve_length = str(pvi_data.get('length', ''))
-            # Map curve types for display
             curve_type = pvi_data.get('type', '')
             description = pvi_data.get('desc', '')
         else:
             station = "0.0"
             elevation = "0.0"
-            curve_length = ""
-            curve_type = ""  # None (Tangent)
+            curve_type = ""
             description = ""
         
-        # Add properties
+        # Add basic properties
         self._add_property_item(pvi_item, "Station", station, editable=True)
         self._add_property_item(pvi_item, "Elevation", elevation, editable=True)
-        self._add_property_item(pvi_item, "Curve Length", curve_length, editable=True)
         self._add_property_item(pvi_item, "Curve Type", curve_type, editable=True)
+        
+        # Add curve-specific parameters based on type
+        if pvi_data:
+            if curve_type == "ParaCurve":
+                length = str(pvi_data.get('length', ''))
+                self._add_property_item(pvi_item, "Curve Length", length, editable=True)
+                
+            elif curve_type == "UnsymParaCurve":
+                length_in = str(pvi_data.get('lengthIn', ''))
+                length_out = str(pvi_data.get('lengthOut', ''))
+                self._add_property_item(pvi_item, "Length In", length_in, editable=True)
+                self._add_property_item(pvi_item, "Length Out", length_out, editable=True)
+                
+            elif curve_type == "CircCurve":
+                length = str(pvi_data.get('length', ''))
+                radius = str(pvi_data.get('radius', ''))
+                self._add_property_item(pvi_item, "Curve Length", length, editable=True)
+                self._add_property_item(pvi_item, "Radius", radius, editable=True)
+        
+        # Add description
         self._add_property_item(pvi_item, "Description", description, editable=True)
         
         # Expand the item
@@ -257,10 +273,75 @@ class ProfileEditor(QWidget):
                 combo.setCurrentIndex(idx)
             # Store property item reference for updates
             combo.setProperty("property_item", property_item)
-            combo.currentTextChanged.connect(lambda text, item=property_item: item.setText(1, text))
+            combo.currentTextChanged.connect(lambda text, item=parent_item: self._update_curve_parameters(item, text))
             self.tree_widget.setItemWidget(property_item, 1, combo)
         
         return property_item
+
+    def _update_curve_parameters(self, pvi_item, curve_type):
+        """Update curve parameters based on curve type selection."""
+        # Update the Curve Type property value
+        for j in range(pvi_item.childCount()):
+            child = pvi_item.child(j)
+            if child.text(0) == "Curve Type":
+                child.setText(1, curve_type)
+                break
+        
+        # Remove existing curve parameter items (except Station, Elevation, Curve Type, Description)
+        items_to_remove = []
+        for j in range(pvi_item.childCount()):
+            child = pvi_item.child(j)
+            prop_name = child.text(0)
+            if prop_name in ["Curve Length", "Length In", "Length Out", "Radius"]:
+                items_to_remove.append(j)
+        
+        # Remove in reverse order to maintain indices
+        for idx in reversed(items_to_remove):
+            pvi_item.takeChild(idx)
+        
+        # Add appropriate parameters based on curve type
+        # Find insertion point (after Curve Type, before Description)
+        insert_index = 0
+        for j in range(pvi_item.childCount()):
+            if pvi_item.child(j).text(0) == "Curve Type":
+                insert_index = j + 1
+                break
+        
+        if curve_type == "ParaCurve":
+            # Add Length parameter
+            length_item = QTreeWidgetItem()
+            length_item.setText(0, "Curve Length")
+            length_item.setText(1, "")
+            length_item.setFlags(length_item.flags() | Qt.ItemIsEditable)
+            pvi_item.insertChild(insert_index, length_item)
+            
+        elif curve_type == "UnsymParaCurve":
+            # Add Length In and Length Out parameters
+            length_in_item = QTreeWidgetItem()
+            length_in_item.setText(0, "Length In")
+            length_in_item.setText(1, "")
+            length_in_item.setFlags(length_in_item.flags() | Qt.ItemIsEditable)
+            pvi_item.insertChild(insert_index, length_in_item)
+            
+            length_out_item = QTreeWidgetItem()
+            length_out_item.setText(0, "Length Out")
+            length_out_item.setText(1, "")
+            length_out_item.setFlags(length_out_item.flags() | Qt.ItemIsEditable)
+            pvi_item.insertChild(insert_index + 1, length_out_item)
+            
+        elif curve_type == "CircCurve":
+            # Add Length and Radius parameters
+            length_item = QTreeWidgetItem()
+            length_item.setText(0, "Curve Length")
+            length_item.setText(1, "")
+            length_item.setFlags(length_item.flags() | Qt.ItemIsEditable)
+            pvi_item.insertChild(insert_index, length_item)
+            
+            radius_item = QTreeWidgetItem()
+            radius_item.setText(0, "Radius")
+            radius_item.setText(1, "")
+            radius_item.setFlags(radius_item.flags() | Qt.ItemIsEditable)
+            pvi_item.insertChild(insert_index + 1, radius_item)
     
     def _renumber_pvis(self):
         """Renumber all PVI items sequentially."""
@@ -371,7 +452,7 @@ class ProfileEditor(QWidget):
                     
         except Exception as e:
             print(f"Error saving CSV: {e}")
-    
+
     def get_pvi_data(self):
         """Extract PVI data from tree widget in format compatible with Profile.data."""
         pvi_list = []
@@ -394,6 +475,15 @@ class ProfileEditor(QWidget):
                 elif property_name == "Curve Length":
                     if property_value:
                         pvi_data['length'] = float(property_value)
+                elif property_name == "Length In":
+                    if property_value:
+                        pvi_data['lengthIn'] = float(property_value)
+                elif property_name == "Length Out":
+                    if property_value:
+                        pvi_data['lengthOut'] = float(property_value)
+                elif property_name == "Radius":
+                    if property_value:
+                        pvi_data['radius'] = float(property_value)
                 elif property_name == "Curve Type":
                     if property_value:
                         pvi_data['type'] = property_value
