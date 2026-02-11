@@ -3,24 +3,17 @@
 """Provides the object code for Structure objects."""
 import FreeCAD
 import Part
+from .geo_object import GeoObject
 
 
-class Structure:
+class Structure(GeoObject):
     """This class is about Structure Object data features."""
 
     def __init__(self, obj):
         """Set data properties."""
+        super().__init__(obj)
 
         self.Type = "Road::Structure"
-
-        obj.addProperty(
-            "App::PropertyPlacement", "Placement", "Base",
-            "Placement").Placement = FreeCAD.Placement()
-
-        obj.addProperty(
-            "Part::PropertyPartShape", "Shape", "Base",
-            "Alignment Shape").Shape = Part.makeCompound([])
-
         obj.Proxy = self
 
     def execute(self, obj):
@@ -33,6 +26,4 @@ class Structure:
         horizontal = Part.Wire([Part.LineSegment(p1,p2).toShape()])
         vertical = Part.Wire([Part.LineSegment(p3,p4).toShape()])
 
-        shp = Part.makeCompound([horizontal, vertical])
-        shp.Placement = obj.Placement
-        obj.Shape = shp
+        obj.Shape = Part.makeCompound([horizontal, vertical])

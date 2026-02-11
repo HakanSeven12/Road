@@ -30,9 +30,6 @@ class StructureCreate:
 
     def Activated(self):
         """Command activation method"""
-        structures = FreeCAD.ActiveDocument.getObject("Structures")
-        self.structure = make_structure.create()
-        structures.addObject(self.structure)
 
         FreeCAD.Console.PrintWarning("Select Structure position on screen")
         view = FreeCADGui.ActiveDocument.ActiveView
@@ -40,17 +37,15 @@ class StructureCreate:
         self.tracker.start()
 
     def set_placement(self, callback):
+        structure = make_structure.create()
+
         event = callback.getEvent()
         position = event.getPosition() #Window position
         view = FreeCADGui.ActiveDocument.ActiveView
         coordinate = view.getPoint(tuple(position.getValue()))
         coordinate.z = 0
 
-        origin = FreeCAD.ActiveDocument.getObject("GeoOrigin")
-        if origin:
-            coordinate = coordinate.add(origin.Base)
-
-        self.structure.Placement.Base = coordinate
+        structure.Placement.Base = coordinate
         self.tracker.stop()
 
         FreeCAD.ActiveDocument.recompute()
