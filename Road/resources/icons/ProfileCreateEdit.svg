@@ -4,8 +4,8 @@
    height="64px"
    id="svg3612"
    version="1.1"
-   inkscape:version="1.4 (86a8ad7, 2024-10-11)"
-   sodipodi:docname="ProfileCreate.svg"
+   inkscape:version="1.4.2 (f4327f4, 2025-05-13)"
+   sodipodi:docname="ProfileEdit.svg"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns:xlink="http://www.w3.org/1999/xlink"
@@ -299,7 +299,7 @@
          id="stop3102" />
     </linearGradient>
     <radialGradient
-       gradientTransform="matrix(0.783292,0,0,0.783292,8.2100344,-85.300502)"
+       gradientTransform="matrix(0.783292,0,0,0.783292,-30.54366,-85.674393)"
        inkscape:collect="always"
        xlink:href="#linearGradient12512"
        id="radialGradient278"
@@ -333,15 +333,15 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="12.172349"
-     inkscape:cx="30.643223"
-     inkscape:cy="31.752294"
+     inkscape:cx="30.684299"
+     inkscape:cy="31.79337"
      inkscape:current-layer="layer1"
      showgrid="true"
      inkscape:document-units="px"
      inkscape:grid-bbox="true"
-     inkscape:window-width="1920"
-     inkscape:window-height="1017"
-     inkscape:window-x="1912"
+     inkscape:window-width="2048"
+     inkscape:window-height="992"
+     inkscape:window-x="-8"
      inkscape:window-y="-8"
      inkscape:window-maximized="1"
      inkscape:snap-global="true"
@@ -390,14 +390,20 @@
        sodipodi:nodetypes="ccccc" />
     <circle
        r="11.259823"
-       cy="12.610998"
-       cx="51.291096"
+       cy="12.237106"
+       cx="12.537402"
        style="color:#000000;display:block;visibility:visible;fill:url(#radialGradient278);fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:0.979115;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:4;stroke-dashoffset:0;stroke-opacity:1;marker:none;marker-start:none;marker-mid:none;marker-end:none"
        id="path12511"
        inkscape:export-filename="/home/jimmac/ximian_art/icons/nautilus/suse93/stock_new-16.png"
        inkscape:export-xdpi="33.852203"
        inkscape:export-ydpi="33.852203"
        inkscape:label="new" />
+    <path
+       style="fill:#ffcc00;fill-opacity:1;stroke:#000000;stroke-width:2;stroke-dasharray:none;stroke-opacity:1;paint-order:fill markers stroke"
+       d="M 34.499334,49.293181 54.200388,22.323541 H 45.33678 L 60.109459,2.0963125 H 45.33678 L 32.041371,29.06595 h 10.340876 z"
+       id="path4-0"
+       sodipodi:nodetypes="cccccccc"
+       inkscape:label="Edit" />
   </g>
   <metadata
      id="metadata4582">
@@ -408,18 +414,17 @@
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
         <dc:title>Trail_WB_EditCenterline</dc:title>
-        
         <dc:date>29-05-2020</dc:date>
         <dc:creator>
           <cc:Agent>
             <dc:title>HakanSeven12</dc:title>
           </cc:Agent>
         </dc:creator>
-        <dc:rights/>
-<dc:publisher/>
+        <dc:rights />
+        <dc:publisher />
         <dc:identifier />
         <dc:relation />
-        <dc:contributor/>
+        <dc:contributor />
         <dc:subject>
           <rdf:Bag>
             <rdf:li>line</rdf:li>
@@ -429,7 +434,7 @@
           </rdf:Bag>
         </dc:subject>
         <dc:description />
-      <cc:license
+        <cc:license
            rdf:resource="http://creativecommons.org/licenses/by-sa/4.0/" />
       </cc:Work>
       <cc:License

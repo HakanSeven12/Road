@@ -1,15 +1,14 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
 
-"""Provides GUI tools to edit Profile objects."""
+"""Provides GUI tools to create and edit Profile objects."""
 
 import FreeCAD, FreeCADGui
 
 from ..variables import icons_path
 from ..tasks.task_profile_editor import ProfileEditor
-from ..tasks.task_selection import SingleSelection, SimpleComboBox
 
-class ProfileEdit:
-    """Command to edit selected Profile."""
+class ProfileCreateEdit:
+    """Command to create and edit selected Profile."""
 
     def __init__(self):
         """Constructor"""
@@ -18,9 +17,9 @@ class ProfileEdit:
     def GetResources(self):
         """Return the command resources dictionary"""
         return {
-            "Pixmap": icons_path + "/ProfileEdit.svg",
-            "MenuText": "Edit Profile",
-            "ToolTip": "Edit selected Profile geometry."
+            "Pixmap": icons_path + "/ProfileCreateEdit.svg",
+            "MenuText": "Create/Edit Profile",
+            "ToolTip": "Create or edit profiles for selected Profile Frame."
             }
 
     def IsActive(self):
@@ -41,4 +40,4 @@ class ProfileEdit:
     def needsFullSpace(self):
         return True
     
-FreeCADGui.addCommand("Profile Edit", ProfileEdit())
+FreeCADGui.addCommand("Profile Create/Edit", ProfileCreateEdit())

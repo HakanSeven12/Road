@@ -4,7 +4,8 @@
 
 import FreeCAD
 from PySide.QtWidgets import (QVBoxLayout, QPushButton, QTreeWidget, QTreeWidgetItem, 
-                               QWidget, QHBoxLayout, QFileDialog, QComboBox)
+                               QWidget, QHBoxLayout, QFileDialog, QComboBox, QLabel, 
+                               QMessageBox, QInputDialog)
 from PySide.QtCore import Qt
 import csv
 
@@ -21,11 +22,18 @@ class ProfileEditor(QWidget):
         
         # Main layout
         main_layout = QVBoxLayout()
-        
+        # __init__ metodunda, profile selection combo'nun bulunduğu kısmı güncelleyin:
+
         # Profile selection combo
+        profile_layout = QHBoxLayout()
         self.profile_combo = QComboBox()
         self.profile_combo.currentTextChanged.connect(self.load_data)
-        main_layout.addWidget(self.profile_combo)
+        self.create_profile_button = QPushButton("Create Profile")
+        self.create_profile_button.clicked.connect(self.create_profile)
+
+        profile_layout.addWidget(self.profile_combo, stretch=1)
+        profile_layout.addWidget(self.create_profile_button)
+        main_layout.addLayout(profile_layout)
 
         # Top button layout
         top_button_layout = QHBoxLayout()
@@ -68,6 +76,74 @@ class ProfileEditor(QWidget):
         
         main_layout.addLayout(bottom_button_layout)
         self.setLayout(main_layout)
+        # Yeni metot ekleyin:
+
+    def create_profile(self):
+        """Create a new profile."""
+        
+        # Ask for profile name
+        profile_name, ok = QInputDialog.getText(
+            self, 
+            "New Profile", 
+            "Enter profile name:",
+            text=f"Profile {len(self.profiles.design_profiles) + 1}"
+        )
+        
+        if not ok or not profile_name.strip():
+            return
+        
+        # Check if name already exists
+        existing_names = self.profiles.get_profalign_names()
+        if profile_name in existing_names:
+            QMessageBox.warning(
+                self,
+                "Name Exists",
+                f"A profile named '{profile_name}' already exists."
+            )
+            return
+        
+        # Create minimal PVI data (start and end points)
+        # Get alignment start and end stations
+        start_sta = self.alignment.Model.get_sta_start()
+        end_sta = self.alignment.Model.get_sta_end()
+        
+        # Create default profile data with 2 PVIs
+        new_profile_data = [
+            {
+                'pvi': {
+                    'station': start_sta,
+                    'elevation': 0.0
+                }
+            },
+            {
+                'pvi': {
+                    'station': end_sta,
+                    'elevation': 0.0
+                }
+            }
+        ]
+        
+        # Create new Profile object
+        from ..geometry.profile.profile import Profile
+        new_profile = Profile(
+            name=profile_name,
+            desc="New design profile",
+            data=new_profile_data
+        )
+        
+        # Add to profiles
+        self.profiles.design_profiles.append(new_profile)
+        
+        # Update combo box
+        self.profile_combo.blockSignals(True)
+        self.profile_combo.addItem(profile_name)
+        self.profile_combo.setCurrentText(profile_name)
+        self.profile_combo.blockSignals(False)
+        
+        # Load the new profile
+        self.load_data(profile_name)
+        
+        print(f"New profile '{profile_name}' created successfully")
         
     def add_pvi(self, pvi_data=None):
         """Add a new PVI point to the tree."""

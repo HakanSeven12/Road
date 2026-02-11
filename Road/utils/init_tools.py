@@ -27,8 +27,7 @@ def get_alignment_commands():
             "Alignment Offset",
             "Alignment Object",
             "Profile Frame Create",
-            "Profile Create",
-            "Profile Edit",
+            "Profile Create/Edit",
             "Profile Add"]
 
 def get_road_commands():
