@@ -7,7 +7,7 @@ import FreeCAD
 from ..objects.component_point import ComponentPoint
 from ..viewproviders.view_component_point import ViewProviderComponentPoint
 
-def create(label="Point"):
+def create(label="P"):
     obj = FreeCAD.ActiveDocument.addObject("Part::FeaturePython", "ComponentPoint")
 
     ComponentPoint(obj)

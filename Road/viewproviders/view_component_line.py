@@ -2,22 +2,21 @@
 
 """Provides the viewprovider code for Line objects."""
 
-import FreeCAD
 from pivy import coin
-
-from ..variables import icons_path
-from ..utils.get_group import create_project
+from .view_geo_object import ViewProviderGeoObject
 
 
-class ViewProviderComponentLine:
+class ViewProviderComponentLine(ViewProviderGeoObject):
     """This class is about Line Object view features."""
     def __init__(self, vobj):
         """Set view properties."""
-
+        super().__init__(vobj, "ComponentLine")
         vobj.Proxy = self
 
     def attach(self, vobj):
         """Create Object visuals in 3D view."""
+        super().attach(vobj)
+
         self.Object = vobj.Object
 
         self.draw_style = coin.SoDrawStyle()
@@ -76,58 +75,19 @@ class ViewProviderComponentLine:
         structure_selection.addChild(lines)
         structure_selection.addChild(self.label)
 
-        self.structure = coin.SoGeoSeparator()
-        self.structure.addChild(structure_selection)
-
-        vobj.addDisplayMode(self.structure, "Flat Lines")
+        self.standard.addChild(structure_selection)
 
     def updateData(self, obj, prop):
         """Update Object visuals when a data property changed."""
-        if prop == "Placement":
-            placement = obj.getPropertyByName(prop)
-            origin = create_project()
-            geo_system = ["UTM", origin.UtmZone, "FLAT"]
+        super().updateData(obj, prop)
 
-            self.structure.geoSystem.setValues(geo_system)
-            self.structure.geoCoords.setValue(placement.Base.x, placement.Base.y, placement.Base.z)
+        if prop == "Shape":
+            if  obj.Shape.Edges:
+                self.line_coords.point.values = obj.Shape.discretize(2)
 
-        elif prop == "Shape":
-            shape = obj.getPropertyByName(prop).copy()
-            if not shape.Edges: return
-            shape.Placement.move(obj.Placement.Base.negative())
-
-            self.line_coords.point.values = shape.discretize(2)
-
-            component = obj.getParentGroup()
-            if component:
-                side = coin.SoAsciiText.LEFT if component.Side == "Right" else coin.SoAsciiText.RIGHT
-                self.text.justification = side
-                self.location.translation = shape.CenterOfMass
-                self.text.string.setValues([obj.Label])
-
-
-    def getDisplayModes(self,vobj):
-        """Return a list of display modes."""
-        modes = ["Flat Lines"]
-        return modes
-
-    def getDefaultDisplayMode(self):
-        """Return the name of the default display mode."""
-        return "Flat Lines"
-
-    def setDisplayMode(self,mode):
-        """Map the display mode defined in attach with 
-        those defined in getDisplayModes."""
-        return mode
-
-    def getIcon(self):
-        """Return object treeview icon."""
-        return icons_path + "/ComponentLine.svg"
-
-    def dumps(self):
-        """Called during document saving"""
-        return None
-
-    def loads(self, state):
-        """Called during document restore."""
-        return None
+                component = obj.getParentGroup()
+                if component:
+                    side = coin.SoAsciiText.LEFT if component.Side == "Right" else coin.SoAsciiText.RIGHT
+                    self.text.justification = side
+                    self.location.translation = obj.Shape.CenterOfMass
+                    self.text.string.setValues([obj.Label])

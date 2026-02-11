@@ -7,8 +7,8 @@ import FreeCAD
 from ..objects.component_line import ComponentLine
 from ..viewproviders.view_component_line import ViewProviderComponentLine
 
-def create(label="Line"):
-    obj = FreeCAD.ActiveDocument.addObject("App::FeaturePython", "ComponentLine")
+def create(label="L"):
+    obj = FreeCAD.ActiveDocument.addObject("Part::FeaturePython", "ComponentLine")
 
     ComponentLine(obj)
     ViewProviderComponentLine(obj.ViewObject)

@@ -108,8 +108,9 @@ class ComponentPoint(GeoObject):
         if obj.Reverse: displacement = displacement.negative()
 
         component = obj.getParentGroup()
-        structure = component.getParentGroup()
-        placement = structure.Placement.copy()
+        structure = component.getParentGroup() 
+        base = obj.Start if obj.Start else structure
+        placement = base.Placement.copy()
         
         side = -1 if component.Side == "Left" else 1
         displacement.x *= side
