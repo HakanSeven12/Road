@@ -4,8 +4,7 @@
 
 import FreeCAD
 from PySide.QtWidgets import (QVBoxLayout, QPushButton, QTreeWidget, QTreeWidgetItem, 
-                               QWidget, QHBoxLayout, QFileDialog, QComboBox, QLineEdit,
-                               QDoubleSpinBox, QLabel, QStyledItemDelegate)
+                               QWidget, QHBoxLayout, QFileDialog, QComboBox)
 from PySide.QtCore import Qt
 import csv
 
@@ -13,17 +12,21 @@ import csv
 class ProfileEditor(QWidget):
     """Tree widget for editing profile PVI (Point of Vertical Intersection) points."""
     
-    def __init__(self):
+    def __init__(self, alignment):
         super().__init__()
         
         # Store profile reference
-        self.alignment = None
-        self.profile = None
-        self.pvi_data = []
+        self.alignment = alignment
+        self.profiles = alignment.Model.profiles
         
         # Main layout
         main_layout = QVBoxLayout()
         
+        # Profile selection combo
+        self.profile_combo = QComboBox()
+        self.profile_combo.currentTextChanged.connect(self.load_data)
+        main_layout.addWidget(self.profile_combo)
+
         # Top button layout
         top_button_layout = QHBoxLayout()
         self.add_button = QPushButton("Add PVI")
@@ -38,7 +41,7 @@ class ProfileEditor(QWidget):
         top_button_layout.addWidget(self.delete_button)
         
         main_layout.addLayout(top_button_layout)
-        
+
         # Tree widget
         self.tree_widget = QTreeWidget()
         self.tree_widget.setColumnCount(2)
@@ -47,6 +50,8 @@ class ProfileEditor(QWidget):
         self.tree_widget.itemChanged.connect(self.on_item_changed)
         
         main_layout.addWidget(self.tree_widget)
+        profile_names = self.profiles.get_profalign_names()
+        self.profile_combo.addItems(profile_names)
         
         # Bottom button layout
         bottom_button_layout = QHBoxLayout()
@@ -209,18 +214,19 @@ class ProfileEditor(QWidget):
             except ValueError:
                 # Invalid number, revert to previous value or empty
                 item.setText(1, "0.0" if property_name != "Curve Length" else "")
-    
-    def load_data(self, alignment, profile):
+    # load_data metodunu güncelleyin:
+
+    def load_data(self, profile_name):
         """Load PVI data from self.pvi_data into tree."""
         self.tree_widget.clear()
 
-        self.alignment = alignment
-        self.profile = profile
-        self.pvi_data = profile.data
+        # Get selected profile
+        self.profile = self.profiles.get_profile_by_name(profile_name)
         
-        for pvi_entry in self.pvi_data:
+        # Load PVI data
+        for pvi_entry in self.profile.data:
             self.add_pvi(pvi_entry)
-    
+        
     def load_from_csv(self):
         """Load PVI data from CSV file."""
         csv_file_path, _ = QFileDialog.getOpenFileName(
@@ -331,10 +337,6 @@ class ProfileEditor(QWidget):
         if len(pvi_list) < 2:
             print("Error: At least 2 PVI points are required")
             return
-        
-        # Update profile.data directly
-        # This will be used by Profile.update() method
-        self.pvi_data = pvi_list
         
         # If profile reference exists, update it
         if self.profile:
