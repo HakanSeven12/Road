@@ -5,23 +5,17 @@ import FreeCAD
 import Part
 
 import math
+from .geo_object import GeoObject
 
 
-class ComponentPoint:
+class ComponentPoint(GeoObject):
     """This class is about Component Point Object data features."""
 
     def __init__(self, obj):
         """Set data properties."""
+        super().__init__(obj)
 
         self.Type = "Road::ComponentPoint"
-
-        obj.addProperty(
-            "App::PropertyPlacement", "Placement", "Base",
-            "Placement").Placement = FreeCAD.Placement()
-
-        obj.addProperty(
-            "Part::PropertyPartShape", "Shape", "Base",
-            "Alignment Shape").Shape = Part.makeCircle(100)
 
         obj.addProperty(
             "App::PropertyEnumeration", "Type", "Base",
@@ -72,6 +66,8 @@ class ComponentPoint:
             "Target Alignment.")
 
         obj.Proxy = self
+        obj.Shape = Part.makeCircle(100)
+        self.onChanged(obj, "Type")
 
     def execute(self, obj):
         """Do something when doing a recomputation."""
@@ -113,23 +109,16 @@ class ComponentPoint:
 
         component = obj.getParentGroup()
         structure = component.getParentGroup()
+        placement = structure.Placement.copy()
         
         side = -1 if component.Side == "Left" else 1
         displacement.x *= side
-
-        base = obj.Start if obj.Start else structure
-        origin = base.Placement.Base
-
-        placement = FreeCAD.Placement()
-        placement.move(origin)
         placement.move(displacement)
         obj.Placement = placement
 
-        shp = Part.makeCircle(100)
-        shp.Placement.move(obj.Placement.Base)
-        obj.Shape = shp
-
     def onChanged(self, obj, prop):
+        super().onChanged(obj, prop)
+
         if prop == "Type":
             type = obj.getPropertyByName(prop)
             

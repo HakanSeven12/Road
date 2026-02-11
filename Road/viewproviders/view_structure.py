@@ -2,12 +2,8 @@
 
 """Provides the viewprovider code for Profile objects."""
 
-import FreeCAD
 from pivy import coin
-
 from .view_geo_object import ViewProviderGeoObject
-from ..variables import icons_path
-from ..utils.get_group import create_project
 
 
 class ViewProviderStructure(ViewProviderGeoObject):
