@@ -9,7 +9,6 @@ from ..objects.terrain import Terrain
 from ..viewproviders.view_terrain import ViewProviderTerrain
 
 def create(clusters=[], label="Terrain"):
-    terrains = get_group.get("Terrains")
     obj=FreeCAD.ActiveDocument.addObject("Mesh::FeaturePython", "Terrain")
 
     Terrain(obj)
@@ -17,6 +16,8 @@ def create(clusters=[], label="Terrain"):
 
     obj.Label = label
     obj.Clusters = clusters
+    
+    terrains = get_group.get("Terrains")
     terrains.addObject(obj)
 
     return obj

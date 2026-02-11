@@ -27,7 +27,7 @@ class Road:
             "Base line Alignment").Alignment = None
 
         obj.addProperty(
-            "App::PropertyLink", "Profile", "Model",
+            "App::PropertyString", "Profile", "Model",
             "Elevation profile").Profile = None
 
         obj.addProperty(
