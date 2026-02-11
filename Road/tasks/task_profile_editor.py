@@ -174,8 +174,10 @@ class ProfileEditor(QWidget):
         if pvi_data:
             if curve_type == "ParaCurve":
                 length = str(pvi_data.get('length', ''))
+                k_val = str(pvi_data.get('kValue', ''))
                 self._add_property_item(pvi_item, "Curve Length", length, editable=True)
-                
+                self._add_property_item(pvi_item, "K Value", k_val, editable=True)
+
             elif curve_type == "UnsymParaCurve":
                 length_in = str(pvi_data.get('lengthIn', ''))
                 length_out = str(pvi_data.get('lengthOut', ''))
@@ -292,7 +294,7 @@ class ProfileEditor(QWidget):
         for j in range(pvi_item.childCount()):
             child = pvi_item.child(j)
             prop_name = child.text(0)
-            if prop_name in ["Curve Length", "Length In", "Length Out", "Radius"]:
+            if prop_name in ["Curve Length", "K Value", "Length In", "Length Out", "Radius"]:
                 items_to_remove.append(j)
         
         # Remove in reverse order to maintain indices
@@ -308,12 +310,18 @@ class ProfileEditor(QWidget):
                 break
         
         if curve_type == "ParaCurve":
-            # Add Length parameter
+            # Add Length and K Value parameter
             length_item = QTreeWidgetItem()
             length_item.setText(0, "Curve Length")
             length_item.setText(1, "")
             length_item.setFlags(length_item.flags() | Qt.ItemIsEditable)
             pvi_item.insertChild(insert_index, length_item)
+            
+            k_value_item = QTreeWidgetItem()
+            k_value_item.setText(0, "K Value")
+            k_value_item.setText(1, "")
+            k_value_item.setFlags(k_value_item.flags() | Qt.ItemIsEditable)
+            pvi_item.insertChild(insert_index + 1, k_value_item)
             
         elif curve_type == "UnsymParaCurve":
             # Add Length In and Length Out parameters
@@ -350,28 +358,38 @@ class ProfileEditor(QWidget):
             item.setText(0, f"PVI {i + 1}")
     
     def on_item_changed(self, item, column):
-        """Handle item value changes."""
-        # Only process value column changes
+        """
+        Handle item value changes and validate numeric inputs for profile properties.
+        """
+        # Only process changes in the 'Value' column
         if column != 1:
             return
         
-        # Validate numeric inputs
         property_name = item.text(0)
-        value = item.text(1)
+        value = item.text(1).strip()
         
-        if property_name in ["Station", "Elevation", "Curve Length"]:
-            # Allow empty values for optional fields
-            if value.strip() == "" and property_name in ["Curve Length", "Curve Type"]:
+        # Define fields that must be numeric
+        numeric_fields = ["Station", "Elevation", "Curve Length", "K Value", 
+                          "Length In", "Length Out", "Radius"]
+        
+        if property_name in numeric_fields:
+            # Allow empty values for optional curve parameters
+            if value == "":
                 return
             
-            # Validate numeric value
             try:
-                if value.strip() != "":
-                    float(value)
+                # Attempt to convert the input to a float
+                float(value)
             except ValueError:
-                # Invalid number, revert to previous value or empty
-                item.setText(1, "0.0" if property_name != "Curve Length" else "")
-    # load_data metodunu güncelleyin:
+                # If conversion fails, revert to a safe default
+                # Stations and Elevations default to 0.0, others to empty string
+                if property_name in ["Station", "Elevation"]:
+                    item.setText(1, "0.0")
+                else:
+                    item.setText(1, "")
+                
+                # Optional: Show a message to the user
+                print(f"Invalid input for {property_name}: {value}. Please enter a numeric value.")
 
     def load_data(self, profile_name):
         """Load PVI data from self.pvi_data into tree."""
@@ -475,6 +493,9 @@ class ProfileEditor(QWidget):
                 elif property_name == "Curve Length":
                     if property_value:
                         pvi_data['length'] = float(property_value)
+                elif property_name == "K Value":
+                    if property_value:
+                        pvi_data['kValue'] = float(property_value)
                 elif property_name == "Length In":
                     if property_value:
                         pvi_data['lengthIn'] = float(property_value)

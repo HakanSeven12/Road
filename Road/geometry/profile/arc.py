@@ -10,15 +10,14 @@ class Arc(ProfileGeometry):
     Circular vertical curve.
     Less common than parabolic, but used in some standards.
     """
-
     def __init__(self, data: Dict, grade_in: float, grade_out: float):
         """
         Initialize circular vertical curve.
         
         Args:
             data: Dictionary containing:
-                - length: float (required)
-                - radius: float (optional)
+                - length: float (optional if radius given)
+                - radius: float (optional if length given)
                 - pvi: dict with station/elevation (required)
                 - desc: str (optional)
             grade_in: Grade coming into curve
@@ -26,11 +25,9 @@ class Arc(ProfileGeometry):
         """
         super().__init__(data)
         
-        if 'length' not in data:
-            raise ValueError("Arc must have 'length'")
-        
-        self.length = float(data['length'])
-        self.radius = float(data['radius']) if 'radius' in data else None
+        # At least one of length or radius must be provided
+        if 'length' not in data and 'radius' not in data:
+            raise ValueError("CircCurve must have either 'length' or 'radius'")
         
         # PVI point
         pvi_data = data.get('pvi', {})
@@ -40,19 +37,39 @@ class Arc(ProfileGeometry):
         self.pvi_station = float(pvi_data['station'])
         self.pvi_elevation = float(pvi_data['elevation'])
         
-        # Calculate curve start and end
-        self.sta_start = self.pvi_station - self.length / 2
-        self.sta_end = self.pvi_station + self.length / 2
-        
         # Store grades
         self.grade_in = grade_in
         self.grade_out = grade_out
         self.grade_change = self.grade_out - self.grade_in
         
-        # Calculate radius if not provided
-        if self.radius is None and self.grade_change != 0:
-            delta_angle = math.atan(self.grade_change)
-            self.radius = self.length / delta_angle if delta_angle != 0 else float('inf')
+        # Calculate deflection angle (exact calculation using arctan)
+        # Δ = arctan(g2) - arctan(g1) = angle change in radians
+        delta_angle = math.atan(self.grade_out) - math.atan(self.grade_in)
+        
+        # Calculate length and radius relationship
+        # For circular curve: L = R * Δ
+        
+        if 'length' in data and 'radius' in data:
+            # Both provided, use them directly
+            self.length = float(data['length'])
+            self.radius = float(data['radius'])
+        elif 'length' in data:
+            # Only length provided, calculate radius
+            self.length = float(data['length'])
+            if abs(delta_angle) > 1e-10:
+                # R = L / Δ
+                self.radius = self.length / abs(delta_angle)
+            else:
+                self.radius = float('inf')
+        else:
+            # Only radius provided, calculate length
+            self.radius = float(data['radius'])
+            # L = R * Δ
+            self.length = self.radius * abs(delta_angle)
+        
+        # Calculate curve start and end
+        self.sta_start = self.pvi_station - self.length / 2
+        self.sta_end = self.pvi_station + self.length / 2
         
         # Calculate BVC and EVC elevations
         self.elev_bvc = self.pvi_elevation - (self.length / 2) * self.grade_in

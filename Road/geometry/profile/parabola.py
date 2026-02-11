@@ -26,12 +26,24 @@ class Parabola(ProfileGeometry):
         """
         super().__init__(data)
         
-        if 'length' not in data:
-            raise ValueError("Parabola must have 'length'")
+        # Store grades first as they are needed for K-value calculation
+        self.grade_in = grade_in
+        self.grade_out = grade_out
+        self.grade_change = self.grade_out - self.grade_in
+
+        # Handle K-value or Length priority
+        if 'length' in data:
+            self.length = float(data['length'])
+            # Calculate K value based on length
+            self.k_value = self.length / abs(self.grade_change * 100) if self.grade_change != 0 else float('inf')
+        elif 'kValue' in data:
+            self.k_value = float(data['kValue'])
+            # Calculate length based on K value: L = K * |A| (where A is grade change in percent)
+            self.length = self.k_value * abs(self.grade_change * 100)
+        else:
+            raise ValueError("Parabola must have either 'length' or 'kValue'")
         
-        self.length = float(data['length'])
-        
-        # Check if asymmetric
+        # Check if asymmetric (K-value based design is usually symmetric by default)
         self.is_asymmetric = 'lengthIn' in data or 'lengthOut' in data
         
         if self.is_asymmetric:
@@ -59,9 +71,6 @@ class Parabola(ProfileGeometry):
         self.grade_in = grade_in
         self.grade_out = grade_out
         self.grade_change = self.grade_out - self.grade_in
-        
-        # K value (rate of vertical curvature)
-        self.k_value = self.length / abs(self.grade_change) if self.grade_change != 0 else float('inf')
         
         # Calculate elevations at curve BVC (beginning) and EVC (end)
         self.elev_bvc = self.pvi_elevation - self.length_in * self.grade_in
