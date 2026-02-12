@@ -107,7 +107,7 @@ class ProfileFrame(GeoObject):
                         f"Failed to generate surface profile shape: {str(e)}\n"
                     )
         
-        surface_compound = Part.Compound(surface_shapes) if surface_shapes else Part.Shape()
+        surface_compound = Part.Compound(surface_shapes) if surface_shapes else Part.Compound([Part.Shape()])
         
         # 3. Design profiles compound
         design_shapes = []
@@ -127,7 +127,7 @@ class ProfileFrame(GeoObject):
                         f"Failed to generate design profile shape: {str(e)}\n"
                     )
         
-        design_compound = Part.Compound(design_shapes) if design_shapes else Part.Shape()
+        design_compound = Part.Compound(design_shapes) if design_shapes else Part.Compound([Part.Shape()])
         
         # Final compound: [frame_border, surface_compound, design_compound]
         obj.Shape = Part.Compound([frame_border, surface_compound, design_compound])
