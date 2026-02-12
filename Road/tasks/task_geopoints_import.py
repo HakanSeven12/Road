@@ -46,7 +46,7 @@ class TaskGeoPointsImport(TaskPanel):
         file_group.setLayout(file_layout)
         
         # Column configuration group
-        column_group = QtWidgets.QGroupBox("Column Configuration")
+        column_group = QtWidgets.QGroupBox("Column Mapping")
         column_layout = QtWidgets.QVBoxLayout()
         
         # Column numbers section (form layout)
