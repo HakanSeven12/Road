@@ -46,20 +46,37 @@ class Road(GeoObject):
 
         for sta in stations:
             try:
-                point = obj.Alignment.Model.get_3d_point_at_station(obj.Profile,sta)
-                p, vec = obj.Alignment.Model.get_orthogonal_at_station(sta)
+                # Get the 3D position and the orthogonal (normal) vector from alignment
+                point = obj.Alignment.Model.get_3d_point_at_station(obj.Profile, sta)
+                p, normal_vec = obj.Alignment.Model.get_orthogonal_at_station(sta)
+                
+                # normal_vec is (x, y), we need it in 3D
+                norm = FreeCAD.Vector(normal_vec[0], normal_vec[1], 0)
+                # Tangent vector is perpendicular to the normal in 2D
+                tangent = FreeCAD.Vector(-normal_vec[1], normal_vec[0], 0)
+                # Vertical axis
+                up = FreeCAD.Vector(0, 0, 1)
 
-                global_matrix = FreeCAD.Matrix()
-                global_matrix.rotateX(math.pi/2)
-                global_matrix.rotateZ(FreeCAD.Vector(*vec).getAngle(FreeCAD.Vector(1,0,0)))
+                # Create a rotation matrix where:
+                # X-axis of cross-section follows the Normal (sideways)
+                # Y-axis of cross-section follows the Up vector (elevation)
+                # Z-axis of cross-section follows the Tangent (forward)
+                matrix = FreeCAD.Matrix(
+                    norm.x, tangent.x, up.x, 0,
+                    norm.y, tangent.y, up.y, 0,
+                    norm.z, tangent.z, up.z, 0,
+                    0, 0, 0, 1
+                )
 
-                new_placement = FreeCAD.Placement(global_matrix)
+                new_placement = FreeCAD.Placement(matrix)
+                # FreeCAD uses mm, ensure scale is consistent with your data
                 new_placement.Base = FreeCAD.Vector(*point).multiply(1000)
 
                 section = base_shp.copy()
                 section.Placement = new_placement
                 sec_list.append(section)
-            except: continue
+            except: 
+                continue
         
         shp_list = []
         for i in range(len(base_shp.Edges)):
