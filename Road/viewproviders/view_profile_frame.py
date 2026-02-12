@@ -106,8 +106,17 @@ class ViewProviderProfileFrame(ViewProviderGeoObject):
             # Update design profiles with coloring
             self._update_design_profiles_from_shape(design_compound)
             
+        if prop in ["Placement", "Length", "Height", "Horizon"]:
             # Update frame
-            self._update_frame(obj)
+            # Create frame
+            frame = self.frame_manager.create_profile_frame(
+                obj.Placement, obj.Length, obj.Height)
+            
+            # Add horizon to frame data
+            frame['horizon'] = obj.Horizon
+            
+            # Update all visualizations
+            self.frame_manager.update(frame, obj.Length, obj.Height)
 
     def _update_surface_profiles_from_shape(self, surface_compound):
         """Update surface profile visualization from Shape."""
@@ -163,16 +172,3 @@ class ViewProviderProfileFrame(ViewProviderGeoObject):
             self.design_coords.point.setValues(0, len(all_coords), all_coords)
             self.design_lines.numVertices.setValues(0, len(all_counts), all_counts)
             self.design_material.diffuseColor.setValues(0, len(all_colors), all_colors)
-
-    def _update_frame(self, obj):
-        """Update frame visualization using FrameManager."""
-        
-        # Create frame
-        frame = self.frame_manager.create_profile_frame(
-            obj.Placement, obj.Length, obj.Height)
-        
-        # Add horizon to frame data
-        frame['horizon'] = obj.Horizon
-        
-        # Update all visualizations
-        self.frame_manager.update(frame, obj.Length, obj.Height)

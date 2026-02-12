@@ -73,11 +73,7 @@ class Alignment:
         self.profiles = None
         
         # Parse profile if present
-        if 'Profile' in data and data['Profile']:
-            try:
-                self.profiles = Profiles(data['Profile'])
-            except Exception as e:
-                print(f"Warning: Failed to parse profile: {str(e)}")
+        self.profiles = Profiles(data.get('Profile'))
     
     def set_coordinate_system(self, system_type: str, 
                             origin: Optional[Tuple[float, float]] = None,

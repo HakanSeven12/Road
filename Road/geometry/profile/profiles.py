@@ -19,6 +19,8 @@ class Profiles:
             data: Dictionary containing profile data
             parent_alignment: Reference to parent Alignment object (optional)
         """
+        if data is None:
+            data = {'ProfAlign': [], 'ProfSurf': []}
         
         # Profile metadata
         self.name = data.get('name', None)

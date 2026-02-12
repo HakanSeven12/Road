@@ -44,11 +44,8 @@ class ProfileFrame(GeoObject):
 
         profiles_obj = obj.getParentGroup()
         alignment = profiles_obj.getParentGroup()
-        
         profiles = alignment.Model.get_profiles()
-        if profiles is None:
-            return
-            
+        
         length = alignment.Model.get_length()
         obj.Length = length if length else 1000
         
@@ -68,20 +65,20 @@ class ProfileFrame(GeoObject):
                 )
                 
                 if station is not None: 
-                    pvi_points.append({'station': station, 'elevation': point.z})
+                    pvi_points.append({'pvi' : {'station': station, 'elevation': point.z}})
 
             # Sort by station
-            pvi_points.sort(key=lambda x: x['station'])
+            pvi_points.sort(key=lambda x: x['pvi']['station'])
 
             if terrain.Label in profiles.get_surface_names():
-                pr = profiles.get_surface_by_name(terrain.Label)
+                pr = profiles.get_profile_by_name(terrain.Label)
                 pr.update(pvi_points)
 
             else:
                 # Create new surface profile
                 pr = Profile(
                     name=terrain.Label,
-                    description="Surface profile",
+                    desc="Surface profile",
                     data=pvi_points
                 )
                 profiles.surface_profiles.append(pr)
