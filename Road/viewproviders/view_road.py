@@ -2,22 +2,21 @@
 
 """Provides the viewprovider code for Shape objects."""
 
-import FreeCAD
 from pivy import coin
-
-from ..variables import icons_path
-from ..utils.get_group import create_project
+from .view_geo_object import ViewProviderGeoObject
 
 
-class ViewProviderRoad:
+class ViewProviderRoad(ViewProviderGeoObject):
     """This class is about Shape Object view features."""
     def __init__(self, vobj):
         """Set view properties."""
-
+        super().__init__(vobj, "Road")
         vobj.Proxy = self
 
     def attach(self, vobj):
         """Create Object visuals in 3D view."""
+        super().attach(vobj)
+
         self.Object = vobj.Object
 
         self.draw_style = coin.SoDrawStyle()
@@ -58,27 +57,16 @@ class ViewProviderRoad:
         road_selection.style = 'EMISSIVE_DIFFUSE'
         road_selection.addChild(faces)
 
-        self.road = coin.SoGeoSeparator()
-        self.road.addChild(road_selection)
-
-        vobj.addDisplayMode(self.road, "Model")
+        self.standard.addChild(road_selection)
 
     def updateData(self, obj, prop):
         """Update Object visuals when a data property changed."""
-        if prop == "Placement":
-            placement = obj.getPropertyByName(prop)
-            origin = create_project()
-            geo_system = ["UTM", origin.UtmZone, "FLAT"]
+        super().updateData(obj, prop)
 
-            self.road.geoSystem.setValues(geo_system)
-            self.road.geoCoords.setValue(placement.Base.x, placement.Base.y, placement.Base.z)
-
-        elif prop == "Shape":
-            shape = obj.getPropertyByName(prop)
-
+        if prop == "Shape":
             index = 0
             points, indexes = [], []
-            for face in shape.Faces:
+            for face in obj.Shape.Faces:
                 vertices, triangles = face.tessellate(1000)
                 points.extend(vertices)
                 for tri in triangles:
@@ -89,29 +77,3 @@ class ViewProviderRoad:
             #Set contour system.
             self.face_coords.point.values = points
             self.faces.coordIndex.values = indexes
-
-    def getDisplayModes(self,vobj):
-        """Return a list of display modes."""
-        modes = ["Model"]
-        return modes
-
-    def getDefaultDisplayMode(self):
-        """Return the name of the default display mode."""
-        return "Model"
-
-    def setDisplayMode(self,mode):
-        """Map the display mode defined in attach with 
-        those defined in getDisplayModes."""
-        return mode
-
-    def getIcon(self):
-        """Return object treeview icon."""
-        return icons_path + "/Road.svg"
-
-    def dumps(self):
-        """Called during document saving"""
-        return None
-
-    def loads(self, state):
-        """Called during document restore."""
-        return None

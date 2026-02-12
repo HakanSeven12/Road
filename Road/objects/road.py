@@ -5,22 +5,16 @@
 import FreeCAD
 import Part
 import math
+from .geo_object import GeoObject
 
 
-class Road:
+class Road(GeoObject):
     """This class is about Road object data features."""
 
     def __init__(self, obj):
         """Set data properties."""
+        super().__init__(obj)
         self.Type = "Road::Road"
-
-        obj.addProperty(
-            "App::PropertyPlacement", "Placement", "Base",
-            "Placement").Placement = FreeCAD.Placement()
-
-        obj.addProperty(
-            "Part::PropertyPartShape", "Shape", "Base",
-            "Object shape").Shape = Part.Shape()
 
         obj.addProperty(
             "App::PropertyLink", "Alignment", "Model",
@@ -28,7 +22,7 @@ class Road:
 
         obj.addProperty(
             "App::PropertyString", "Profile", "Model",
-            "Elevation profile").Profile = None
+            "Elevation profile").Profile = ''
 
         obj.addProperty(
             "App::PropertyLink", "Structure", "Model",
@@ -49,32 +43,23 @@ class Road:
         sec_list = []
         base_shp = Part.makeCompound(com_list)
         stations = obj.Alignment.Model.generate_stations()
-        pos = obj.Profile.Placement.Base
-        dy=FreeCAD.Vector(0, obj.Profile.Shape.BoundBox.YLength)
 
-        for station, transform in stations.items():
-            length = station
-            point = transform["Location"]
-            angle = transform["Rotation"]
+        for sta in stations:
+            try:
+                point = obj.Alignment.Model.get_3d_point_at_station(obj.Profile,sta)
+                p, vec = obj.Alignment.Model.get_orthogonal_at_station(sta)
 
-            start = pos.add(FreeCAD.Vector(length,0))
-            end = start.add(dy)
-            line_edge = Part.LineSegment(start, end)
-            line_shape = line_edge.toShape()
+                global_matrix = FreeCAD.Matrix()
+                global_matrix.rotateX(math.pi/2)
+                global_matrix.rotateZ(FreeCAD.Vector(*vec).getAngle(FreeCAD.Vector(1,0,0)))
 
-            result = obj.Profile.Shape.distToShape(line_shape.SubShapes[0])
-            elevation = result[1][0][0].y - start.y + 3000
+                new_placement = FreeCAD.Placement(global_matrix)
+                new_placement.Base = FreeCAD.Vector(*point).multiply(1000)
 
-            global_matrix = FreeCAD.Matrix()
-            global_matrix.rotateX(math.pi/2)
-            global_matrix.rotateZ(angle)
-
-            new_placement = FreeCAD.Placement(global_matrix)
-            new_placement.Base = point.add(FreeCAD.Vector(0, 0, elevation))
-
-            section = base_shp.copy()
-            section.Placement = new_placement
-            sec_list.append(section)
+                section = base_shp.copy()
+                section.Placement = new_placement
+                sec_list.append(section)
+            except: continue
         
         shp_list = []
         for i in range(len(base_shp.Edges)):
@@ -86,6 +71,8 @@ class Road:
 
     def onChanged(self, obj, prop):
         """Update Object when a property changed."""
+        super().onChanged(obj, prop)
+        
         if prop == "Alignment":
             alignment = obj.getPropertyByName(prop)
             obj.Placement = alignment.Placement if alignment else FreeCAD.Placement()
