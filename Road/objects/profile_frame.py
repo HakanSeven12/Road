@@ -49,40 +49,6 @@ class ProfileFrame(GeoObject):
         length = alignment.Model.get_length()
         obj.Length = length if length else 1000
         
-        for terrain in obj.Terrains:
-            points = project_shape_to_mesh(alignment, terrain)
-
-            # Convert projected points to station-elevation pairs
-            pvi_points = []
-            for p in points:
-                # Convert to alignment coordinate system
-                point = p.sub(alignment.Placement.Base).multiply(0.001)
-                
-                # Get station and offset from alignment
-                station, offset = alignment.Model.get_station_offset(
-                    (point.x, point.y), 
-                    input_system='current'
-                )
-                
-                if station is not None: 
-                    pvi_points.append({'pvi' : {'station': station, 'elevation': point.z}})
-
-            # Sort by station
-            pvi_points.sort(key=lambda x: x['pvi']['station'])
-
-            if terrain.Label in profiles.get_surface_names():
-                pr = profiles.get_profile_by_name(terrain.Label)
-                pr.update(pvi_points)
-
-            else:
-                # Create new surface profile
-                pr = Profile(
-                    name=terrain.Label,
-                    desc="Surface profile",
-                    data=pvi_points
-                )
-                profiles.surface_profiles.append(pr)
-        
         min_elevation = math.inf
         max_elevation = -math.inf
         
@@ -165,6 +131,51 @@ class ProfileFrame(GeoObject):
         
         # Final compound: [frame_border, surface_compound, design_compound]
         obj.Shape = Part.Compound([frame_border, surface_compound, design_compound])
+
+    def onChanged(self, obj, prop):
+        """Do something when a property has changed."""
+        super().onChanged(obj, prop)
+        
+        if prop == "Terrains":
+            profiles_obj = obj.getParentGroup()
+            alignment = profiles_obj.getParentGroup()
+            profiles = alignment.Model.get_profiles()
+        
+            # When terrains change, we need to update the profile shapes
+            for terrain in obj.Terrains:
+                points = project_shape_to_mesh(alignment, terrain)
+
+                # Convert projected points to station-elevation pairs
+                pvi_points = []
+                for p in points:
+                    # Convert to alignment coordinate system
+                    point = p.sub(alignment.Placement.Base).multiply(0.001)
+                    
+                    # Get station and offset from alignment
+                    station, offset = alignment.Model.get_station_offset(
+                        (point.x, point.y), 
+                        input_system='current'
+                    )
+                    
+                    if station is not None: 
+                        pvi_points.append({'pvi' : {'station': station, 'elevation': point.z}})
+
+                # Sort by station
+                pvi_points.sort(key=lambda x: x['pvi']['station'])
+
+                if terrain.Label in profiles.get_surface_names():
+                    pr = profiles.get_profile_by_name(terrain.Label)
+                    pr.update(pvi_points)
+
+                else:
+                    # Create new surface profile
+                    pr = Profile(
+                        name=terrain.Label,
+                        desc="Surface profile",
+                        data=pvi_points
+                    )
+                    profiles.surface_profiles.append(pr)
+        
 
     def _generate_profile_shape_from_element(self, element, horizon):
         """
