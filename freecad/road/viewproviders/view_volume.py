@@ -1,0 +1,85 @@
+# SPDX-License-Identifier: LGPL-2.1-or-later
+
+"""Provides the viewprovider code for Volume objects."""
+
+from pivy import coin
+import random
+
+from ..utils.get_group import create_project
+
+
+class ViewProviderVolume:
+    """
+    This class is about Volume Object view features.
+    """
+
+    def __init__(self, vobj):
+        '''
+        Set view properties.
+        '''
+        (r, g, b) = (random.random(), random.random(), random.random())
+
+        vobj.addProperty(
+            "App::PropertyColor", "AreaColor", "Base",
+            "Color of the volume areas").AreaColor = (r, g, b)
+
+        vobj.Proxy = self
+
+    def attach(self, vobj):
+        '''
+        Create Object visuals in 3D view.
+        '''
+        # Face root.
+        self.face_coords = coin.SoGeoCoordinate()
+        self.faces = coin.SoIndexedFaceSet()
+        self.area_color = coin.SoBaseColor()
+
+        # Highlight for selection.
+        highlight = coin.SoType.fromName('SoFCSelection').createInstance()
+        highlight.style = 'EMISSIVE_DIFFUSE'
+        highlight.addChild(self.face_coords)
+        highlight.addChild(self.faces)
+
+        # Volume root.
+        volume_root = coin.SoSeparator()
+        volume_root.addChild(self.area_color)
+        volume_root.addChild(highlight)
+        vobj.addDisplayMode(volume_root,"Volume")
+
+        # Take features from properties.
+        self.onChanged(vobj,"AreaColor")
+
+    def onChanged(self, vobj, prop):
+        '''
+        Update Object visuals when a view property changed.
+        '''
+        if prop == "AreaColor":
+            color = vobj.getPropertyByName("AreaColor")
+            self.area_color.rgb = (color[0],color[1],color[2])
+
+    def updateData(self, obj, prop):
+        '''
+        Update Object visuals when a data property changed.
+        '''
+        if prop == "Shape":
+            shape = obj.getPropertyByName("Shape")
+
+            # Set System.
+            origin = create_project()
+            geo_system = ["UTM", origin.UtmZone, "FLAT"]
+            self.face_coords.geoSystem.setValues(geo_system)
+
+            idx = 0
+            points = []
+            face_vert = []
+            for face in shape.Faces:
+                tri = face.tessellate(1)
+                for v in tri[0]:
+                    points.append(v.add(origin.Origin))
+                for f in tri[1]:
+                    face_vert.extend([f[0]+idx,f[1]+idx,f[2]+idx,-1])
+                idx += len(tri[0])
+
+            #Set contour system.
+            self.face_coords.point.values = points
+            self.faces.coordIndex.values = face_vert
