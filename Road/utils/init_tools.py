@@ -35,6 +35,7 @@ def get_road_commands():
     return ["Road Create",
             "Structure Create",
             "Component Add",
+            "Component Designer",
             "Component Point",
             "Component Line",
             "Component Shape"]
