@@ -1,0 +1,3 @@
+[submodule "Road/externals/component_designer"]
+	path = Road/externals/component_designer
+	url = https://github.com/HakanSeven12/Component-Designer
