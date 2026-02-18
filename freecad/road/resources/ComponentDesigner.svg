@@ -1,0 +1,132 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <!-- Main background gradient: deep steel blue -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%"   stop-color="#1a2a3f"/>
+      <stop offset="100%" stop-color="#0d1a2e"/>
+    </linearGradient>
+
+    <!-- Node header gradient: steel blue accent -->
+    <linearGradient id="nodeGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%"   stop-color="#4682B4"/>
+      <stop offset="100%" stop-color="#2d5f8a"/>
+    </linearGradient>
+
+    <!-- Output port gradient: green -->
+    <linearGradient id="outGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%"   stop-color="#64c896"/>
+      <stop offset="100%" stop-color="#3da86e"/>
+    </linearGradient>
+
+    <!-- Input port gradient: orange -->
+    <linearGradient id="inGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%"   stop-color="#ff9640"/>
+      <stop offset="100%" stop-color="#e07020"/>
+    </linearGradient>
+
+    <!-- Wire glow -->
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="0.7" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- Subtle drop shadow for nodes -->
+    <filter id="shadow" x="-10%" y="-10%" width="130%" height="140%">
+      <feDropShadow dx="0.5" dy="1" stdDeviation="1.2" flood-color="#000" flood-opacity="0.45"/>
+    </filter>
+
+    <!-- Corner radius clip for background -->
+    <clipPath id="roundClip">
+      <rect x="0" y="0" width="64" height="64" rx="12" ry="12"/>
+    </clipPath>
+  </defs>
+
+  <!-- Background -->
+  <rect x="0" y="0" width="64" height="64" rx="12" ry="12" fill="url(#bgGrad)"/>
+
+  <!-- Subtle grid lines -->
+  <g clip-path="url(#roundClip)" opacity="0.08" stroke="#7aadcc" stroke-width="0.4">
+    <line x1="0"  y1="16" x2="64" y2="16"/>
+    <line x1="0"  y1="32" x2="64" y2="32"/>
+    <line x1="0"  y1="48" x2="64" y2="48"/>
+    <line x1="16" y1="0"  x2="16" y2="64"/>
+    <line x1="32" y1="0"  x2="32" y2="64"/>
+    <line x1="48" y1="0"  x2="48" y2="64"/>
+  </g>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- NODE A — top-left (Point node)              -->
+  <!-- ═══════════════════════════════════════════ -->
+  <g filter="url(#shadow)">
+    <!-- Node body -->
+    <rect x="5" y="8" width="24" height="18" rx="3" ry="3" fill="#1e3048" stroke="#4682B4" stroke-width="0.8"/>
+    <!-- Node header -->
+    <rect x="5" y="8" width="24" height="6" rx="3" ry="3" fill="url(#nodeGrad)"/>
+    <rect x="5" y="11" width="24" height="3" fill="url(#nodeGrad)"/>
+    <!-- Header text dots (simulate label) -->
+    <rect x="8"  y="10" width="8" height="1.5" rx="0.7" fill="white" opacity="0.85"/>
+    <!-- Port row: output dot on right -->
+    <circle cx="29" cy="20" r="2.2" fill="url(#outGrad)" stroke="#1e3048" stroke-width="0.5"/>
+    <!-- Small port label line -->
+    <rect x="8" y="18.5" width="10" height="1.2" rx="0.5" fill="#7aadcc" opacity="0.5"/>
+  </g>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- NODE B — bottom-left (Input node)           -->
+  <!-- ═══════════════════════════════════════════ -->
+  <g filter="url(#shadow)">
+    <rect x="5" y="38" width="22" height="16" rx="3" ry="3" fill="#1e3048" stroke="#4682B4" stroke-width="0.8"/>
+    <rect x="5" y="38" width="22" height="6" rx="3" ry="3" fill="url(#nodeGrad)"/>
+    <rect x="5" y="41" width="22" height="3" fill="url(#nodeGrad)"/>
+    <rect x="8"  y="40" width="7" height="1.5" rx="0.7" fill="white" opacity="0.85"/>
+    <!-- Output port -->
+    <circle cx="27" cy="48" r="2.2" fill="url(#outGrad)" stroke="#1e3048" stroke-width="0.5"/>
+    <rect x="8" y="46.5" width="9" height="1.2" rx="0.5" fill="#7aadcc" opacity="0.5"/>
+  </g>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- NODE C — right (Link node, wider)           -->
+  <!-- ═══════════════════════════════════════════ -->
+  <g filter="url(#shadow)">
+    <rect x="36" y="20" width="24" height="24" rx="3" ry="3" fill="#1e3048" stroke="#4682B4" stroke-width="0.8"/>
+    <rect x="36" y="20" width="24" height="6" rx="3" ry="3" fill="url(#nodeGrad)"/>
+    <rect x="36" y="23" width="24" height="3" fill="url(#nodeGrad)"/>
+    <rect x="39" y="22" width="9" height="1.5" rx="0.7" fill="white" opacity="0.85"/>
+    <!-- Two input ports on left -->
+    <circle cx="36" cy="31" r="2.2" fill="url(#inGrad)" stroke="#1e3048" stroke-width="0.5"/>
+    <circle cx="36" cy="38" r="2.2" fill="url(#inGrad)" stroke="#1e3048" stroke-width="0.5"/>
+    <!-- Port label lines -->
+    <rect x="40" y="30" width="9" height="1.2" rx="0.5" fill="#7aadcc" opacity="0.5"/>
+    <rect x="40" y="37" width="9" height="1.2" rx="0.5" fill="#7aadcc" opacity="0.5"/>
+    <!-- Output port on right -->
+    <circle cx="60" cy="34" r="2.2" fill="url(#outGrad)" stroke="#1e3048" stroke-width="0.5"/>
+  </g>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- CONNECTION WIRES                            -->
+  <!-- ═══════════════════════════════════════════ -->
+  <g filter="url(#glow)">
+    <!-- Wire: Node A output → Node C top input (cubic bezier) -->
+    <path d="M 29 20 C 32.5 20, 32.5 31, 36 31"
+          fill="none" stroke="#64c896" stroke-width="1.4"
+          stroke-linecap="round" opacity="0.9"/>
+
+    <!-- Wire: Node B output → Node C bottom input -->
+    <path d="M 27 48 C 31 48, 31 38, 36 38"
+          fill="none" stroke="#64c896" stroke-width="1.4"
+          stroke-linecap="round" opacity="0.9"/>
+  </g>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- ROAD CROSS-SECTION hint at bottom           -->
+  <!-- (subtle, small trapezoid = road layer)      -->
+  <!-- ═══════════════════════════════════════════ -->
+  <g opacity="0.25">
+    <polygon points="10,60 54,60 50,56 14,56" fill="#4682B4"/>
+    <polygon points="14,56 50,56 47,53 17,53" fill="#7aadcc"/>
+  </g>
+
+</svg>

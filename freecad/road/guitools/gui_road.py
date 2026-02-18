@@ -13,7 +13,7 @@ from ..make import (make_road,
                     make_component_shape)
 from ..utils.trackers import ViewTracker
 from ..tasks.task_selection import SingleSelection, SimpleComboBox
-#from modules.component_designer import component_designer
+from modules.component_designer import component_designer
 
 
 class RoadCreate:
@@ -136,8 +136,7 @@ class ComponentDesigner:
         return bool(FreeCADGui.ActiveDocument)
 
     def Activated(self):
-        #component_designer.main()
-        pass
+        component_designer.main()
 
 
 class ComponentPoint:
