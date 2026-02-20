@@ -1,3 +1,6 @@
 [submodule "modules/component_designer"]
 	path = modules/component_designer
 	url = https://github.com/HakanSeven12/Component-Designer
+[submodule "modules/landxml"]
+	path = modules/landxml
+	url = https://github.com/HakanSeven12/LandXML
