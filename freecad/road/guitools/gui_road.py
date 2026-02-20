@@ -132,9 +132,6 @@ class ComponentDesigner:
             "MenuText": "Component Designer",
             "ToolTip": "Node based component designer."}
 
-    def IsActive(self):
-        return bool(FreeCADGui.ActiveDocument)
-
     def Activated(self):
         mw = FreeCADGui.getMainWindow()
         window = designer(mw)
