@@ -13,7 +13,7 @@ from ..make import (make_road,
                     make_component_shape)
 from ..utils.trackers import ViewTracker
 from ..tasks.task_selection import SingleSelection, SimpleComboBox
-from modules.component_designer.main_window import ComponentDesigner as designer
+from modules.component_designer.widgets.main_window import ComponentDesigner as designer
 
 
 class RoadCreate:
