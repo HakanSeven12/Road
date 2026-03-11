@@ -1,0 +1,14 @@
+[project]
+name = "road"
+version = "0.1.0"
+description = "FreeCAD Road Workbench"
+readme = "README.md"
+
+requires-python = ">=3.12"
+
+dependencies = [
+    "freecad-stubs>=1.0.21",
+    "pyside6>=6.10.2",
+    "pyproj>=3.7.2",
+    "scipy>=1.17.0",
+]
