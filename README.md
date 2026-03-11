@@ -6,7 +6,6 @@ Road is the Transportation and Geomatics Engineering workbench for FreeCAD.
 
 ## Use with FreeCAD version 1.0 — there is a bug in version 1.1
 
-
 ## ✨ Features
 
 * Geopoints ✔️
@@ -15,7 +14,7 @@ Road is the Transportation and Geomatics Engineering workbench for FreeCAD.
 * Profile ✔️
 * Superelevation ❌
 * Structure ✔️
-* Component Designer ❌
+* Component Designer 🔄
 * Road ✔️
 * Region ✔️
 * Section ✔️
@@ -26,36 +25,12 @@ Road is the Transportation and Geomatics Engineering workbench for FreeCAD.
 * LandXML Exporter ❌
 
 ## 📥 Installation
-### 🔹 Option 1: Install via Addon Manager (Recommended)
 
 1. Open FreeCAD.
 2. Go to **Tools > Addon Manager**.
 3. In the Addon Manager window, search for **Road**.
 4. Select the workbench and click the **Install** button.
 5. Restart FreeCAD to complete the installation.
-
-### 🔹 Option 2: Manual Installation
-
-1. Download the latest release the repository.
-2. Copy the downloaded folder to your FreeCAD Mod directory:
-
-    ```
-    Windows: C:\Users\<YourUsername>\AppData\Roaming\FreeCAD\Mod
-    Linux(Flatpak): /home/<YourUsername>/.var/app/org.freecad.FreeCAD/data/FreeCAD/Mod
-    MacOS: ~/Library/Preferences/FreeCAD/Mod
-    ```
-
-3. Restart FreeCAD to complete the installation.
-
-## 💬 Feedback and Support
-
-💡 Need help? Join the discussion on the FreeCAD Forum: [FreeCAD Road Workbench](https://forum.freecadweb.org/viewtopic.php?f=8&t=34371).
-
-🐞 Found a bug? Report issues on [GitHub](https://github.com/HakanSeven12/Road/issues).
-
-## 👨‍💻 Developer
-
-Developed with passion by Hakan Seven ([@HakanSeven12](https://github.com/HakanSeven12)) with inspiration and contributions from the FreeCAD community.
 
 ## 📸 Tutorials
 [![Import Geodetic Survey Points to FreeCAD | Road Workbench](https://img.youtube.com/vi/lKOG7RPjchY/maxresdefault.jpg)](https://youtu.be/lKOG7RPjchY)
@@ -71,3 +46,12 @@ Developed with passion by Hakan Seven ([@HakanSeven12](https://github.com/HakanS
 ![Structure](https://github.com/user-attachments/assets/e1224ba8-4c80-4e4a-92bc-24d42024a67d)
 ![Road Model](https://github.com/user-attachments/assets/ef780b2d-c22a-4211-8bab-b413ca2c87ec)
 
+## 💬 Feedback and Support
+
+💡 Need help? Join the discussion on the FreeCAD Forum: [FreeCAD Road Workbench](https://forum.freecadweb.org/viewtopic.php?f=8&t=34371).
+
+🐞 Found a bug? Report issues on [GitHub](https://github.com/HakanSeven12/Road/issues).
+
+## 👨‍💻 Developer
+
+Developed with passion by Hakan Seven ([@HakanSeven12](https://github.com/HakanSeven12)) with inspiration and contributions from the FreeCAD community.
