@@ -53,9 +53,9 @@ class ViewProviderGroup:
 
     def dumps(self):
         """Called during document saving"""
-        return self.Icon
+        return self.icon
 
     def loads(self, state):
         """Called during document restore."""
         if state:
-            self.Icon = state
+            self.icon = state
