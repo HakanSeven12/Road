@@ -6,7 +6,7 @@ import FreeCAD
 from pivy import coin
 from .view_geo_object import ViewProviderGeoObject
 from ..utils.label_manager import LabelManager
-from ..utils.support import  zero_referance
+from ..utils.support import  zero_reference
 
 import math
 
@@ -212,7 +212,7 @@ class ViewProviderAlignment(ViewProviderGeoObject):
             for station in stations:
                 # Get point and direction from alignment
                 tuple_coord, tuple_vec = vobj.Object.Model.get_orthogonal_at_station(station, "left")
-                coord = zero_referance(vobj.Object.Model.get_start_point(), [tuple_coord])
+                coord = zero_reference(vobj.Object.Model.get_start_point(), [tuple_coord])
                 point = coord[0].add(vobj.Object.Placement.Base)
                 dir_vec = FreeCAD.Vector(*tuple_vec)
                 
